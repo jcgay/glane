@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jcgay/glane/internal/enrich"
 	"github.com/jcgay/glane/internal/store"
 	"github.com/jcgay/glane/internal/twitter"
 	"github.com/jcgay/glane/internal/web"
@@ -40,6 +41,8 @@ func main() {
 		cmdSearch(s, os.Args[2:])
 	case "serve":
 		cmdServe(s, os.Args[2:])
+	case "enrich":
+		cmdEnrich(s, os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n", os.Args[1])
 		os.Exit(2)
@@ -96,6 +99,17 @@ func cmdServe(s *store.Store, args []string) {
 	if err := web.Serve(s, addr); err != nil {
 		fatal(err)
 	}
+}
+
+func cmdEnrich(s *store.Store, args []string) {
+	fs := flag.NewFlagSet("enrich", flag.ExitOnError)
+	limit := fs.Int("limit", 100, "max items to fetch this run")
+	fs.Parse(args)
+	done, failed, err := enrich.Run(s, enrich.DefaultClient(), *limit)
+	if err != nil {
+		fatal(err)
+	}
+	fmt.Printf("enriched %d, failed %d\n", done, failed)
 }
 
 func trunc(s string, n int) string {
