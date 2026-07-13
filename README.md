@@ -8,8 +8,8 @@ indexes them (and the text of the articles they link to) for full-text search,
 and — when you point it at an embeddings endpoint — adds semantic search on top.
 Everything works offline with no model; the semantic layer is an optional bonus.
 
-Today it imports a **Twitter/X archive**; live connectors for Bluesky, Mastodon,
-and GitHub stars are planned (see [Roadmap](#roadmap)).
+It imports a **Twitter/X archive** and syncs your **GitHub stars**; live
+connectors for Bluesky and Mastodon are planned (see [Roadmap](#roadmap)).
 
 ## Requirements
 
@@ -44,6 +44,13 @@ This produces a self-contained `glane` binary (the web UI assets are embedded).
 
 Full-text search works immediately — no network, no model.
 
+To pull in a live source too:
+
+```sh
+export GITHUB_TOKEN=…     # a read-only token; often already set (gh CLI, CI)
+./glane sync github       # imports your stars (incremental on re-run)
+```
+
 ## Commands
 
 ### `glane import twitter <archive-dir>`
@@ -51,6 +58,24 @@ Imports a Twitter/X data export. Point it at the top-level export folder (the on
 containing `data/like.js` and `data/tweets.js`). Likes, your own tweets, and
 reposts are all indexed. Re-running is safe — items are deduplicated on their
 source id.
+
+### `glane sync github`
+Syncs your GitHub stars into the index. Requires a token in the `GITHUB_TOKEN`
+environment variable (a read-only classic token is enough for public stars; the
+conventional name means an already-exported token from the `gh` CLI or CI just
+works).
+
+```sh
+export GITHUB_TOKEN=…
+./glane sync github
+```
+
+- First run backfills every star; later runs are **incremental** — a persistent
+  per-source cursor means only newly-starred repos are fetched.
+- Safe to re-run: the cursor only advances after a fully successful sync, so an
+  interrupted run just re-fetches next time (imports are deduplicated).
+- Each star is stored with `--source github` and its `starred_at` date (so
+  `--since` works). Run `enrich` afterwards to pull in each repo's page content.
 
 ### `glane search <query> [flags]`
 Searches the index. **The query comes first** (multiple words are fine unquoted);
@@ -141,6 +166,16 @@ State lives in one SQLite file. By default:
 
 Override it with `GLANE_DB=/path/to/glane.db`. Delete the file to start over.
 
+## Environment variables
+
+| Variable | Used by | Meaning |
+|----------|---------|---------|
+| `GLANE_DB` | all | SQLite file path (default `~/.local/share/glane/glane.db`) |
+| `GITHUB_TOKEN` | `sync github` | GitHub token (read-only is enough) |
+| `GLANE_EMBED_URL` | `search`, `enrich` | OpenAI-compatible embeddings base URL; unset → semantic disabled |
+| `GLANE_EMBED_MODEL` | `search`, `enrich` | Embedding model name |
+| `GLANE_EMBED_KEY` | `search`, `enrich` | Embeddings API key; omit for local endpoints |
+
 ## How it works
 
 - **Storage** — SQLite with an FTS5 mirror kept in sync by triggers, plus a table
@@ -152,11 +187,13 @@ Override it with `GLANE_DB=/path/to/glane.db`. Delete the file to start over.
 
 ## Roadmap
 
-The searchable core (Twitter import, full-text + semantic search, web UI, link
-enrichment) is done. Planned next:
+Done: the searchable core (Twitter import, full-text + semantic search, web UI,
+link enrichment) and the GitHub stars connector with its reusable sync
+framework. Planned next:
 
-- Live sync connectors: `sync github | mastodon | bluesky` with per-source cursors
+- Live sync connectors for Bluesky and Mastodon (reusing the sync framework)
+- `sync all` once a second connector lands
 - Optional LLM article summaries
-- A documented cron/launchd entry for `sync all`
+- A documented cron/launchd entry for scheduled syncing
 
 Design and implementation notes live in `docs/superpowers/`.
