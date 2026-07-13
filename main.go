@@ -94,7 +94,7 @@ func cmdSearch(s *store.Store, args []string) {
 	// Any failure here (no endpoint, network error, no stored vectors) falls
 	// back silently to FTS-only results.
 	if c := embed.FromEnv(); c != nil {
-		if sem := semanticResults(s, c, query); sem != nil {
+		if sem := semanticResults(s, c, query, filter); sem != nil {
 			results = fuse(s, ftsRes, sem, *limit)
 		}
 	}
@@ -104,12 +104,12 @@ func cmdSearch(s *store.Store, args []string) {
 	fmt.Printf("(%d results)\n", len(results))
 }
 
-func semanticResults(s *store.Store, c *embed.Client, q string) []int64 {
+func semanticResults(s *store.Store, c *embed.Client, q string, f store.Filter) []int64 {
 	qv, err := c.Embed(context.Background(), []string{q})
 	if err != nil || len(qv) == 0 {
 		return nil // fail soft to FTS only
 	}
-	embs, err := s.AllEmbeddings(c.Model)
+	embs, err := s.AllEmbeddings(c.Model, f)
 	if err != nil || len(embs) == 0 {
 		return nil
 	}
@@ -125,7 +125,10 @@ func fuse(s *store.Store, fts []store.Result, semIDs []int64, limit int) []store
 	if limit > 0 && len(fused) > limit {
 		fused = fused[:limit]
 	}
-	items, _ := s.GetItems(fused)
+	items, err := s.GetItems(fused)
+	if err != nil {
+		return fts // DB error: fall back to full-text results rather than showing nothing
+	}
 	out := make([]store.Result, 0, len(fused))
 	for _, id := range fused {
 		if it, ok := items[id]; ok {

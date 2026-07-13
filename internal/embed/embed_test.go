@@ -22,3 +22,16 @@ func TestEmbedParsesOpenAIShape(t *testing.T) {
 		t.Fatalf("bad parse: %v", vecs)
 	}
 }
+
+func TestEmbedReturnsErrorOnNon200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "boom", 500)
+	}))
+	defer srv.Close()
+
+	c := &Client{BaseURL: srv.URL, Model: "m", HTTP: srv.Client()}
+	_, err := c.Embed(context.Background(), []string{"hi"})
+	if err == nil {
+		t.Fatal("expected error on non-200 response")
+	}
+}

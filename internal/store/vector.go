@@ -13,8 +13,20 @@ func (s *Store) SaveEmbedding(id int64, model string, v []float32) error {
 	return err
 }
 
-func (s *Store) AllEmbeddings(model string) ([]Embedded, error) {
-	rows, err := s.db.Query(`SELECT item_id, vector FROM embeddings WHERE model = ?`, model)
+func (s *Store) AllEmbeddings(model string, f Filter) ([]Embedded, error) {
+	sql := `SELECT e.item_id, e.vector FROM embeddings e
+		JOIN items i ON i.id = e.item_id
+		WHERE e.model = ?`
+	args := []any{model}
+	if f.Source != "" {
+		sql += " AND i.source = ?"
+		args = append(args, f.Source)
+	}
+	if f.Since > 0 {
+		sql += " AND i.created_at >= ?"
+		args = append(args, f.Since)
+	}
+	rows, err := s.db.Query(sql, args...)
 	if err != nil {
 		return nil, err
 	}
