@@ -66,10 +66,7 @@ func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int) (int, in
 			return done, failed, err
 		}
 		if e.Status == "ok" && emb != nil {
-			text := e.Title + "\n" + e.Text
-			if len(text) > 2000 {
-				text = text[:2000]
-			}
+			text := cutRunes(e.Title+"\n"+e.Text, 2000)
 			if vecs, verr := emb.Embed(context.Background(), []string{text}); verr == nil && len(vecs) > 0 {
 				_ = s.SaveEmbedding(it.ID, emb.Model, vecs[0])
 			}
@@ -80,3 +77,12 @@ func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int) (int, in
 
 // DefaultClient is a link fetcher that gives up quickly on dead links.
 func DefaultClient() *http.Client { return &http.Client{Timeout: 15 * time.Second} }
+
+// cutRunes truncates s to at most n runes, never splitting a multibyte rune.
+func cutRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
+}

@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	gembed "github.com/jcgay/glane/internal/embed"
+	"github.com/jcgay/glane/internal/search"
 	"github.com/jcgay/glane/internal/store"
 )
 
@@ -34,7 +36,7 @@ func handler(s *store.Store) http.Handler {
 			w.Write([]byte(""))
 			return
 		}
-		res, err := s.SearchFTS(q, store.Filter{Source: r.URL.Query().Get("source")})
+		res, err := search.Hybrid(s, gembed.FromEnv(), q, store.Filter{Source: r.URL.Query().Get("source"), Limit: 50})
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return

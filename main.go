@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/jcgay/glane/internal/embed"
 	"github.com/jcgay/glane/internal/enrich"
@@ -79,63 +79,39 @@ func cmdSearch(s *store.Store, args []string) {
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 	source := fs.String("source", "", "filter by source")
 	limit := fs.Int("limit", 20, "max results")
+	since := fs.String("since", "", "only items on/after this date (YYYY or YYYY-MM-DD)")
 	fs.Parse(flagArgs)
 	if query == "" {
-		fatal(fmt.Errorf("usage: glane search <query> [--source X] [--limit N]  (flags after the query)"))
+		fatal(fmt.Errorf("usage: glane search <query> [--source X] [--limit N] [--since YYYY[-MM-DD]]  (flags after the query)"))
 	}
-	filter := store.Filter{Source: *source, Limit: *limit}
-	ftsRes, err := s.SearchFTS(query, filter)
+	sinceTs, err := parseSince(*since)
 	if err != nil {
 		fatal(err)
 	}
+	filter := store.Filter{Source: *source, Limit: *limit, Since: sinceTs}
 
-	results := ftsRes
-	// Optional semantic layer, fused via RRF when an embeddings endpoint exists.
-	// Any failure here (no endpoint, network error, no stored vectors) falls
-	// back silently to FTS-only results.
-	if c := embed.FromEnv(); c != nil {
-		if sem := semanticResults(s, c, query, filter); sem != nil {
-			results = fuse(s, ftsRes, sem, *limit)
-		}
+	res, err := search.Hybrid(s, embed.FromEnv(), query, filter)
+	if err != nil {
+		fatal(err)
 	}
-	for _, r := range results {
+	for _, r := range res {
 		fmt.Printf("[%s/%s] %s\n    %s\n", r.Source, r.Kind, trunc(r.Text, 120), r.URL)
 	}
-	fmt.Printf("(%d results)\n", len(results))
+	fmt.Printf("(%d results)\n", len(res))
 }
 
-func semanticResults(s *store.Store, c *embed.Client, q string, f store.Filter) []int64 {
-	qv, err := c.Embed(context.Background(), []string{q})
-	if err != nil || len(qv) == 0 {
-		return nil // fail soft to FTS only
+// parseSince converts "YYYY" or "YYYY-MM-DD" to a Unix timestamp (start of that day/year).
+func parseSince(v string) (int64, error) {
+	if v == "" {
+		return 0, nil
 	}
-	embs, err := s.AllEmbeddings(c.Model, f)
-	if err != nil || len(embs) == 0 {
-		return nil
+	if t, err := time.Parse("2006-01-02", v); err == nil {
+		return t.Unix(), nil
 	}
-	return search.SemanticIDs(qv[0], embs, 100)
-}
-
-func fuse(s *store.Store, fts []store.Result, semIDs []int64, limit int) []store.Result {
-	ftsIDs := make([]int64, len(fts))
-	for i, r := range fts {
-		ftsIDs[i] = r.ID
+	if t, err := time.Parse("2006", v); err == nil {
+		return t.Unix(), nil
 	}
-	fused := search.RRF([][]int64{ftsIDs, semIDs}, 60)
-	if limit > 0 && len(fused) > limit {
-		fused = fused[:limit]
-	}
-	items, err := s.GetItems(fused)
-	if err != nil {
-		return fts // DB error: fall back to full-text results rather than showing nothing
-	}
-	out := make([]store.Result, 0, len(fused))
-	for _, id := range fused {
-		if it, ok := items[id]; ok {
-			out = append(out, store.Result{Item: it})
-		}
-	}
-	return out
+	return 0, fmt.Errorf("invalid --since %q (want YYYY or YYYY-MM-DD)", v)
 }
 
 func cmdServe(s *store.Store, args []string) {
@@ -164,7 +140,16 @@ func trunc(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n] + "…"
+	return cutRunes(s, n) + "…"
+}
+
+// cutRunes truncates s to at most n runes, never splitting a multibyte rune.
+func cutRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
 }
 
 func fatal(err error) {
