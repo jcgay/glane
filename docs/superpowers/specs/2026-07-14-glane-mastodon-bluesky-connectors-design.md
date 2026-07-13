@@ -63,13 +63,19 @@ Config : `GLANE_MASTODON_URL` (base de l'instance, ex. `https://mastodon.social`
 synchronise les DEUX flux (favoris puis marque-pages) et renvoie le total importé.
 
 Pour chaque flux (`GET {base}/api/v1/favourites`, `GET {base}/api/v1/bookmarks`)
-avec `Authorization: Bearer <token>` :
+avec `Authorization: Bearer <token>` (scopes `read:favourites` / `read:bookmarks`) :
 
-- Pagination via l'en-tête **`Link`** : suivre l'URL `rel="next"` jusqu'à absence
-  de `next`.
-- Incrémental : lire le curseur du flux ; si non vide, ajouter `?min_id=<cursor>`
-  à la première requête pour ne récupérer que les items plus récents. Sinon,
-  backfill complet.
+- Pagination via l'en-tête **`Link`** : suivre telle quelle l'URL `rel="next"`
+  jusqu'à absence de `next`. **Important (vérifié dans la doc)** : les `max_id`/
+  `min_id` de l'en-tête `Link` de ces endpoints sont des **ids de Favourite
+  internes opaques**, PAS des ids de statut — donc on ne construit jamais
+  `?min_id=<status.id>` soi-même ; on suit uniquement les liens pré-construits.
+- Incrémental : on utilise l'`id` du **statut** (lui, exposé et comparable) pour
+  savoir où s'arrêter. Lire le curseur du flux ; paginer du plus récent au plus
+  ancien via les liens `next` et **s'arrêter dès qu'un statut a un `id` ≤ curseur**
+  (comparaison numérique : les ids Mastodon sont des entiers snowflake encodés en
+  chaîne ; parser en `int64` — si non numérique, repli sur arrêt à l'égalité
+  stricte). Curseur vide → backfill complet.
 - Après succès du flux : `SetCursor(<clé du flux>, <id du statut le plus récent
   vu>)`. Les items Mastodon reviennent du plus récent au plus ancien ; le plus
   récent est le premier de la première page.
@@ -102,8 +108,11 @@ pas le mot de passe principal).
   `{identifier: handle, password: appPassword}` → `accessJwt` (+ `did`). Base
   PDS par défaut `https://bsky.social`.
 - `GET {pds}/xrpc/app.bsky.feed.getActorLikes?actor=<handle>&limit=100&cursor=…`
-  avec `Authorization: Bearer <accessJwt>` ; pagination via le champ `cursor`
-  opaque de la réponse jusqu'à absence de `cursor`.
+  avec `Authorization: Bearer <accessJwt>` (endpoint **authentifié** ; `actor`
+  doit être le compte appelant) ; pagination via le champ `cursor` opaque de la
+  réponse jusqu'à absence de `cursor`. Réponse : `{ feed: [{ post: {...} }],
+  cursor }` — chaque `feed[i].post` est un `postView` (`uri`, `cid`, `author`,
+  `record`, `indexedAt`).
 - Incrémental : les likes reviennent du plus récent au plus ancien. Lire le
   curseur (`bluesky:likes` = AT-URI du post liké le plus récent au run
   précédent) ; **arrêter la pagination dès qu'on rencontre ce URI**. S'il
@@ -170,14 +179,25 @@ une regex `<[^>]*>` puis décoder les entités avec `html.UnescapeString` — on
 rend pas le HTML, on produit juste du texte cherchable, donc une suppression
 naïve suffit.
 
-## Note d'implémentation
+## Note d'implémentation — API vérifiées
 
-Les détails précis des API (forme exacte des réponses `favourites`/`bookmarks`,
-en-tête `Link` de Mastodon, forme de `getActorLikes`, sémantique de `min_id`)
-seront **vérifiés contre la doc courante avant de coder** (au besoin via une
-recherche web) plutôt que supposés. L'idempotence de l'`Upsert` couvre les écarts
-d'incrémental, mais le mapping des champs doit correspondre à la vraie forme des
-réponses.
+Détails confirmés contre la doc officielle le 2026-07-14 :
+
+- **Mastodon `/api/v1/favourites` & `/bookmarks`** (docs.joinmastodon.org) :
+  renvoient un tableau de Status ; pagination par en-tête `Link`
+  (`rel="next"`/`rel="prev"`). Les ids `max_id`/`min_id` du `Link` sont des ids
+  de Favourite **internes opaques**, pas des ids de statut → suivre les liens
+  pré-construits, ne pas les fabriquer. L'`id` du statut, lui, est exposé et sert
+  d'ancre d'arrêt incrémental.
+- **Bluesky** (lexicons atproto) : `com.atproto.server.createSession` prend
+  `{identifier, password}` et renvoie `{accessJwt, refreshJwt, handle, did}`.
+  `app.bsky.feed.getActorLikes` (auth requise, `actor` = compte appelant) prend
+  `actor`/`limit`(1–100)/`cursor` et renvoie `{feed: [feedViewPost], cursor}` ;
+  `feedViewPost.post` = `postView` (`uri`, `cid`, `author` = `profileViewBasic`
+  avec `did`/`handle`/`displayName`, `record` = objet ouvert contenant
+  `app.bsky.feed.post` avec `text`/`createdAt`, `indexedAt`).
+
+L'idempotence de l'`Upsert` reste le filet pour tout écart d'incrémental.
 
 ## Ordre de construction
 
