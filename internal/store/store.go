@@ -71,6 +71,12 @@ CREATE TABLE IF NOT EXISTS embeddings (
   vector BLOB NOT NULL,
   PRIMARY KEY (item_id, model)
 );
+
+CREATE TABLE IF NOT EXISTS sync_state (
+  source TEXT PRIMARY KEY,
+  cursor TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL DEFAULT 0
+);
 `
 
 func Open(path string) (*Store, error) {
