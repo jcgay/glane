@@ -109,6 +109,8 @@ func Sync(s *store.Store, token string, hc *http.Client) (int, error) {
 		}
 	}
 
+	// ponytail: full backfill accumulates all new stars in memory before one Upsert;
+	// fine for a personal account. Stream per-page if star counts ever grow large.
 	if len(items) > 0 {
 		if _, err := s.Upsert(items); err != nil {
 			return 0, err

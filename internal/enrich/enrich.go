@@ -40,9 +40,16 @@ func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int) (int, in
 	}
 	var done, failed int
 	for _, it := range items {
-		link := FirstURL(it.Text)
-		if link == "" {
+		// The useful link is source-dependent: for GitHub stars it's the repo page
+		// (it.URL); for Twitter the real article link lives in the post text (the t.co).
+		var link string
+		if it.Source == "github" {
 			link = it.URL
+		} else {
+			link = FirstURL(it.Text)
+			if link == "" {
+				link = it.URL
+			}
 		}
 		e := Enrichment{LinkURL: link, Status: "failed"}
 

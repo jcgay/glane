@@ -111,4 +111,7 @@ func TestSyncAuthFailure(t *testing.T) {
 	if _, err := Sync(s, "tok", srv.Client()); err == nil {
 		t.Fatal("expected auth error, got nil")
 	}
+	if cur, _ := s.GetCursor("github"); cur != "" {
+		t.Fatalf("cursor must not advance on auth failure, got %q", cur)
+	}
 }

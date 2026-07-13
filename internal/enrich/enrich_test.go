@@ -91,3 +91,43 @@ func TestRunIsolatesFailures(t *testing.T) {
 		t.Fatalf("expected failed item B to still be searchable by its own text, got %d hits", len(failedHits))
 	}
 }
+
+// TestRunGithubFetchesRepoURL pins down that for github items, Run fetches
+// it.URL (the starred repo page), not a URL buried in it.Text. Descriptions
+// often contain an unrelated project homepage; fetching that would be
+// nondeterministic and contrary to intent.
+func TestRunGithubFetchesRepoURL(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/repo" {
+			w.Write([]byte(`<html><head><title>Repo</title></head><body><article><p>readme content kubernetes operators</p></article></body></html>`))
+			return
+		}
+		http.Error(w, "nope", 500)
+	}))
+	defer srv.Close()
+
+	s, err := store.Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	items := []store.Item{
+		{Source: "github", SourceID: "1", Kind: "star", URL: srv.URL + "/repo", Text: "owner/repo — see https://example.com/homepage"},
+	}
+	if _, err := s.Upsert(items); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := Run(s, srv.Client(), nil, 10); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	hits, err := s.SearchFTS("readme", store.Filter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) < 1 {
+		t.Fatalf("expected repo page to be fetched (found via 'readme'), got %d hits", len(hits))
+	}
+}
