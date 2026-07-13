@@ -64,7 +64,7 @@ func TestRunIsolatesFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	done, failed, err := Run(s, srv.Client(), 10)
+	done, failed, err := Run(s, srv.Client(), nil, 10)
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}

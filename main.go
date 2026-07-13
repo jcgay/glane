@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/jcgay/glane/internal/embed"
 	"github.com/jcgay/glane/internal/enrich"
+	"github.com/jcgay/glane/internal/search"
 	"github.com/jcgay/glane/internal/store"
 	"github.com/jcgay/glane/internal/twitter"
 	"github.com/jcgay/glane/internal/web"
@@ -80,14 +83,56 @@ func cmdSearch(s *store.Store, args []string) {
 	if query == "" {
 		fatal(fmt.Errorf("usage: glane search <query> [--source X] [--limit N]  (flags after the query)"))
 	}
-	res, err := s.SearchFTS(query, store.Filter{Source: *source, Limit: *limit})
+	filter := store.Filter{Source: *source, Limit: *limit}
+	ftsRes, err := s.SearchFTS(query, filter)
 	if err != nil {
 		fatal(err)
 	}
-	for _, r := range res {
+
+	results := ftsRes
+	// Optional semantic layer, fused via RRF when an embeddings endpoint exists.
+	// Any failure here (no endpoint, network error, no stored vectors) falls
+	// back silently to FTS-only results.
+	if c := embed.FromEnv(); c != nil {
+		if sem := semanticResults(s, c, query); sem != nil {
+			results = fuse(s, ftsRes, sem, *limit)
+		}
+	}
+	for _, r := range results {
 		fmt.Printf("[%s/%s] %s\n    %s\n", r.Source, r.Kind, trunc(r.Text, 120), r.URL)
 	}
-	fmt.Printf("(%d results)\n", len(res))
+	fmt.Printf("(%d results)\n", len(results))
+}
+
+func semanticResults(s *store.Store, c *embed.Client, q string) []int64 {
+	qv, err := c.Embed(context.Background(), []string{q})
+	if err != nil || len(qv) == 0 {
+		return nil // fail soft to FTS only
+	}
+	embs, err := s.AllEmbeddings(c.Model)
+	if err != nil || len(embs) == 0 {
+		return nil
+	}
+	return search.SemanticIDs(qv[0], embs, 100)
+}
+
+func fuse(s *store.Store, fts []store.Result, semIDs []int64, limit int) []store.Result {
+	ftsIDs := make([]int64, len(fts))
+	for i, r := range fts {
+		ftsIDs[i] = r.ID
+	}
+	fused := search.RRF([][]int64{ftsIDs, semIDs}, 60)
+	if limit > 0 && len(fused) > limit {
+		fused = fused[:limit]
+	}
+	items, _ := s.GetItems(fused)
+	out := make([]store.Result, 0, len(fused))
+	for _, id := range fused {
+		if it, ok := items[id]; ok {
+			out = append(out, store.Result{Item: it})
+		}
+	}
+	return out
 }
 
 func cmdServe(s *store.Store, args []string) {
@@ -105,7 +150,7 @@ func cmdEnrich(s *store.Store, args []string) {
 	fs := flag.NewFlagSet("enrich", flag.ExitOnError)
 	limit := fs.Int("limit", 100, "max items to fetch this run")
 	fs.Parse(args)
-	done, failed, err := enrich.Run(s, enrich.DefaultClient(), *limit)
+	done, failed, err := enrich.Run(s, enrich.DefaultClient(), embed.FromEnv(), *limit)
 	if err != nil {
 		fatal(err)
 	}
