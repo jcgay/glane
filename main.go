@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/jcgay/glane/internal/embed"
 	"github.com/jcgay/glane/internal/enrich"
+	"github.com/jcgay/glane/internal/github"
 	"github.com/jcgay/glane/internal/search"
 	"github.com/jcgay/glane/internal/store"
 	"github.com/jcgay/glane/internal/twitter"
@@ -28,7 +30,7 @@ func dbPath() string {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: glane <import|search|serve|enrich> ...")
+		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|serve> ...")
 		os.Exit(2)
 	}
 	s, err := store.Open(dbPath())
@@ -40,6 +42,8 @@ func main() {
 	switch os.Args[1] {
 	case "import":
 		cmdImport(s, os.Args[2:])
+	case "sync":
+		cmdSync(s, os.Args[2:])
 	case "search":
 		cmdSearch(s, os.Args[2:])
 	case "serve":
@@ -61,6 +65,26 @@ func cmdImport(s *store.Store, args []string) {
 		fatal(err)
 	}
 	fmt.Printf("imported %d likes, %d tweets\n", likes, tweets)
+}
+
+func cmdSync(s *store.Store, args []string) {
+	if len(args) < 1 {
+		fatal(fmt.Errorf("usage: glane sync <github>"))
+	}
+	switch args[0] {
+	case "github":
+		token := os.Getenv("GITHUB_TOKEN")
+		if token == "" {
+			fatal(fmt.Errorf("set GITHUB_TOKEN to sync GitHub stars"))
+		}
+		n, err := github.Sync(s, token, &http.Client{Timeout: 30 * time.Second})
+		if err != nil {
+			fatal(err)
+		}
+		fmt.Printf("synced %d new stars\n", n)
+	default:
+		fatal(fmt.Errorf("unknown sync source %q (known: github)", args[0]))
+	}
 }
 
 // splitQueryArgs separates a leading multi-word query from trailing flags.
