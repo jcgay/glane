@@ -1,0 +1,9 @@
+{{range .}}
+<div class="hit">
+  <span class="badge">{{.Source}}/{{.Kind}}</span>
+  <div>{{if .ArticleTitle}}<strong>{{.ArticleTitle}}</strong> — {{end}}{{.Text}}</div>
+  {{if .URL}}<a href="{{.URL}}" target="_blank" rel="noreferrer">{{.URL}}</a>{{end}}
+</div>
+{{else}}
+<p>Aucun résultat.</p>
+{{end}}

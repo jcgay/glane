@@ -9,6 +9,7 @@ import (
 
 	"github.com/jcgay/glane/internal/store"
 	"github.com/jcgay/glane/internal/twitter"
+	"github.com/jcgay/glane/internal/web"
 )
 
 func dbPath() string {
@@ -37,6 +38,8 @@ func main() {
 		cmdImport(s, os.Args[2:])
 	case "search":
 		cmdSearch(s, os.Args[2:])
+	case "serve":
+		cmdServe(s, os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n", os.Args[1])
 		os.Exit(2)
@@ -82,6 +85,17 @@ func cmdSearch(s *store.Store, args []string) {
 		fmt.Printf("[%s/%s] %s\n    %s\n", r.Source, r.Kind, trunc(r.Text, 120), r.URL)
 	}
 	fmt.Printf("(%d results)\n", len(res))
+}
+
+func cmdServe(s *store.Store, args []string) {
+	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+	port := fs.Int("port", 8080, "listen port")
+	fs.Parse(args)
+	addr := fmt.Sprintf("127.0.0.1:%d", *port)
+	fmt.Printf("glane serving on http://%s\n", addr)
+	if err := web.Serve(s, addr); err != nil {
+		fatal(err)
+	}
 }
 
 func trunc(s string, n int) string {

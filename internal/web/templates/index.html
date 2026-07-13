@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>glane</title>
+  <script src="/static/htmx.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
+    input, select { font-size: 1rem; padding: .4rem; }
+    .hit { border-bottom: 1px solid #ddd; padding: .6rem 0; }
+    .badge { font-size: .75rem; background: #eee; border-radius: .3rem; padding: .1rem .4rem; }
+    a { color: #06c; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>glane</h1>
+  <input type="search" name="q" placeholder="Rechercher…" autofocus
+         hx-get="/search" hx-trigger="input changed delay:300ms, search"
+         hx-target="#results" hx-include="[name='source']">
+  <select name="source" hx-get="/search" hx-target="#results" hx-include="[name='q']">
+    <option value="">toutes sources</option>
+    <option value="twitter">twitter</option>
+    <option value="bluesky">bluesky</option>
+    <option value="mastodon">mastodon</option>
+    <option value="github">github</option>
+  </select>
+  <div id="results"></div>
+</body>
+</html>
