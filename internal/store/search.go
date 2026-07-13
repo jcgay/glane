@@ -27,6 +27,10 @@ func sanitizeFTS(query string) string {
 }
 
 func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
+	match := sanitizeFTS(query)
+	if match == "" {
+		return nil, nil // empty/whitespace query: no results, not an error
+	}
 	if f.Limit <= 0 {
 		f.Limit = 20
 	}
@@ -36,7 +40,7 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 		       bm25(items_fts) AS score
 		FROM items_fts JOIN items i ON i.id = items_fts.rowid
 		WHERE items_fts MATCH ?`
-	args := []any{sanitizeFTS(query)}
+	args := []any{match}
 	if f.Source != "" {
 		sql += " AND i.source = ?"
 		args = append(args, f.Source)

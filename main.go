@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/jcgay/glane/internal/store"
 	"github.com/jcgay/glane/internal/twitter"
@@ -53,17 +54,27 @@ func cmdImport(s *store.Store, args []string) {
 	fmt.Printf("imported %d likes, %d tweets\n", likes, tweets)
 }
 
+// splitQueryArgs separates a leading multi-word query from trailing flags.
+// The query is all args up to the first "-"-prefixed token; the remainder are
+// flag args. Multi-word queries work unquoted; flags must come after the query.
+func splitQueryArgs(args []string) (query string, flagArgs []string) {
+	i := 0
+	for i < len(args) && !strings.HasPrefix(args[i], "-") {
+		i++
+	}
+	return strings.Join(args[:i], " "), args[i:]
+}
+
 func cmdSearch(s *store.Store, args []string) {
+	query, flagArgs := splitQueryArgs(args)
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 	source := fs.String("source", "", "filter by source")
 	limit := fs.Int("limit", 20, "max results")
-	fs.Parse(args)
-	if fs.NArg() == 0 {
-		fatal(fmt.Errorf("usage: glane search <query> [--source] [--limit]"))
+	fs.Parse(flagArgs)
+	if query == "" {
+		fatal(fmt.Errorf("usage: glane search <query> [--source X] [--limit N]  (flags after the query)"))
 	}
-	q := fs.Arg(0)
-	fs.Parse(fs.Args()[1:]) // pick up flags placed after the query
-	res, err := s.SearchFTS(q, store.Filter{Source: *source, Limit: *limit})
+	res, err := s.SearchFTS(query, store.Filter{Source: *source, Limit: *limit})
 	if err != nil {
 		fatal(err)
 	}

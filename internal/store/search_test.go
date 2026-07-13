@@ -28,6 +28,24 @@ func TestSearchFTSMatchesAndFilters(t *testing.T) {
 	}
 }
 
+func TestSearchFTSEmptyQuery(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	s.Upsert([]Item{
+		{Source: "twitter", SourceID: "1", Kind: "like", Text: "cold start of aws lambda"},
+	})
+
+	res, err := s.SearchFTS("", Filter{})
+	if err != nil || res != nil {
+		t.Fatalf("empty query: want (nil, nil), got (%v, %v)", res, err)
+	}
+
+	res, err = s.SearchFTS("   ", Filter{})
+	if err != nil || res != nil {
+		t.Fatalf("whitespace query: want (nil, nil), got (%v, %v)", res, err)
+	}
+}
+
 func TestSearchFTSHandlesSpecialChars(t *testing.T) {
 	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()
