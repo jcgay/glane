@@ -3,6 +3,7 @@ package web
 import (
 	"embed"
 	"html/template"
+	"log"
 	"net/http"
 
 	"github.com/jcgay/glane/internal/store"
@@ -22,7 +23,9 @@ func handler(s *store.Store) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		tmpl.ExecuteTemplate(w, "index.html", nil)
+		if err := tmpl.ExecuteTemplate(w, "index.html", nil); err != nil {
+			log.Printf("glane: render index.html: %v", err)
+		}
 	})
 
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +39,9 @@ func handler(s *store.Store) http.Handler {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		tmpl.ExecuteTemplate(w, "results.html", res)
+		if err := tmpl.ExecuteTemplate(w, "results.html", res); err != nil {
+			log.Printf("glane: render results.html: %v", err)
+		}
 	})
 	return mux
 }
