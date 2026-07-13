@@ -41,3 +41,43 @@ func TestVecRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestForeignKeysCascade(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	// Insert an item.
+	it := Item{Source: "test", SourceID: "123", Kind: "doc", Text: "test item"}
+	if _, err := s.Upsert([]Item{it}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Get the item's id.
+	var itemID int64
+	if err := s.db.QueryRow(`SELECT id FROM items WHERE source = ? AND source_id = ?`, it.Source, it.SourceID).Scan(&itemID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Insert an embedding for this item.
+	vec := encodeVec([]float32{0.1, 0.2, 0.3})
+	if _, err := s.db.Exec(`INSERT INTO embeddings (item_id, model, vector) VALUES (?, ?, ?)`, itemID, "test-model", vec); err != nil {
+		t.Fatal(err)
+	}
+
+	// Delete the item; cascade should delete its embeddings.
+	if _, err := s.db.Exec(`DELETE FROM items WHERE id = ?`, itemID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify no embeddings remain.
+	var count int
+	if err := s.db.QueryRow(`SELECT count(*) FROM embeddings`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 embeddings after cascade delete, got %d", count)
+	}
+}
