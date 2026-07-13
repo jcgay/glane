@@ -61,7 +61,9 @@ func cmdSearch(s *store.Store, args []string) {
 	if fs.NArg() == 0 {
 		fatal(fmt.Errorf("usage: glane search <query> [--source] [--limit]"))
 	}
-	res, err := s.SearchFTS(fs.Arg(0), store.Filter{Source: *source, Limit: *limit})
+	q := fs.Arg(0)
+	fs.Parse(fs.Args()[1:]) // pick up flags placed after the query
+	res, err := s.SearchFTS(q, store.Filter{Source: *source, Limit: *limit})
 	if err != nil {
 		fatal(err)
 	}

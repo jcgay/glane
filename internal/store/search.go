@@ -13,6 +13,19 @@ type Result struct {
 	Score float64
 }
 
+// sanitizeFTS turns an arbitrary user query into a safe FTS5 MATCH expression:
+// each whitespace-separated token becomes a double-quoted string (internal
+// double-quotes doubled), so special characters are treated literally and the
+// tokens are ANDed. Empty input yields "" (caller should treat as no query).
+func sanitizeFTS(query string) string {
+	fields := strings.Fields(query)
+	quoted := make([]string, 0, len(fields))
+	for _, f := range fields {
+		quoted = append(quoted, `"`+strings.ReplaceAll(f, `"`, `""`)+`"`)
+	}
+	return strings.Join(quoted, " ")
+}
+
 func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 	if f.Limit <= 0 {
 		f.Limit = 20
@@ -23,7 +36,7 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 		       bm25(items_fts) AS score
 		FROM items_fts JOIN items i ON i.id = items_fts.rowid
 		WHERE items_fts MATCH ?`
-	args := []any{query}
+	args := []any{sanitizeFTS(query)}
 	if f.Source != "" {
 		sql += " AND i.source = ?"
 		args = append(args, f.Source)

@@ -27,3 +27,24 @@ func TestSearchFTSMatchesAndFilters(t *testing.T) {
 		t.Fatalf("source filter failed: %+v", res)
 	}
 }
+
+func TestSearchFTSHandlesSpecialChars(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	s.Upsert([]Item{
+		{Source: "twitter", SourceID: "1", Kind: "like", Text: "learning c++ templates"},
+	})
+
+	res, err := s.SearchFTS("c++", Filter{})
+	if err != nil {
+		t.Fatalf("c++ query should not error: %v", err)
+	}
+	if len(res) < 1 {
+		t.Fatalf("want at least 1 hit for c++, got %d", len(res))
+	}
+
+	_, err = s.SearchFTS(`a "quote`, Filter{})
+	if err != nil {
+		t.Fatalf("unbalanced quote query should not error: %v", err)
+	}
+}
