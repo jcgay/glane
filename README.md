@@ -250,8 +250,25 @@ export GLANE_EMBED_KEY=sk-…
 
 Switching between local and remote is just changing these variables.
 
-> Vectors are generated during `enrich`. After changing the embedding model,
-> re-run `enrich` so the stored vectors match your query model.
+### Choosing a model
+
+The examples above use `nomic-embed-text`, which is English-centric. If your
+watch mixes languages — e.g. French and English posts — pick a **multilingual**
+model so a French query can match an English article and vice versa:
+
+- **`bge-m3`** (Ollama, ~1 GB, runs on CPU) — strong multilingual quality,
+  recommended default for a mixed-language corpus.
+- **`nomic-embed-text`** / **`mxbai-embed-large`** (Ollama) — excellent but
+  English-leaning; use only if your corpus is essentially English.
+- **`text-embedding-3-small`** (OpenAI) — cheap remote option, decent
+  multilingual coverage, if you'd rather not run a model locally.
+
+For `summarize`, the task is light (a short summary + tags), so any small
+instruct model works — `gemma3`, `qwen2.5`, or `llama3.1` via Ollama.
+
+> Vectors are generated during `enrich` and keyed by model name. After changing
+> the embedding model, re-run `enrich` so the stored vectors match your query
+> model — `search` warns on stderr if it finds vectors only under other models.
 
 ## Data location
 
