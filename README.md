@@ -366,6 +366,23 @@ GLANE_SUMMARY_MODEL=gemma3
 0 7 * * * /usr/local/bin/glane update >> /home/you/.local/state/glane/update.log 2>&1
 ```
 
+## Use from Claude Code
+
+This repo doubles as a [Claude Code plugin
+marketplace](https://code.claude.com/docs/en/plugin-marketplaces), so an agent
+can search your veille for you — grounding its answers in the sources you've
+already curated instead of its training data.
+
+```
+/plugin marketplace add jcgay/glane
+/plugin install glane@glane
+```
+
+The plugin ships one **read-only** skill: it only runs `glane search` and
+`glane tags`, never a command that mutates your data. It needs the `glane`
+binary on `PATH` and a populated database (set `GLANE_DB` if you don't use the
+default location). Details in [`plugins/glane/`](plugins/glane/).
+
 ## How it works
 
 - **Storage** — SQLite with an FTS5 mirror kept in sync by triggers, plus a table

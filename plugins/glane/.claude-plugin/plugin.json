@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin.json",
+  "name": "glane",
+  "description": "Search the user's personal tech-watch (the posts they liked, reposted, bookmarked, and starred, plus the articles behind them) via the local glane CLI. Read-only.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Jean-Christophe Gay"
+  },
+  "homepage": "https://github.com/jcgay/glane",
+  "repository": "https://github.com/jcgay/glane",
+  "keywords": ["search", "tech-watch", "veille", "bookmarks", "cli"]
+}
