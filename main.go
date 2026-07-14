@@ -66,6 +66,8 @@ func main() {
 
 func syncClient() *http.Client { return &http.Client{Timeout: 30 * time.Second} }
 
+func stderrProgress(msg string) { fmt.Fprintln(os.Stderr, msg) }
+
 func cmdImport(s *store.Store, args []string) {
 	if len(args) < 2 || args[0] != "twitter" {
 		fatal(fmt.Errorf("usage: glane import twitter <archive-dir>"))
@@ -87,7 +89,7 @@ func cmdSync(s *store.Store, args []string) {
 		if token == "" {
 			fatal(fmt.Errorf("set GITHUB_TOKEN to sync GitHub stars"))
 		}
-		n, err := github.Sync(s, token, syncClient())
+		n, err := github.Sync(s, token, syncClient(), stderrProgress)
 		if err != nil {
 			fatal(err)
 		}
@@ -97,7 +99,7 @@ func cmdSync(s *store.Store, args []string) {
 		if base == "" || token == "" {
 			fatal(fmt.Errorf("set MASTODON_INSTANCE_URL and MASTODON_ACCESS_TOKEN to sync Mastodon"))
 		}
-		n, err := mastodon.Sync(s, base, token, syncClient())
+		n, err := mastodon.Sync(s, base, token, syncClient(), stderrProgress)
 		if err != nil {
 			fatal(err)
 		}
@@ -107,7 +109,7 @@ func cmdSync(s *store.Store, args []string) {
 		if handle == "" || pw == "" {
 			fatal(fmt.Errorf("set BLUESKY_HANDLE and BLUESKY_APP_PASSWORD to sync Bluesky"))
 		}
-		n, err := bluesky.Sync(s, handle, pw, syncClient())
+		n, err := bluesky.Sync(s, handle, pw, syncClient(), stderrProgress)
 		if err != nil {
 			fatal(err)
 		}
@@ -141,19 +143,19 @@ func cmdSyncAll(s *store.Store) {
 	}
 
 	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
-		n, err := github.Sync(s, tok, hc)
+		n, err := github.Sync(s, tok, hc, stderrProgress)
 		record("github", n, err)
 	} else {
 		skipped = append(skipped, "github")
 	}
 	if base, tok := os.Getenv("MASTODON_INSTANCE_URL"), os.Getenv("MASTODON_ACCESS_TOKEN"); base != "" && tok != "" {
-		n, err := mastodon.Sync(s, base, tok, hc)
+		n, err := mastodon.Sync(s, base, tok, hc, stderrProgress)
 		record("mastodon", n, err)
 	} else {
 		skipped = append(skipped, "mastodon")
 	}
 	if h, pw := os.Getenv("BLUESKY_HANDLE"), os.Getenv("BLUESKY_APP_PASSWORD"); h != "" && pw != "" {
-		n, err := bluesky.Sync(s, h, pw, hc)
+		n, err := bluesky.Sync(s, h, pw, hc, stderrProgress)
 		record("bluesky", n, err)
 	} else {
 		skipped = append(skipped, "bluesky")
@@ -252,7 +254,7 @@ func cmdEnrich(s *store.Store, args []string) {
 	fs := flag.NewFlagSet("enrich", flag.ExitOnError)
 	limit := fs.Int("limit", 100, "max items to fetch this run")
 	fs.Parse(args)
-	done, failed, err := enrich.Run(s, enrich.DefaultClient(), embed.FromEnv(), *limit)
+	done, failed, err := enrich.Run(s, enrich.DefaultClient(), embed.FromEnv(), *limit, stderrProgress)
 	if err != nil {
 		fatal(err)
 	}
@@ -272,7 +274,8 @@ func cmdSummarize(s *store.Store, args []string) {
 		fatal(err)
 	}
 	done, failed := 0, 0
-	for _, it := range items {
+	for i, it := range items {
+		stderrProgress(fmt.Sprintf("summarize [%d/%d]…", i+1, len(items)))
 		res, err := c.Summarize(context.Background(), it.ArticleTitle, it.ArticleText)
 		if err != nil {
 			failed++
