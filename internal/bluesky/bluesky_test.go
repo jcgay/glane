@@ -14,11 +14,6 @@ func post(rkey string) string {
 	return fmt.Sprintf(`{"post":{"uri":"at://did:plc:abc/app.bsky.feed.post/%s","cid":"c","author":{"handle":"alice.bsky.social","did":"did:plc:abc"},"record":{"text":"word%s","createdAt":"2023-05-01T00:00:00Z"},"indexedAt":"2023-05-01T00:00:00Z"}}`, rkey, rkey)
 }
 
-// feedPost renders a feedViewPost; rkey doubles as the distinctive text word.
-func feedPost(rkey string) string {
-	return fmt.Sprintf(`{"post":{"uri":"at://did:plc:abc/app.bsky.feed.post/%s","author":{"handle":"bob.bsky.social"},"record":{"text":"word%s","createdAt":"2023-05-01T00:00:00Z"}}}`, rkey, rkey)
-}
-
 type serverPages struct {
 	likes      map[string]string // keyed by request cursor
 	bookmarks  map[string]string
