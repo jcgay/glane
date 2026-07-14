@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-plugin.json",
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "glane",
   "description": "Search the user's personal tech-watch (the posts they liked, reposted, bookmarked, and starred, plus the articles behind them) via the local glane CLI. Read-only.",
   "version": "0.1.0",
@@ -8,5 +8,6 @@
   },
   "homepage": "https://github.com/jcgay/glane",
   "repository": "https://github.com/jcgay/glane",
-  "keywords": ["search", "tech-watch", "veille", "bookmarks", "cli"]
+  "keywords": ["search", "tech-watch", "veille", "bookmarks", "cli"],
+  "hooks": "./hooks/hooks.json"
 }

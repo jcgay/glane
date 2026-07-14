@@ -5,9 +5,11 @@ you liked, reposted, bookmarked, and starred, plus the articles behind them —
 straight from your `glane` install, so answers are grounded in *your* curated
 sources instead of the model's training data.
 
-The plugin ships a single **read-only** skill: it only ever runs `glane search`
-and `glane tags`, never a command that mutates your data (`sync`, `enrich`,
-`summarize`, `update`, `import` stay off-limits).
+The plugin ships a single **read-only** skill: it only runs `glane search` and
+`glane tags`. Read-only is *enforced*, not just requested — a bundled
+`PreToolUse` hook blocks any `glane` command that mutates data or runs long
+(`sync`, `enrich`, `summarize`, `update`, `import`, `serve`), so those stay
+off-limits even if the agent tries.
 
 ## Install
 

@@ -379,7 +379,9 @@ already curated instead of its training data.
 ```
 
 The plugin ships one **read-only** skill: it only runs `glane search` and
-`glane tags`, never a command that mutates your data. It needs the `glane`
+`glane tags`, and a bundled `PreToolUse` hook blocks any mutating or
+long-running `glane` command (`sync`, `enrich`, `summarize`, `update`,
+`import`, `serve`) so read-only holds even if the agent tries. It needs the `glane`
 binary on `PATH` and a populated database (set `GLANE_DB` if you don't use the
 default location). Details in [`plugins/glane/`](plugins/glane/).
 

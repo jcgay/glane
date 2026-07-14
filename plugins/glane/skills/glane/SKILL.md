@@ -66,10 +66,11 @@ Plain text, one entry per result, newest/most-relevant first:
 
 ## Common mistakes
 
-- **Running a mutating command.** Never run `sync`, `enrich`, `summarize`,
-  `update`, or `import`. They write to the user's data, need credentials, hit
-  the network, and are slow — they are the user's scheduled maintenance, not a
-  step in answering a question.
+- **Running a mutating or long-running command.** Never run `sync`, `enrich`,
+  `summarize`, `update`, `import`, or `serve`. They write to the user's data,
+  need credentials, or run indefinitely — they are the user's scheduled
+  maintenance, not a step in answering a question. A `PreToolUse` hook blocks
+  them anyway, so attempts just fail.
 - **Expecting JSON.** There is no `--json` output; parse the text format above.
 - **Over-quoting.** `glane search cold start lambda` is correct. Quote only to
   keep a phrase from being read as flags.
