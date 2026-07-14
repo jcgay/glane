@@ -221,3 +221,71 @@ func TestSyncReportsProgress(t *testing.T) {
 		t.Fatalf("no likes progress: %v", msgs)
 	}
 }
+
+func TestToItemAppendsExternalCard(t *testing.T) {
+	var p postView
+	p.URI = "at://d/app.bsky.feed.post/x"
+	p.Author.Handle = "a.bsky.social"
+	p.Record.Text = "great read"
+	p.Embed = &embedView{
+		Type:     "app.bsky.embed.external#view",
+		External: &externalView{URI: "https://example.com/article", Title: "Scaling Postgres", Description: "index tips"},
+	}
+	it := p.toItem("like")
+	for _, want := range []string{"great read", "Scaling Postgres", "index tips", "https://example.com/article"} {
+		if !strings.Contains(it.Text, want) {
+			t.Fatalf("Text %q missing %q", it.Text, want)
+		}
+	}
+	// URL stays the permalink, not the external link
+	if it.URL != "https://bsky.app/profile/a.bsky.social/post/x" {
+		t.Fatalf("URL should stay the permalink, got %q", it.URL)
+	}
+}
+
+func TestToItemRecordWithMediaExternal(t *testing.T) {
+	var p postView
+	p.Record.Text = "quoting this"
+	p.Embed = &embedView{
+		Type:  "app.bsky.embed.recordWithMedia#view",
+		Media: &embedMediaView{Type: "app.bsky.embed.external#view", External: &externalView{URI: "https://x.com/m", Title: "Media Title"}},
+	}
+	it := p.toItem("like")
+	if !strings.Contains(it.Text, "https://x.com/m") || !strings.Contains(it.Text, "Media Title") {
+		t.Fatalf("recordWithMedia external not appended: %q", it.Text)
+	}
+}
+
+func TestToItemNoExternalLeavesTextAlone(t *testing.T) {
+	var p postView
+	p.Record.Text = "just text"
+	p.Embed = &embedView{Type: "app.bsky.embed.images#view"} // no external
+	if got := p.toItem("own").Text; got != "just text" {
+		t.Fatalf("images embed changed text: %q", got)
+	}
+	p.Embed = nil // no embed at all
+	if got := p.toItem("own").Text; got != "just text" {
+		t.Fatalf("nil embed changed text: %q", got)
+	}
+}
+
+func TestSyncExternalLinkIsSearchableAndInText(t *testing.T) {
+	feedPost := `{"post":{"uri":"at://did:plc:abc/app.bsky.feed.post/e1","author":{"handle":"bob.bsky.social"},"record":{"text":"great read","createdAt":"2023-05-01T00:00:00Z"},"embed":{"$type":"app.bsky.embed.external#view","external":{"uri":"https://example.com/scaling-postgres","title":"Scaling Postgres","description":"index tips"}}}}`
+	srv := newServer(t, serverPages{likes: map[string]string{"": `{"feed":[` + feedPost + `]}`}})
+	defer srv.Close()
+	pdsBase = srv.URL
+	defer func() { pdsBase = "https://bsky.social" }()
+
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	if _, err := Sync(s, "alice.bsky.social", "pw", srv.Client()); err != nil {
+		t.Fatal(err)
+	}
+	res, _ := s.SearchFTS("Postgres", store.Filter{}) // article title is now searchable
+	if len(res) != 1 {
+		t.Fatalf("article title not searchable: %d hits", len(res))
+	}
+	if !strings.Contains(res[0].Text, "https://example.com/scaling-postgres") {
+		t.Fatalf("external URL not in Text (enrich could not follow it): %q", res[0].Text)
+	}
+}

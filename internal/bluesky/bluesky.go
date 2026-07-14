@@ -48,22 +48,69 @@ type postView struct {
 		Text      string `json:"text"`
 		CreatedAt string `json:"createdAt"`
 	} `json:"record"`
+	Embed *embedView `json:"embed"`
 }
 
-// ponytail: only record.text is captured; external links live in record.embed
-// (app.bsky.embed.external.uri), so enrich falls back to the bsky.app permalink
-// for link posts. Capture embed.external.uri here if Bluesky enrichment matters.
+type externalView struct {
+	URI         string `json:"uri"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+type embedMediaView struct {
+	Type     string        `json:"$type"`
+	External *externalView `json:"external"`
+}
+
+type embedView struct {
+	Type     string          `json:"$type"`
+	External *externalView   `json:"external"` // app.bsky.embed.external#view
+	Media    *embedMediaView `json:"media"`    // app.bsky.embed.recordWithMedia#view
+}
+
+// externalLink returns the shared external link of a post embed, if any —
+// either a direct external card or the external media of a quote-with-link.
+func externalLink(e *embedView) *externalView {
+	if e == nil {
+		return nil
+	}
+	if e.Type == "app.bsky.embed.external#view" && e.External != nil {
+		return e.External
+	}
+	if e.Type == "app.bsky.embed.recordWithMedia#view" && e.Media != nil &&
+		e.Media.Type == "app.bsky.embed.external#view" && e.Media.External != nil {
+		return e.Media.External
+	}
+	return nil
+}
+
+func joinNonEmpty(parts ...string) string {
+	var out []string
+	for _, s := range parts {
+		if strings.TrimSpace(s) != "" {
+			out = append(out, s)
+		}
+	}
+	return strings.Join(out, " ")
+}
+
 func (p postView) toItem(kind string) store.Item {
 	var ts int64
 	if t, err := time.Parse(time.RFC3339, p.Record.CreatedAt); err == nil {
 		ts = t.Unix()
+	}
+	text := p.Record.Text
+	if ext := externalLink(p.Embed); ext != nil {
+		// Append the shared article's title/description/URL so enrich's
+		// FirstURL(Text) can follow it and FTS indexes the article context.
+		text = joinNonEmpty(text, ext.Title, ext.Description, ext.URI)
 	}
 	return store.Item{
 		Source:    "bluesky",
 		SourceID:  p.URI,
 		Kind:      kind,
 		Author:    p.Author.Handle,
-		Text:      p.Record.Text,
+		Text:      text,
 		URL:       permalink(p.Author.Handle, p.URI),
 		CreatedAt: ts,
 	}
