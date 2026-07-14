@@ -114,42 +114,41 @@ func cmdSync(s *store.Store, args []string) {
 }
 
 // cmdSyncAll runs every connector whose config is present, skipping the rest
-// (reported, not errored). One connector's failure is logged but does not stop
-// the others; each connector's own cursor only advances on its own success.
+// (reported, not errored). One connector's failure is logged and makes the whole
+// command exit non-zero (so scheduled runs are monitorable), but does not stop
+// the others; each connector advances only its own cursor.
 func cmdSyncAll(s *store.Store) {
 	hc := syncClient()
 	total := 0
+	failed := false
 	var ran, skipped []string
 
-	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
-		if n, err := github.Sync(s, tok, hc); err != nil {
-			fmt.Fprintf(os.Stderr, "glane: github sync error: %v\n", err)
+	record := func(name string, n int, err error) {
+		total += n
+		if err != nil {
+			failed = true
+			fmt.Fprintf(os.Stderr, "glane: %s sync error: %v\n", name, err)
+			ran = append(ran, fmt.Sprintf("%s:%d(partial)", name, n))
 		} else {
-			total += n
-			ran = append(ran, fmt.Sprintf("github:%d", n))
+			ran = append(ran, fmt.Sprintf("%s:%d", name, n))
 		}
+	}
+
+	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
+		n, err := github.Sync(s, tok, hc)
+		record("github", n, err)
 	} else {
 		skipped = append(skipped, "github")
 	}
-
 	if base, tok := os.Getenv("GLANE_MASTODON_URL"), os.Getenv("GLANE_MASTODON_TOKEN"); base != "" && tok != "" {
-		if n, err := mastodon.Sync(s, base, tok, hc); err != nil {
-			fmt.Fprintf(os.Stderr, "glane: mastodon sync error: %v\n", err)
-		} else {
-			total += n
-			ran = append(ran, fmt.Sprintf("mastodon:%d", n))
-		}
+		n, err := mastodon.Sync(s, base, tok, hc)
+		record("mastodon", n, err)
 	} else {
 		skipped = append(skipped, "mastodon")
 	}
-
 	if h, pw := os.Getenv("GLANE_BLUESKY_HANDLE"), os.Getenv("GLANE_BLUESKY_APP_PASSWORD"); h != "" && pw != "" {
-		if n, err := bluesky.Sync(s, h, pw, hc); err != nil {
-			fmt.Fprintf(os.Stderr, "glane: bluesky sync error: %v\n", err)
-		} else {
-			total += n
-			ran = append(ran, fmt.Sprintf("bluesky:%d", n))
-		}
+		n, err := bluesky.Sync(s, h, pw, hc)
+		record("bluesky", n, err)
 	} else {
 		skipped = append(skipped, "bluesky")
 	}
@@ -159,6 +158,9 @@ func cmdSyncAll(s *store.Store) {
 		fmt.Printf(" (skipped, not configured: %s)", strings.Join(skipped, ", "))
 	}
 	fmt.Println()
+	if failed {
+		os.Exit(1)
+	}
 }
 
 // splitQueryArgs separates a leading multi-word query from trailing flags.

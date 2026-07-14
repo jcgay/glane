@@ -132,6 +132,8 @@ func syncStream(s *store.Store, url, token, kind, cursorKey string, hc *http.Cli
 		url = next
 	}
 
+	// ponytail: accumulates all new items in memory before one Upsert; fine for a
+	// personal account. Stream per-page if volumes ever grow large.
 	if len(items) > 0 {
 		if _, err := s.Upsert(items); err != nil {
 			return 0, err

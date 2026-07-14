@@ -82,6 +82,9 @@ func TestSyncStopsAtKnownURI(t *testing.T) {
 	if n != 1 { // only "new" is imported; stops at the known "old" URI
 		t.Fatalf("want 1, got %d", n)
 	}
+	if cur, _ := s.GetCursor("bluesky:likes"); cur != "at://did:plc:abc/app.bsky.feed.post/new" {
+		t.Fatalf("cursor should advance to newest liked URI, got %q", cur)
+	}
 }
 
 func TestSyncAuthFailure(t *testing.T) {

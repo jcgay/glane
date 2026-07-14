@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -75,11 +76,11 @@ func Sync(s *store.Store, handle, appPassword string, hc *http.Client) (int, err
 	pageCursor := ""
 
 	for {
-		url := fmt.Sprintf("%s/xrpc/app.bsky.feed.getActorLikes?actor=%s&limit=100", pdsBase, handle)
+		reqURL := fmt.Sprintf("%s/xrpc/app.bsky.feed.getActorLikes?actor=%s&limit=100", pdsBase, url.QueryEscape(handle))
 		if pageCursor != "" {
-			url += "&cursor=" + pageCursor
+			reqURL += "&cursor=" + pageCursor
 		}
-		req, err := http.NewRequest("GET", url, nil)
+		req, err := http.NewRequest("GET", reqURL, nil)
 		if err != nil {
 			return 0, err
 		}
@@ -116,6 +117,9 @@ func Sync(s *store.Store, handle, appPassword string, hc *http.Client) (int, err
 			if t, terr := time.Parse(time.RFC3339, p.Record.CreatedAt); terr == nil {
 				ts = t.Unix()
 			}
+			// ponytail: only record.text is captured; external links live in record.embed
+			// (app.bsky.embed.external.uri), so enrich falls back to the bsky.app permalink
+			// for link posts. Capture embed.external.uri here if Bluesky enrichment matters.
 			items = append(items, store.Item{
 				Source:    "bluesky",
 				SourceID:  p.URI,
@@ -132,6 +136,8 @@ func Sync(s *store.Store, handle, appPassword string, hc *http.Client) (int, err
 		pageCursor = lr.Cursor
 	}
 
+	// ponytail: accumulates all new items in memory before one Upsert; fine for a
+	// personal account. Stream per-page if volumes ever grow large.
 	if len(items) > 0 {
 		if _, err := s.Upsert(items); err != nil {
 			return 0, err
