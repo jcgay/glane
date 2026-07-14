@@ -93,9 +93,9 @@ func cmdSync(s *store.Store, args []string) {
 		}
 		fmt.Printf("synced %d new stars\n", n)
 	case "mastodon":
-		base, token := os.Getenv("GLANE_MASTODON_URL"), os.Getenv("GLANE_MASTODON_TOKEN")
+		base, token := os.Getenv("MASTODON_INSTANCE_URL"), os.Getenv("MASTODON_ACCESS_TOKEN")
 		if base == "" || token == "" {
-			fatal(fmt.Errorf("set GLANE_MASTODON_URL and GLANE_MASTODON_TOKEN to sync Mastodon"))
+			fatal(fmt.Errorf("set MASTODON_INSTANCE_URL and MASTODON_ACCESS_TOKEN to sync Mastodon"))
 		}
 		n, err := mastodon.Sync(s, base, token, syncClient())
 		if err != nil {
@@ -103,9 +103,9 @@ func cmdSync(s *store.Store, args []string) {
 		}
 		fmt.Printf("synced %d new mastodon items\n", n)
 	case "bluesky":
-		handle, pw := os.Getenv("GLANE_BLUESKY_HANDLE"), os.Getenv("GLANE_BLUESKY_APP_PASSWORD")
+		handle, pw := os.Getenv("BLUESKY_HANDLE"), os.Getenv("BLUESKY_APP_PASSWORD")
 		if handle == "" || pw == "" {
-			fatal(fmt.Errorf("set GLANE_BLUESKY_HANDLE and GLANE_BLUESKY_APP_PASSWORD to sync Bluesky"))
+			fatal(fmt.Errorf("set BLUESKY_HANDLE and BLUESKY_APP_PASSWORD to sync Bluesky"))
 		}
 		n, err := bluesky.Sync(s, handle, pw, syncClient())
 		if err != nil {
@@ -146,13 +146,13 @@ func cmdSyncAll(s *store.Store) {
 	} else {
 		skipped = append(skipped, "github")
 	}
-	if base, tok := os.Getenv("GLANE_MASTODON_URL"), os.Getenv("GLANE_MASTODON_TOKEN"); base != "" && tok != "" {
+	if base, tok := os.Getenv("MASTODON_INSTANCE_URL"), os.Getenv("MASTODON_ACCESS_TOKEN"); base != "" && tok != "" {
 		n, err := mastodon.Sync(s, base, tok, hc)
 		record("mastodon", n, err)
 	} else {
 		skipped = append(skipped, "mastodon")
 	}
-	if h, pw := os.Getenv("GLANE_BLUESKY_HANDLE"), os.Getenv("GLANE_BLUESKY_APP_PASSWORD"); h != "" && pw != "" {
+	if h, pw := os.Getenv("BLUESKY_HANDLE"), os.Getenv("BLUESKY_APP_PASSWORD"); h != "" && pw != "" {
 		n, err := bluesky.Sync(s, h, pw, hc)
 		record("bluesky", n, err)
 	} else {

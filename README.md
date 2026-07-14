@@ -50,8 +50,8 @@ To pull in your live sources too:
 
 ```sh
 export GITHUB_TOKEN=…              # GitHub stars
-export GLANE_MASTODON_URL=https://mastodon.social GLANE_MASTODON_TOKEN=…
-export GLANE_BLUESKY_HANDLE=you.bsky.social GLANE_BLUESKY_APP_PASSWORD=…
+export MASTODON_INSTANCE_URL=https://mastodon.social MASTODON_ACCESS_TOKEN=…
+export BLUESKY_HANDLE=you.bsky.social BLUESKY_APP_PASSWORD=…
 ./glane sync all                   # syncs every configured source (incremental)
 ```
 
@@ -93,13 +93,13 @@ export GITHUB_TOKEN=…
 
 ### `glane sync mastodon`
 Syncs your Mastodon **favourites** (`--source mastodon`, stored as likes) and
-**bookmarks** (stored as bookmarks). Requires `GLANE_MASTODON_URL` (your instance
-base, e.g. `https://mastodon.social`) and `GLANE_MASTODON_TOKEN` (an access token
+**bookmarks** (stored as bookmarks). Requires `MASTODON_INSTANCE_URL` (your instance
+base, e.g. `https://mastodon.social`) and `MASTODON_ACCESS_TOKEN` (an access token
 with `read:favourites` + `read:bookmarks`).
 
 ```sh
-export GLANE_MASTODON_URL=https://mastodon.social
-export GLANE_MASTODON_TOKEN=…
+export MASTODON_INSTANCE_URL=https://mastodon.social
+export MASTODON_ACCESS_TOKEN=…
 ./glane sync mastodon
 ```
 
@@ -107,13 +107,13 @@ Each stream is incremental (its own cursor). Post text is HTML-stripped, keeping
 the linked URL so `enrich` can fetch the shared article.
 
 ### `glane sync bluesky`
-Syncs the posts you've **liked** on Bluesky. Requires `GLANE_BLUESKY_HANDLE`
-(e.g. `you.bsky.social`) and `GLANE_BLUESKY_APP_PASSWORD` — create an **app
+Syncs the posts you've **liked** on Bluesky. Requires `BLUESKY_HANDLE`
+(e.g. `you.bsky.social`) and `BLUESKY_APP_PASSWORD` — create an **app
 password** in Bluesky settings, don't use your main password.
 
 ```sh
-export GLANE_BLUESKY_HANDLE=you.bsky.social
-export GLANE_BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+export BLUESKY_HANDLE=you.bsky.social
+export BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 ./glane sync bluesky
 ```
 
@@ -253,16 +253,22 @@ Override it with `GLANE_DB=/path/to/glane.db`. Delete the file to start over.
 |----------|---------|---------|
 | `GLANE_DB` | all | SQLite file path (default `~/.local/share/glane/glane.db`) |
 | `GITHUB_TOKEN` | `sync github` | GitHub token (read-only is enough) |
-| `GLANE_MASTODON_URL` | `sync mastodon` | Instance base URL, e.g. `https://mastodon.social` |
-| `GLANE_MASTODON_TOKEN` | `sync mastodon` | Access token (`read:favourites` + `read:bookmarks`) |
-| `GLANE_BLUESKY_HANDLE` | `sync bluesky` | Your handle, e.g. `you.bsky.social` |
-| `GLANE_BLUESKY_APP_PASSWORD` | `sync bluesky` | An app password (not your main password) |
+| `MASTODON_INSTANCE_URL` | `sync mastodon` | Instance base URL, e.g. `https://mastodon.social` |
+| `MASTODON_ACCESS_TOKEN` | `sync mastodon` | Access token (`read:favourites` + `read:bookmarks`) |
+| `BLUESKY_HANDLE` | `sync bluesky` | Your handle, e.g. `you.bsky.social` |
+| `BLUESKY_APP_PASSWORD` | `sync bluesky` | An app password (not your main password) |
 | `GLANE_EMBED_URL` | `search`, `enrich` | OpenAI-compatible embeddings base URL; unset → semantic disabled |
 | `GLANE_EMBED_MODEL` | `search`, `enrich` | Embedding model name |
 | `GLANE_EMBED_KEY` | `search`, `enrich` | Embeddings API key; omit for local endpoints |
 | `GLANE_SUMMARY_URL` | `summarize` | OpenAI-compatible chat base URL; unset → `summarize` errors |
 | `GLANE_SUMMARY_MODEL` | `summarize` | Chat model name (e.g. `gemma3`) |
 | `GLANE_SUMMARY_KEY` | `summarize` | Chat API key; omit for local endpoints |
+
+> The Mastodon/Bluesky variables intentionally match
+> [social-timeline](https://github.com/jcgay/social-timeline), so the same
+> credentials drive both tools. Note glane reads your favourites + bookmarks, so
+> `MASTODON_ACCESS_TOKEN` needs `read:favourites` + `read:bookmarks` (social-timeline
+> only needs `read:statuses`).
 
 ## How it works
 
