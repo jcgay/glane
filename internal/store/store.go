@@ -22,6 +22,8 @@ type Item struct {
 	ArticleSummary string
 	FetchStatus    string
 	FetchedAt      int64
+
+	Tags []string // populated on read from item_tags, not a column
 }
 
 type Store struct{ db *sql.DB }
@@ -77,6 +79,13 @@ CREATE TABLE IF NOT EXISTS sync_state (
   cursor TEXT NOT NULL DEFAULT '',
   updated_at INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS item_tags (
+  item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  tag TEXT NOT NULL,
+  PRIMARY KEY (item_id, tag)
+);
+CREATE INDEX IF NOT EXISTS item_tags_tag ON item_tags(tag);
 `
 
 func Open(path string) (*Store, error) {

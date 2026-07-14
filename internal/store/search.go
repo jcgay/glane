@@ -6,6 +6,7 @@ type Filter struct {
 	Source string
 	Since  int64
 	Limit  int
+	Tag    string
 }
 
 type Result struct {
@@ -49,6 +50,10 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 		sql += " AND i.created_at >= ?"
 		args = append(args, f.Since)
 	}
+	if f.Tag != "" {
+		sql += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
+		args = append(args, f.Tag)
+	}
 	sql += " ORDER BY score LIMIT ?" // bm25: lower is better
 	args = append(args, f.Limit)
 
@@ -64,6 +69,47 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 		if err := rows.Scan(&r.ID, &r.Source, &r.SourceID, &r.Kind, &r.Author,
 			&r.Text, &r.URL, &r.CreatedAt, &r.LinkURL, &r.ArticleTitle,
 			&r.ArticleSummary, &r.Score); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// ByTag lists items carrying a tag, newest first — for `search --tag X` with no
+// text query (no FTS MATCH involved).
+func (s *Store) ByTag(tag string, f Filter) ([]Result, error) {
+	if f.Limit <= 0 {
+		f.Limit = 20
+	}
+	sql := `
+		SELECT i.id, i.source, i.source_id, i.kind, i.author, i.text, i.url,
+		       i.created_at, i.link_url, i.article_title, i.article_summary
+		FROM item_tags t JOIN items i ON i.id = t.item_id
+		WHERE t.tag = ?`
+	args := []any{tag}
+	if f.Source != "" {
+		sql += " AND i.source = ?"
+		args = append(args, f.Source)
+	}
+	if f.Since > 0 {
+		sql += " AND i.created_at >= ?"
+		args = append(args, f.Since)
+	}
+	sql += " ORDER BY i.created_at DESC LIMIT ?"
+	args = append(args, f.Limit)
+
+	rows, err := s.db.Query(sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Result
+	for rows.Next() {
+		var r Result
+		if err := rows.Scan(&r.ID, &r.Source, &r.SourceID, &r.Kind, &r.Author,
+			&r.Text, &r.URL, &r.CreatedAt, &r.LinkURL, &r.ArticleTitle,
+			&r.ArticleSummary); err != nil {
 			return nil, err
 		}
 		out = append(out, r)

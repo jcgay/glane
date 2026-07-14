@@ -26,6 +26,10 @@ func (s *Store) AllEmbeddings(model string, f Filter) ([]Embedded, error) {
 		sql += " AND i.created_at >= ?"
 		args = append(args, f.Since)
 	}
+	if f.Tag != "" {
+		sql += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
+		args = append(args, f.Tag)
+	}
 	rows, err := s.db.Query(sql, args...)
 	if err != nil {
 		return nil, err
