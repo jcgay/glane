@@ -9,7 +9,8 @@ and — when you point it at an embeddings endpoint — adds semantic search on 
 Everything works offline with no model; the semantic layer is an optional bonus.
 
 It imports a **Twitter/X archive** and syncs live sources — **GitHub stars**,
-**Mastodon** (favourites + bookmarks), and **Bluesky** (likes) — into one index.
+**Mastodon** (favourites, bookmarks, your posts + boosts), and **Bluesky**
+(likes, saved posts, your posts + reposts) — into one index.
 An optional LLM step summarizes and tags each saved article, so you can recognize
 a forgotten bookmark at a glance and browse your veille by topic.
 
@@ -92,10 +93,11 @@ export GITHUB_TOKEN=…
   `--since` works). Run `enrich` afterwards to pull in each repo's page content.
 
 ### `glane sync mastodon`
-Syncs your Mastodon **favourites** (`--source mastodon`, stored as likes) and
-**bookmarks** (stored as bookmarks). Requires `MASTODON_INSTANCE_URL` (your instance
-base, e.g. `https://mastodon.social`) and `MASTODON_ACCESS_TOKEN` (an access token
-with `read:favourites` + `read:bookmarks`).
+Syncs four streams from Mastodon: **favourites** (stored as likes), **bookmarks**,
+your **own posts**, and your **boosts** (stored as reposts, mapped to the original
+post). Requires `MASTODON_INSTANCE_URL` (your instance base, e.g.
+`https://mastodon.social`) and `MASTODON_ACCESS_TOKEN` — a token scoped for
+`read:favourites` + `read:bookmarks` + `read:statuses` (or a broad `read`).
 
 ```sh
 export MASTODON_INSTANCE_URL=https://mastodon.social
@@ -104,12 +106,14 @@ export MASTODON_ACCESS_TOKEN=…
 ```
 
 Each stream is incremental (its own cursor). Post text is HTML-stripped, keeping
-the linked URL so `enrich` can fetch the shared article.
+the linked URL so `enrich` can fetch the shared article. Your replies are excluded.
 
 ### `glane sync bluesky`
-Syncs the posts you've **liked** on Bluesky. Requires `BLUESKY_HANDLE`
-(e.g. `you.bsky.social`) and `BLUESKY_APP_PASSWORD` — create an **app
-password** in Bluesky settings, don't use your main password.
+Syncs four streams from Bluesky: posts you've **liked**, posts you've **saved**
+(bookmarks), your **own posts**, and your **reposts** (stored as reposts, mapped
+to the original post). Requires `BLUESKY_HANDLE` (e.g. `you.bsky.social`) and
+`BLUESKY_APP_PASSWORD` — create an **app password** in Bluesky settings, don't
+use your main password.
 
 ```sh
 export BLUESKY_HANDLE=you.bsky.social
@@ -117,7 +121,9 @@ export BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 ./glane sync bluesky
 ```
 
-Incremental: stops at the newest like it already has.
+Each stream is incremental. Your replies are excluded. A post you've touched
+several ways (e.g. liked *and* reposted) is stored once, labelled by the strongest
+relationship (posts/reposts > bookmark > like).
 
 ### `glane sync all`
 Runs every connector whose config is present, skipping the rest (reported, not
