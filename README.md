@@ -385,10 +385,10 @@ GLANE_SUMMARY_MODEL=gemma3
 
 Done: the searchable core (Twitter import, full-text + semantic search, web UI,
 link enrichment), live connectors for GitHub stars, Mastodon, and Bluesky with
-`sync all`, and the optional LLM summaries + tags. Ideas for later:
+`sync all`, the optional LLM summaries + tags, and `glane update` with a
+documented scheduled entry (see [Scheduling](#scheduling)). Ideas for later:
 
 - Tag normalization/aliasing if the free-tag vocabulary drifts (inspect with `glane tags`)
 - A `--quiet` flag to silence progress output
-- A documented cron/launchd entry for scheduled `sync all` + `enrich` + `summarize`
 
 Design and implementation notes live in `docs/superpowers/`.
