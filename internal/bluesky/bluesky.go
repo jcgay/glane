@@ -27,7 +27,7 @@ func createSession(handle, appPassword string, hc *http.Client) (string, error) 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Bluesky auth failed (check GLANE_BLUESKY_APP_PASSWORD)")
+		return "", fmt.Errorf("Bluesky auth failed (check BLUESKY_APP_PASSWORD)")
 	}
 	var out struct {
 		AccessJwt string `json:"accessJwt"`
