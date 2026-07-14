@@ -287,6 +287,9 @@ Override it with `GLANE_DB=/path/to/glane.db`. Delete the file to start over.
 - **Summaries & tags** — one optional chat call per article yields a summary and
   free tags; the summary is additive (never replaces the indexed article text)
   and embeddings are left as-is.
+- **Progress** — `sync`, `enrich`, and `summarize` print live progress to
+  **stderr** while they run; the final summary goes to **stdout**, so piping
+  (`glane search … | …`) stays clean.
 
 ## Roadmap
 
