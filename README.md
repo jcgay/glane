@@ -292,6 +292,14 @@ Override it with `GLANE_DB=/path/to/glane.db`. Delete the file to start over.
 environment** (no shell profile), so you must set the tokens and `GLANE_DB`
 explicitly, and use an **absolute path** to the `glane` binary and DB file.
 
+**Create the directories first** — neither launchd nor the cron redirect will
+make them, and an explicitly-set `GLANE_DB` parent isn't auto-created either, so
+a missing directory means the job silently fails to start:
+
+```sh
+mkdir -p ~/.local/share/glane ~/.local/state/glane
+```
+
 ### macOS (launchd)
 
 Save as `~/Library/LaunchAgents/com.glane.update.plist` (adjust paths, creds,
@@ -350,6 +358,8 @@ MASTODON_INSTANCE_URL=https://mastodon.social
 MASTODON_ACCESS_TOKEN=…
 BLUESKY_HANDLE=you.bsky.social
 BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+GLANE_EMBED_URL=http://localhost:11434/v1
+GLANE_EMBED_MODEL=nomic-embed-text
 GLANE_SUMMARY_URL=http://localhost:11434/v1
 GLANE_SUMMARY_MODEL=gemma3
 
