@@ -38,20 +38,35 @@ func createSession(handle, appPassword string, hc *http.Client) (string, error) 
 	return out.AccessJwt, nil
 }
 
-type likesResp struct {
-	Cursor string `json:"cursor"`
-	Feed   []struct {
-		Post struct {
-			URI    string `json:"uri"`
-			Author struct {
-				Handle string `json:"handle"`
-			} `json:"author"`
-			Record struct {
-				Text      string `json:"text"`
-				CreatedAt string `json:"createdAt"`
-			} `json:"record"`
-		} `json:"post"`
-	} `json:"feed"`
+// postView is the common Bluesky post shape across likes/bookmarks/author-feed.
+type postView struct {
+	URI    string `json:"uri"`
+	Author struct {
+		Handle string `json:"handle"`
+	} `json:"author"`
+	Record struct {
+		Text      string `json:"text"`
+		CreatedAt string `json:"createdAt"`
+	} `json:"record"`
+}
+
+// ponytail: only record.text is captured; external links live in record.embed
+// (app.bsky.embed.external.uri), so enrich falls back to the bsky.app permalink
+// for link posts. Capture embed.external.uri here if Bluesky enrichment matters.
+func (p postView) toItem(kind string) store.Item {
+	var ts int64
+	if t, err := time.Parse(time.RFC3339, p.Record.CreatedAt); err == nil {
+		ts = t.Unix()
+	}
+	return store.Item{
+		Source:    "bluesky",
+		SourceID:  p.URI,
+		Kind:      kind,
+		Author:    p.Author.Handle,
+		Text:      p.Record.Text,
+		URL:       permalink(p.Author.Handle, p.URI),
+		CreatedAt: ts,
+	}
 }
 
 // permalink turns an AT-URI (at://did/app.bsky.feed.post/<rkey>) into a bsky.app link.
@@ -61,92 +76,179 @@ func permalink(handle, uri string) string {
 	return "https://bsky.app/profile/" + handle + "/post/" + rkey
 }
 
+func getJSON(hc *http.Client, jwt, reqURL string, out any) error {
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	resp, err := hc.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Bluesky API status %d", resp.StatusCode)
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// syncStream runs the stop-at-URI + upsert + cursor-advance loop for one stream.
+// fetch(pageCursor) returns the page's items (newest-first; each item's SourceID
+// is its post URI, used as the stop key) and the next page cursor ("" = end).
+//
+// ponytail: accumulates all new items in memory before one Upsert; fine for a
+// personal account. Stream per-page if volumes ever grow large.
+func syncStream(s *store.Store, cursorKey string, fetch func(pageCursor string) ([]store.Item, string, error)) (int, error) {
+	cursor, err := s.GetCursor(cursorKey)
+	if err != nil {
+		return 0, err
+	}
+	var all []store.Item
+	newest := ""
+	pageCursor := ""
+	for {
+		items, next, err := fetch(pageCursor)
+		if err != nil {
+			return 0, err
+		}
+		if len(items) == 0 {
+			break
+		}
+		stop := false
+		for _, it := range items {
+			if cursor != "" && it.SourceID == cursor {
+				stop = true
+				break
+			}
+			if newest == "" {
+				newest = it.SourceID // newest-first: first seen this run is the newest
+			}
+			all = append(all, it)
+		}
+		if stop || next == "" {
+			break
+		}
+		pageCursor = next
+	}
+	if len(all) > 0 {
+		if _, err := s.Upsert(all); err != nil {
+			return 0, err
+		}
+	}
+	if newest != "" && newest != cursor {
+		if err := s.SetCursor(cursorKey, newest); err != nil {
+			return len(all), err
+		}
+	}
+	return len(all), nil
+}
+
+func likesFetch(hc *http.Client, jwt, handle string) func(string) ([]store.Item, string, error) {
+	return func(pageCursor string) ([]store.Item, string, error) {
+		u := fmt.Sprintf("%s/xrpc/app.bsky.feed.getActorLikes?actor=%s&limit=100", pdsBase, url.QueryEscape(handle))
+		if pageCursor != "" {
+			u += "&cursor=" + url.QueryEscape(pageCursor)
+		}
+		var out struct {
+			Cursor string `json:"cursor"`
+			Feed   []struct {
+				Post postView `json:"post"`
+			} `json:"feed"`
+		}
+		if err := getJSON(hc, jwt, u, &out); err != nil {
+			return nil, "", err
+		}
+		items := make([]store.Item, 0, len(out.Feed))
+		for _, f := range out.Feed {
+			items = append(items, f.Post.toItem("like"))
+		}
+		return items, out.Cursor, nil
+	}
+}
+
+func bookmarksFetch(hc *http.Client, jwt string) func(string) ([]store.Item, string, error) {
+	return func(pageCursor string) ([]store.Item, string, error) {
+		u := fmt.Sprintf("%s/xrpc/app.bsky.bookmark.getBookmarks?limit=100", pdsBase)
+		if pageCursor != "" {
+			u += "&cursor=" + url.QueryEscape(pageCursor)
+		}
+		var out struct {
+			Cursor    string `json:"cursor"`
+			Bookmarks []struct {
+				Item struct {
+					Type string `json:"$type"`
+					postView
+				} `json:"item"`
+			} `json:"bookmarks"`
+		}
+		if err := getJSON(hc, jwt, u, &out); err != nil {
+			return nil, "", err
+		}
+		items := make([]store.Item, 0, len(out.Bookmarks))
+		for _, b := range out.Bookmarks {
+			if b.Item.Type != "app.bsky.feed.defs#postView" {
+				continue // blockedPost / notFoundPost — not viewable
+			}
+			items = append(items, b.Item.postView.toItem("bookmark"))
+		}
+		return items, out.Cursor, nil
+	}
+}
+
+func authorFeedFetch(hc *http.Client, jwt, handle string) func(string) ([]store.Item, string, error) {
+	return func(pageCursor string) ([]store.Item, string, error) {
+		u := fmt.Sprintf("%s/xrpc/app.bsky.feed.getAuthorFeed?actor=%s&limit=100&filter=posts_no_replies", pdsBase, url.QueryEscape(handle))
+		if pageCursor != "" {
+			u += "&cursor=" + url.QueryEscape(pageCursor)
+		}
+		var out struct {
+			Cursor string `json:"cursor"`
+			Feed   []struct {
+				Post   postView `json:"post"`
+				Reason struct {
+					Type string `json:"$type"`
+				} `json:"reason"`
+			} `json:"feed"`
+		}
+		if err := getJSON(hc, jwt, u, &out); err != nil {
+			return nil, "", err
+		}
+		items := make([]store.Item, 0, len(out.Feed))
+		for _, f := range out.Feed {
+			kind := "own"
+			if f.Reason.Type == "app.bsky.feed.defs#reasonRepost" {
+				kind = "repost"
+			}
+			items = append(items, f.Post.toItem(kind))
+		}
+		return items, out.Cursor, nil
+	}
+}
+
+// Sync imports likes, then saved posts (bookmarks), then the author's own posts
+// and reposts. Order matters: later streams win kind on a shared post URI
+// (repost/own > bookmark > like) via Upsert's overwrite.
 func Sync(s *store.Store, handle, appPassword string, hc *http.Client) (int, error) {
 	jwt, err := createSession(handle, appPassword, hc)
 	if err != nil {
 		return 0, err
 	}
-	cursor, err := s.GetCursor("bluesky:likes")
-	if err != nil {
-		return 0, err
+	streams := []struct {
+		key   string
+		fetch func(string) ([]store.Item, string, error)
+	}{
+		{"bluesky:likes", likesFetch(hc, jwt, handle)},
+		{"bluesky:bookmarks", bookmarksFetch(hc, jwt)},
+		{"bluesky:authorfeed", authorFeedFetch(hc, jwt, handle)},
 	}
-
-	var items []store.Item
-	newest := ""
-	pageCursor := ""
-
-	for {
-		reqURL := fmt.Sprintf("%s/xrpc/app.bsky.feed.getActorLikes?actor=%s&limit=100", pdsBase, url.QueryEscape(handle))
-		if pageCursor != "" {
-			reqURL += "&cursor=" + pageCursor
-		}
-		req, err := http.NewRequest("GET", reqURL, nil)
+	total := 0
+	for _, st := range streams {
+		n, err := syncStream(s, st.key, st.fetch)
+		total += n
 		if err != nil {
-			return 0, err
-		}
-		req.Header.Set("Authorization", "Bearer "+jwt)
-		resp, err := hc.Do(req)
-		if err != nil {
-			return 0, err
-		}
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			return 0, fmt.Errorf("Bluesky API status %d", resp.StatusCode)
-		}
-		var lr likesResp
-		derr := json.NewDecoder(resp.Body).Decode(&lr)
-		resp.Body.Close()
-		if derr != nil {
-			return 0, derr
-		}
-		if len(lr.Feed) == 0 {
-			break
-		}
-
-		stop := false
-		for _, f := range lr.Feed {
-			p := f.Post
-			if cursor != "" && p.URI == cursor {
-				stop = true
-				break
-			}
-			if newest == "" {
-				newest = p.URI // newest-first: first seen this run is the newest
-			}
-			var ts int64
-			if t, terr := time.Parse(time.RFC3339, p.Record.CreatedAt); terr == nil {
-				ts = t.Unix()
-			}
-			// ponytail: only record.text is captured; external links live in record.embed
-			// (app.bsky.embed.external.uri), so enrich falls back to the bsky.app permalink
-			// for link posts. Capture embed.external.uri here if Bluesky enrichment matters.
-			items = append(items, store.Item{
-				Source:    "bluesky",
-				SourceID:  p.URI,
-				Kind:      "like",
-				Author:    p.Author.Handle,
-				Text:      p.Record.Text,
-				URL:       permalink(p.Author.Handle, p.URI),
-				CreatedAt: ts,
-			})
-		}
-		if stop || lr.Cursor == "" {
-			break
-		}
-		pageCursor = lr.Cursor
-	}
-
-	// ponytail: accumulates all new items in memory before one Upsert; fine for a
-	// personal account. Stream per-page if volumes ever grow large.
-	if len(items) > 0 {
-		if _, err := s.Upsert(items); err != nil {
-			return 0, err
+			return total, err
 		}
 	}
-	if newest != "" && newest != cursor {
-		if err := s.SetCursor("bluesky:likes", newest); err != nil {
-			return len(items), err
-		}
-	}
-	return len(items), nil
+	return total, nil
 }
