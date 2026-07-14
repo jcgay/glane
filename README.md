@@ -8,8 +8,8 @@ indexes them (and the text of the articles they link to) for full-text search,
 and — when you point it at an embeddings endpoint — adds semantic search on top.
 Everything works offline with no model; the semantic layer is an optional bonus.
 
-It imports a **Twitter/X archive** and syncs your **GitHub stars**; live
-connectors for Bluesky and Mastodon are planned (see [Roadmap](#roadmap)).
+It imports a **Twitter/X archive** and syncs live sources — **GitHub stars**,
+**Mastodon** (favourites + bookmarks), and **Bluesky** (likes) — into one index.
 
 ## Requirements
 
@@ -44,11 +44,13 @@ This produces a self-contained `glane` binary (the web UI assets are embedded).
 
 Full-text search works immediately — no network, no model.
 
-To pull in a live source too:
+To pull in your live sources too:
 
 ```sh
-export GITHUB_TOKEN=…     # a read-only token; often already set (gh CLI, CI)
-./glane sync github       # imports your stars (incremental on re-run)
+export GITHUB_TOKEN=…              # GitHub stars
+export GLANE_MASTODON_URL=https://mastodon.social GLANE_MASTODON_TOKEN=…
+export GLANE_BLUESKY_HANDLE=you.bsky.social GLANE_BLUESKY_APP_PASSWORD=…
+./glane sync all                   # syncs every configured source (incremental)
 ```
 
 ## Commands
@@ -76,6 +78,43 @@ export GITHUB_TOKEN=…
   interrupted run just re-fetches next time (imports are deduplicated).
 - Each star is stored with `--source github` and its `starred_at` date (so
   `--since` works). Run `enrich` afterwards to pull in each repo's page content.
+
+### `glane sync mastodon`
+Syncs your Mastodon **favourites** (`--source mastodon`, stored as likes) and
+**bookmarks** (stored as bookmarks). Requires `GLANE_MASTODON_URL` (your instance
+base, e.g. `https://mastodon.social`) and `GLANE_MASTODON_TOKEN` (an access token
+with `read:favourites` + `read:bookmarks`).
+
+```sh
+export GLANE_MASTODON_URL=https://mastodon.social
+export GLANE_MASTODON_TOKEN=…
+./glane sync mastodon
+```
+
+Each stream is incremental (its own cursor). Post text is HTML-stripped, keeping
+the linked URL so `enrich` can fetch the shared article.
+
+### `glane sync bluesky`
+Syncs the posts you've **liked** on Bluesky. Requires `GLANE_BLUESKY_HANDLE`
+(e.g. `you.bsky.social`) and `GLANE_BLUESKY_APP_PASSWORD` — create an **app
+password** in Bluesky settings, don't use your main password.
+
+```sh
+export GLANE_BLUESKY_HANDLE=you.bsky.social
+export GLANE_BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+./glane sync bluesky
+```
+
+Incremental: stops at the newest like it already has.
+
+### `glane sync all`
+Runs every connector whose config is present, skipping the rest (reported, not
+errored). Ideal for a scheduled job: it keeps going if one source fails, and
+exits non-zero if any configured connector errored — so cron/launchd can alert.
+
+```sh
+./glane sync all
+```
 
 ### `glane search <query> [flags]`
 Searches the index. **The query comes first** (multiple words are fine unquoted);
@@ -172,6 +211,10 @@ Override it with `GLANE_DB=/path/to/glane.db`. Delete the file to start over.
 |----------|---------|---------|
 | `GLANE_DB` | all | SQLite file path (default `~/.local/share/glane/glane.db`) |
 | `GITHUB_TOKEN` | `sync github` | GitHub token (read-only is enough) |
+| `GLANE_MASTODON_URL` | `sync mastodon` | Instance base URL, e.g. `https://mastodon.social` |
+| `GLANE_MASTODON_TOKEN` | `sync mastodon` | Access token (`read:favourites` + `read:bookmarks`) |
+| `GLANE_BLUESKY_HANDLE` | `sync bluesky` | Your handle, e.g. `you.bsky.social` |
+| `GLANE_BLUESKY_APP_PASSWORD` | `sync bluesky` | An app password (not your main password) |
 | `GLANE_EMBED_URL` | `search`, `enrich` | OpenAI-compatible embeddings base URL; unset → semantic disabled |
 | `GLANE_EMBED_MODEL` | `search`, `enrich` | Embedding model name |
 | `GLANE_EMBED_KEY` | `search`, `enrich` | Embeddings API key; omit for local endpoints |
@@ -188,12 +231,12 @@ Override it with `GLANE_DB=/path/to/glane.db`. Delete the file to start over.
 ## Roadmap
 
 Done: the searchable core (Twitter import, full-text + semantic search, web UI,
-link enrichment) and the GitHub stars connector with its reusable sync
-framework. Planned next:
+link enrichment) and live connectors for GitHub stars, Mastodon, and Bluesky
+with `sync all`. Planned next:
 
-- Live sync connectors for Bluesky and Mastodon (reusing the sync framework)
-- `sync all` once a second connector lands
 - Optional LLM article summaries
-- A documented cron/launchd entry for scheduled syncing
+- Capturing Bluesky external links (`embed.external`) so liked link posts enrich
+  as well as Mastodon's do
+- A documented cron/launchd entry for scheduled `sync all`
 
 Design and implementation notes live in `docs/superpowers/`.
