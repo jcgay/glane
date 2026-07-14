@@ -41,6 +41,10 @@ func handler(s *store.Store) http.Handler {
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		if err := s.AttachTags(res); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
 		if err := tmpl.ExecuteTemplate(w, "results.html", res); err != nil {
 			log.Printf("glane: render results.html: %v", err)
 		}

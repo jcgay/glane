@@ -1,7 +1,8 @@
 {{range .}}
 <div class="hit">
   <span class="badge">{{.Source}}/{{.Kind}}</span>
-  <div>{{if .ArticleTitle}}<strong>{{.ArticleTitle}}</strong> — {{end}}{{.Text}}</div>
+  <div>{{if .ArticleTitle}}<strong>{{.ArticleTitle}}</strong> — {{end}}{{if .ArticleSummary}}{{.ArticleSummary}}{{else}}{{.Text}}{{end}}</div>
+  {{if .Tags}}<div class="tags">{{range .Tags}}<span class="tag">{{.}}</span> {{end}}</div>{{end}}
   {{if .URL}}<a href="{{.URL}}" target="_blank" rel="noreferrer">{{.URL}}</a>{{end}}
 </div>
 {{else}}

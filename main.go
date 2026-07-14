@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/jcgay/glane/internal/mastodon"
 	"github.com/jcgay/glane/internal/search"
 	"github.com/jcgay/glane/internal/store"
+	"github.com/jcgay/glane/internal/summarize"
 	"github.com/jcgay/glane/internal/twitter"
 	"github.com/jcgay/glane/internal/web"
 )
@@ -32,7 +34,7 @@ func dbPath() string {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|serve> ...")
+		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|summarize|tags|serve> ...")
 		os.Exit(2)
 	}
 	s, err := store.Open(dbPath())
@@ -52,6 +54,10 @@ func main() {
 		cmdServe(s, os.Args[2:])
 	case "enrich":
 		cmdEnrich(s, os.Args[2:])
+	case "summarize":
+		cmdSummarize(s, os.Args[2:])
+	case "tags":
+		cmdTags(s)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n", os.Args[1])
 		os.Exit(2)
@@ -180,22 +186,39 @@ func cmdSearch(s *store.Store, args []string) {
 	source := fs.String("source", "", "filter by source")
 	limit := fs.Int("limit", 20, "max results")
 	since := fs.String("since", "", "only items on/after this date (YYYY or YYYY-MM-DD)")
+	tag := fs.String("tag", "", "filter by tag")
 	fs.Parse(flagArgs)
-	if query == "" {
-		fatal(fmt.Errorf("usage: glane search <query> [--source X] [--limit N] [--since YYYY[-MM-DD]]  (flags after the query)"))
-	}
 	sinceTs, err := parseSince(*since)
 	if err != nil {
 		fatal(err)
 	}
-	filter := store.Filter{Source: *source, Limit: *limit, Since: sinceTs}
+	filter := store.Filter{Source: *source, Limit: *limit, Since: sinceTs, Tag: *tag}
 
-	res, err := search.Hybrid(s, embed.FromEnv(), query, filter)
+	var res []store.Result
+	if query == "" {
+		if *tag == "" {
+			fatal(fmt.Errorf("usage: glane search <query> [--source X] [--tag T] [--since Y] [--limit N]"))
+		}
+		res, err = s.ByTag(*tag, filter)
+	} else {
+		res, err = search.Hybrid(s, embed.FromEnv(), query, filter)
+	}
 	if err != nil {
 		fatal(err)
 	}
+	if err := s.AttachTags(res); err != nil {
+		fatal(err)
+	}
 	for _, r := range res {
-		fmt.Printf("[%s/%s] %s\n    %s\n", r.Source, r.Kind, trunc(r.Text, 120), r.URL)
+		snippet := r.Text
+		if r.ArticleSummary != "" {
+			snippet = r.ArticleSummary
+		}
+		tagStr := ""
+		if len(r.Tags) > 0 {
+			tagStr = "  #" + strings.Join(r.Tags, " #")
+		}
+		fmt.Printf("[%s/%s] %s%s\n    %s\n", r.Source, r.Kind, trunc(snippet, 160), tagStr, r.URL)
 	}
 	fmt.Printf("(%d results)\n", len(res))
 }
@@ -234,6 +257,44 @@ func cmdEnrich(s *store.Store, args []string) {
 		fatal(err)
 	}
 	fmt.Printf("enriched %d, failed %d\n", done, failed)
+}
+
+func cmdSummarize(s *store.Store, args []string) {
+	fs := flag.NewFlagSet("summarize", flag.ExitOnError)
+	limit := fs.Int("limit", 100, "max items to summarize this run")
+	fs.Parse(args)
+	c := summarize.FromEnv()
+	if c == nil {
+		fatal(fmt.Errorf("set GLANE_SUMMARY_URL to generate summaries"))
+	}
+	items, err := s.PendingSummary(*limit)
+	if err != nil {
+		fatal(err)
+	}
+	done, failed := 0, 0
+	for _, it := range items {
+		res, err := c.Summarize(context.Background(), it.ArticleTitle, it.ArticleText)
+		if err != nil {
+			failed++
+			fmt.Fprintf(os.Stderr, "glane: summarize item %d: %v\n", it.ID, err)
+			continue
+		}
+		if err := s.SaveSummary(it.ID, res.Summary, res.Tags); err != nil {
+			fatal(err)
+		}
+		done++
+	}
+	fmt.Printf("summarized %d items (%d failed)\n", done, failed)
+}
+
+func cmdTags(s *store.Store) {
+	tags, err := s.TagCounts()
+	if err != nil {
+		fatal(err)
+	}
+	for _, tc := range tags {
+		fmt.Printf("%-24s %d\n", tc.Tag, tc.Count)
+	}
 }
 
 func trunc(s string, n int) string {
