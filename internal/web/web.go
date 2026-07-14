@@ -32,11 +32,22 @@ func handler(s *store.Store) http.Handler {
 
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("q")
-		if q == "" {
+		tag := r.URL.Query().Get("tag")
+		if q == "" && tag == "" {
 			w.Write([]byte(""))
 			return
 		}
-		res, err := search.Hybrid(s, gembed.FromEnv(), q, store.Filter{Source: r.URL.Query().Get("source"), Limit: 50})
+		var res []store.Result
+		var err error
+		if q == "" {
+			res, err = s.ByTag(tag, store.Filter{Limit: 50})
+		} else {
+			res, err = search.Hybrid(s, gembed.FromEnv(), q, store.Filter{
+				Source: r.URL.Query().Get("source"),
+				Tag:    tag,
+				Limit:  50,
+			})
+		}
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
