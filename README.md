@@ -10,6 +10,8 @@ Everything works offline with no model; the semantic layer is an optional bonus.
 
 It imports a **Twitter/X archive** and syncs live sources — **GitHub stars**,
 **Mastodon** (favourites + bookmarks), and **Bluesky** (likes) — into one index.
+An optional LLM step summarizes and tags each saved article, so you can recognize
+a forgotten bookmark at a glance and browse your veille by topic.
 
 ## Requirements
 
@@ -51,6 +53,16 @@ export GITHUB_TOKEN=…              # GitHub stars
 export GLANE_MASTODON_URL=https://mastodon.social GLANE_MASTODON_TOKEN=…
 export GLANE_BLUESKY_HANDLE=you.bsky.social GLANE_BLUESKY_APP_PASSWORD=…
 ./glane sync all                   # syncs every configured source (incremental)
+```
+
+To enrich links and add LLM summaries + tags:
+
+```sh
+./glane enrich                     # fetch linked articles, extract their text
+export GLANE_SUMMARY_URL=http://localhost:11434/v1 GLANE_SUMMARY_MODEL=gemma3
+./glane summarize                  # summarize + tag each enriched article
+./glane tags                       # see your topic vocabulary
+./glane search --tag kubernetes    # browse everything tagged kubernetes
 ```
 
 ## Commands
@@ -123,12 +135,16 @@ flags come after.
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `--source` | all | Restrict to one source (`twitter`, `bluesky`, `mastodon`, `github`) |
+| `--tag` | — | Restrict to a tag (see `glane summarize`); with no query, browses that tag |
 | `--since` | — | Only items on/after a date: `YYYY` or `YYYY-MM-DD` |
 | `--limit` | 20 | Max results |
+
+Results lead with the LLM summary (when present) and show the item's tags.
 
 ```sh
 ./glane search cold start lambda --source twitter --limit 10
 ./glane search "provisioned concurrency" --since 2022
+./glane search --tag rust           # browse everything tagged rust, newest first
 ```
 
 If an embeddings endpoint is configured (see [Semantic search](#semantic-search)),
@@ -150,6 +166,32 @@ not just its 100-character text.
   searchable by its own text.
 - If an embeddings endpoint is configured, `enrich` also generates and stores a
   vector for each enriched item.
+
+### `glane summarize [--limit N]`
+Optional LLM step. For each enriched article without one yet, a single
+chat-completions call produces a **readable summary** and **3–6 free topic tags**.
+Requires `GLANE_SUMMARY_URL` (an OpenAI-compatible chat endpoint) + `GLANE_SUMMARY_MODEL`
+(+ optional `GLANE_SUMMARY_KEY`); unset → the command tells you to set it.
+
+```sh
+export GLANE_SUMMARY_URL=http://localhost:11434/v1   # e.g. Ollama on your M2
+export GLANE_SUMMARY_MODEL=gemma3
+./glane summarize --limit 200
+```
+
+- Resumable: only un-summarized enriched items are processed.
+- Fail-soft: an item the model can't summarize is logged and skipped, retried next run.
+- The summary is searchable (full-text) and becomes the result snippet; tags feed
+  `--tag` and `glane tags`. Embeddings are left untouched (a summary vector isn't
+  reliably better than the existing one).
+
+### `glane tags`
+Lists your tag vocabulary with counts, most-used first — a map of what your veille
+is actually about, and a way to spot drift (`k8s` vs `kubernetes`).
+
+```sh
+./glane tags
+```
 
 ### `glane serve [--port N]`
 Serves the local web UI (default `http://127.0.0.1:8080`) — a single page with
@@ -218,6 +260,9 @@ Override it with `GLANE_DB=/path/to/glane.db`. Delete the file to start over.
 | `GLANE_EMBED_URL` | `search`, `enrich` | OpenAI-compatible embeddings base URL; unset → semantic disabled |
 | `GLANE_EMBED_MODEL` | `search`, `enrich` | Embedding model name |
 | `GLANE_EMBED_KEY` | `search`, `enrich` | Embeddings API key; omit for local endpoints |
+| `GLANE_SUMMARY_URL` | `summarize` | OpenAI-compatible chat base URL; unset → `summarize` errors |
+| `GLANE_SUMMARY_MODEL` | `summarize` | Chat model name (e.g. `gemma3`) |
+| `GLANE_SUMMARY_KEY` | `summarize` | Chat API key; omit for local endpoints |
 
 ## How it works
 
@@ -227,16 +272,20 @@ Override it with `GLANE_DB=/path/to/glane.db`. Delete the file to start over.
   stored vectors; the two are fused with Reciprocal Rank Fusion when both are
   available. The CLI and the web UI share one `search.Hybrid` entry point.
 - **Enrichment** — article extraction via `go-shiori/go-readability`.
+- **Summaries & tags** — one optional chat call per article yields a summary and
+  free tags; the summary is additive (never replaces the indexed article text)
+  and embeddings are left as-is.
 
 ## Roadmap
 
 Done: the searchable core (Twitter import, full-text + semantic search, web UI,
-link enrichment) and live connectors for GitHub stars, Mastodon, and Bluesky
-with `sync all`. Planned next:
+link enrichment), live connectors for GitHub stars, Mastodon, and Bluesky with
+`sync all`, and the optional LLM summaries + tags. Ideas for later:
 
-- Optional LLM article summaries
+- Clickable tags in the web UI (filter/browse by tag, not just display)
 - Capturing Bluesky external links (`embed.external`) so liked link posts enrich
   as well as Mastodon's do
-- A documented cron/launchd entry for scheduled `sync all`
+- Tag normalization/aliasing if the free-tag vocabulary drifts (inspect with `glane tags`)
+- A documented cron/launchd entry for scheduled `sync all` + `enrich` + `summarize`
 
 Design and implementation notes live in `docs/superpowers/`.
