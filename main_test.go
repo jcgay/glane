@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 	"unicode/utf8"
 
@@ -119,6 +120,22 @@ func TestSummarizeAllDrainsThenFailsSafe(t *testing.T) {
 	d2, f2 := summarizeAll(s, cBad)
 	if d2 != 0 || f2 == 0 {
 		t.Fatalf("failure path: want 0 done, >0 failed; got done=%d failed=%d", d2, f2)
+	}
+}
+
+func TestRenderResultsFlattensAndNumbers(t *testing.T) {
+	res := []store.Result{
+		{Item: store.Item{Source: "bluesky", Kind: "bookmark", Text: "Nouvelle vidéo\n\nsur plusieurs\nlignes", URL: "https://bsky.app/x", Tags: []string{"ia"}}},
+		{Item: store.Item{Source: "github", Kind: "star", ArticleSummary: "A tool", URL: "https://gh/y"}},
+	}
+	got := renderResults(res)
+	if strings.Contains(got, "vidéo\n\nsur") {
+		t.Fatalf("snippet newlines not flattened:\n%s", got)
+	}
+	for _, want := range []string{"  1. ", "  2. ", "Nouvelle vidéo sur plusieurs lignes", "#ia", "(2 results)"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
 	}
 }
 

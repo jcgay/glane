@@ -288,18 +288,37 @@ func cmdSearch(s *store.Store, args []string) {
 	if err := s.AttachTags(res); err != nil {
 		fatal(err)
 	}
+	fmt.Print(renderResults(res))
+}
+
+// renderResults formats search results as a scannable list: one numbered entry
+// per result, a flattened single-line snippet, then an indented line with the
+// URL and any tags. A blank line separates entries. The [source/kind] label is
+// padded to a common width so all snippets start at the same column.
+func renderResults(res []store.Result) string {
+	labelWidth := 0
 	for _, r := range res {
+		if w := len(r.Source) + len(r.Kind) + 3; w > labelWidth { // "[/]" = 3
+			labelWidth = w
+		}
+	}
+	var b strings.Builder
+	for i, r := range res {
 		snippet := r.Text
 		if r.ArticleSummary != "" {
 			snippet = r.ArticleSummary
 		}
-		tagStr := ""
+		snippet = strings.Join(strings.Fields(snippet), " ") // collapse newlines/runs of whitespace
+		label := fmt.Sprintf("[%s/%s]", r.Source, r.Kind)
+		fmt.Fprintf(&b, "%3d. %-*s %s\n", i+1, labelWidth, label, trunc(snippet, 160))
+		fmt.Fprintf(&b, "     %s", r.URL)
 		if len(r.Tags) > 0 {
-			tagStr = "  #" + strings.Join(r.Tags, " #")
+			fmt.Fprintf(&b, "  #%s", strings.Join(r.Tags, " #"))
 		}
-		fmt.Printf("[%s/%s] %s%s\n    %s\n", r.Source, r.Kind, trunc(snippet, 160), tagStr, r.URL)
+		b.WriteString("\n\n")
 	}
-	fmt.Printf("(%d results)\n", len(res))
+	fmt.Fprintf(&b, "(%d results)\n", len(res))
+	return b.String()
 }
 
 // parseSince converts "YYYY" or "YYYY-MM-DD" to a Unix timestamp (start of that day/year).
