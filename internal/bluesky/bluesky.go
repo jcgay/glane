@@ -99,6 +99,12 @@ func getJSON(hc *http.Client, jwt, reqURL string, out any) error {
 //
 // ponytail: accumulates all new items in memory before one Upsert; fine for a
 // personal account. Stream per-page if volumes ever grow large.
+//
+// ponytail: stops on exact SourceID (post URI) match — AT-URIs aren't ordered,
+// so there's no range compare. If the exact post the cursor points at leaves the
+// feed (you unlike/delete it), the stop never fires and the whole feed is
+// re-scanned + re-upserted every run until a surviving item re-anchors the
+// cursor. Idempotent and fine at personal scale; revisit if a feed grows huge.
 func syncStream(s *store.Store, cursorKey string, fetch func(pageCursor string) ([]store.Item, string, error)) (int, error) {
 	cursor, err := s.GetCursor(cursorKey)
 	if err != nil {
