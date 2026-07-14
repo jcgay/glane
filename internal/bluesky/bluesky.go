@@ -27,7 +27,7 @@ func createSession(handle, appPassword string, hc *http.Client) (string, error) 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Bluesky auth failed (check BLUESKY_APP_PASSWORD)")
+		return "", fmt.Errorf("Bluesky login failed (status %d) — check BLUESKY_HANDLE and BLUESKY_APP_PASSWORD (use an app password from Settings, not your main password)", resp.StatusCode)
 	}
 	var out struct {
 		AccessJwt string `json:"accessJwt"`
@@ -134,8 +134,11 @@ func getJSON(hc *http.Client, jwt, reqURL string, out any) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized {
+		return fmt.Errorf("Bluesky: 401 — session rejected; check BLUESKY_HANDLE and BLUESKY_APP_PASSWORD")
+	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Bluesky API status %d", resp.StatusCode)
+		return fmt.Errorf("Bluesky: API status %d", resp.StatusCode)
 	}
 	return json.NewDecoder(resp.Body).Decode(out)
 }

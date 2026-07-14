@@ -100,11 +100,15 @@ func syncStream(s *store.Store, url, token, cursorKey string, hc *http.Client, m
 		}
 		if resp.StatusCode == http.StatusUnauthorized {
 			resp.Body.Close()
-			return 0, fmt.Errorf("Mastodon auth failed (check MASTODON_ACCESS_TOKEN)")
+			return 0, fmt.Errorf("Mastodon %s: 401 — MASTODON_ACCESS_TOKEN is invalid or expired", cursorKey)
+		}
+		if resp.StatusCode == http.StatusForbidden {
+			resp.Body.Close()
+			return 0, fmt.Errorf("Mastodon %s: 403 — MASTODON_ACCESS_TOKEN is missing a required read scope. glane needs read:favourites + read:bookmarks + read:statuses (or a broad read); regenerate the token at your instance's /settings/applications", cursorKey)
 		}
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			return 0, fmt.Errorf("Mastodon API status %d for %s", resp.StatusCode, cursorKey)
+			return 0, fmt.Errorf("Mastodon %s: API status %d", cursorKey, resp.StatusCode)
 		}
 		var statuses []status
 		next := nextLink(resp.Header.Get("Link"))
@@ -199,10 +203,13 @@ func verifyCredentials(baseURL, token string, hc *http.Client) (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusUnauthorized {
-		return "", fmt.Errorf("Mastodon auth failed (check MASTODON_ACCESS_TOKEN)")
+		return "", fmt.Errorf("Mastodon verify_credentials: 401 — MASTODON_ACCESS_TOKEN is invalid or expired")
+	}
+	if resp.StatusCode == http.StatusForbidden {
+		return "", fmt.Errorf("Mastodon verify_credentials: 403 — MASTODON_ACCESS_TOKEN is missing a read scope; regenerate it with read (or read:accounts + read:statuses) at your instance's /settings/applications")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Mastodon API status %d for verify_credentials", resp.StatusCode)
+		return "", fmt.Errorf("Mastodon verify_credentials: API status %d", resp.StatusCode)
 	}
 	var acc struct {
 		ID string `json:"id"`

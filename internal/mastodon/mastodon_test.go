@@ -109,6 +109,19 @@ func TestSyncAuthFailure(t *testing.T) {
 	}
 }
 
+func TestSync403GivesScopeHint(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "forbidden", 403)
+	}))
+	defer srv.Close()
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	_, err := Sync(s, srv.URL, "tok", srv.Client())
+	if err == nil || !strings.Contains(err.Error(), "read:favourites") {
+		t.Fatalf("403 should hint at the missing read scope, got: %v", err)
+	}
+}
+
 func TestSyncAuthorFeedOwnVsBoost(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
