@@ -201,7 +201,8 @@ is actually about, and a way to spot drift (`k8s` vs `kubernetes`).
 
 ### `glane serve [--port N]`
 Serves the local web UI (default `http://127.0.0.1:8080`) — a single page with
-search-as-you-type and a source filter. Local-only; no auth.
+search-as-you-type, a source filter, and **clickable tags** (click a tag on any
+result to browse everything with it). Local-only; no auth.
 
 ## Semantic search
 
@@ -297,7 +298,6 @@ Done: the searchable core (Twitter import, full-text + semantic search, web UI,
 link enrichment), live connectors for GitHub stars, Mastodon, and Bluesky with
 `sync all`, and the optional LLM summaries + tags. Ideas for later:
 
-- Clickable tags in the web UI (filter/browse by tag, not just display)
 - Tag normalization/aliasing if the free-tag vocabulary drifts (inspect with `glane tags`)
 - A `--quiet` flag to silence progress output
 - A documented cron/launchd entry for scheduled `sync all` + `enrich` + `summarize`
