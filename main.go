@@ -34,7 +34,7 @@ func dbPath() string {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|summarize|tags|serve> ...")
+		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|summarize|update|tags|serve> ...")
 		os.Exit(2)
 	}
 	s, err := store.Open(dbPath())
@@ -56,6 +56,8 @@ func main() {
 		cmdEnrich(s, os.Args[2:])
 	case "summarize":
 		cmdSummarize(s, os.Args[2:])
+	case "update":
+		cmdUpdate(s)
 	case "tags":
 		cmdTags(s)
 	default:
@@ -126,6 +128,15 @@ func cmdSync(s *store.Store, args []string) {
 // command exit non-zero (so scheduled runs are monitorable), but does not stop
 // the others; each connector advances only its own cursor.
 func cmdSyncAll(s *store.Store) {
+	if syncAll(s) {
+		os.Exit(1)
+	}
+}
+
+// syncAll runs every configured connector (skipping the rest), prints the
+// summary line, and returns whether any configured connector failed. It does
+// not exit — callers decide (cmdSyncAll exits; cmdUpdate keeps going).
+func syncAll(s *store.Store) bool {
 	hc := syncClient()
 	total := 0
 	failed := false
@@ -166,6 +177,72 @@ func cmdSyncAll(s *store.Store) {
 		fmt.Printf(" (skipped, not configured: %s)", strings.Join(skipped, ", "))
 	}
 	fmt.Println()
+	return failed
+}
+
+const drainLimit = 100000 // effectively "all pending" at personal scale, single pass
+
+// enrichAll enriches the whole pending backlog in one pass. Injectable clients
+// keep it testable. Returns counts and whether enrich.Run hard-errored.
+func enrichAll(s *store.Store, hc *http.Client, emb *embed.Client) (int, int, bool) {
+	done, failed, err := enrich.Run(s, hc, emb, drainLimit, stderrProgress)
+	fmt.Printf("enriched %d, failed %d\n", done, failed)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "glane: enrich error: %v\n", err)
+		return done, failed, true
+	}
+	return done, failed, false
+}
+
+// summarizeAll summarizes the whole pending backlog in one pass (no re-loop, so a
+// permanently-failing item can't spin). Failed items stay pending for next run.
+func summarizeAll(s *store.Store, c *summarize.Client) (int, int) {
+	items, err := s.PendingSummary(drainLimit)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "glane: summarize error: %v\n", err)
+		return 0, 1 // treat as a failure so update signals it
+	}
+	done, failed := 0, 0
+	for i, it := range items {
+		stderrProgress(fmt.Sprintf("summarize [%d/%d]…", i+1, len(items)))
+		res, serr := c.Summarize(context.Background(), it.ArticleTitle, it.ArticleText)
+		if serr != nil {
+			failed++
+			fmt.Fprintf(os.Stderr, "glane: summarize item %d: %v\n", it.ID, serr)
+			continue
+		}
+		if serr := s.SaveSummary(it.ID, res.Summary, res.Tags); serr != nil {
+			failed++
+			fmt.Fprintf(os.Stderr, "glane: summarize save item %d: %v\n", it.ID, serr)
+			continue
+		}
+		done++
+	}
+	fmt.Printf("summarized %d items (%d failed)\n", done, failed)
+	return done, failed
+}
+
+// cmdUpdate runs the full pipeline for a scheduled/one-shot refresh: sync all →
+// enrich → summarize. Each phase runs regardless of earlier failures; update
+// exits non-zero if any phase hard-failed (for scheduler alerting).
+func cmdUpdate(s *store.Store) {
+	failed := false
+	if syncAll(s) {
+		failed = true
+	}
+	if _, _, errored := enrichAll(s, enrich.DefaultClient(), embed.FromEnv()); errored {
+		failed = true
+	}
+	if c := summarize.FromEnv(); c != nil {
+		// A total summarize wipeout (some attempted, none succeeded) signals a
+		// down endpoint; a few per-item failures don't trip the exit code.
+		done, sfailed := summarizeAll(s, c)
+		if done == 0 && sfailed > 0 {
+			failed = true
+		}
+	} else {
+		fmt.Println("summarize skipped (GLANE_SUMMARY_URL not set)")
+	}
 	if failed {
 		os.Exit(1)
 	}

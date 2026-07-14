@@ -1,9 +1,14 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/jcgay/glane/internal/store"
+	"github.com/jcgay/glane/internal/summarize"
 )
 
 func TestSplitQueryArgs(t *testing.T) {
@@ -38,6 +43,82 @@ func TestParseSince(t *testing.T) {
 	}
 	if _, err := parseSince("nope"); err == nil {
 		t.Errorf("parseSince(\"nope\") = nil error, want an error")
+	}
+}
+
+func TestSyncAllSkipsWhenUnconfigured(t *testing.T) {
+	// All connector env empty → every connector skipped → no failure.
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("MASTODON_INSTANCE_URL", "")
+	t.Setenv("MASTODON_ACCESS_TOKEN", "")
+	t.Setenv("BLUESKY_HANDLE", "")
+	t.Setenv("BLUESKY_APP_PASSWORD", "")
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	if syncAll(s) {
+		t.Fatal("syncAll should report no failure when everything is skipped")
+	}
+}
+
+// updateServer serves article HTML for any path except /chat/completions,
+// which returns an OpenAI-shaped chat response with a JSON summary+tags.
+func updateServer(t *testing.T) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/chat/completions" {
+			w.Write([]byte(`{"choices":[{"message":{"content":"{\"summary\":\"a summary about lambdas\",\"tags\":[\"aws\"]}"}}]}`))
+			return
+		}
+		w.Write([]byte(`<html><head><title>T</title></head><body><article><p>content about aws lambda</p></article></body></html>`))
+	}))
+}
+
+func TestEnrichAllDrainsBacklog(t *testing.T) {
+	srv := updateServer(t)
+	defer srv.Close()
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	s.Upsert([]store.Item{
+		{Source: "twitter", SourceID: "1", Kind: "like", Text: "a", URL: srv.URL + "/a"},
+		{Source: "twitter", SourceID: "2", Kind: "like", Text: "b", URL: srv.URL + "/b"},
+	})
+	done, _, errored := enrichAll(s, srv.Client(), nil)
+	if errored || done != 2 {
+		t.Fatalf("want 2 enriched, no error; got done=%d errored=%v", done, errored)
+	}
+	if pend, _ := s.PendingEnrichment(10); len(pend) != 0 {
+		t.Fatalf("backlog not drained: %d still pending", len(pend))
+	}
+}
+
+func TestSummarizeAllDrainsThenFailsSafe(t *testing.T) {
+	srv := updateServer(t)
+	defer srv.Close()
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	s.Upsert([]store.Item{{Source: "twitter", SourceID: "1", Kind: "like", Text: "a", URL: srv.URL + "/a"}})
+	// enrich first so there's an article to summarize
+	enrichAll(s, srv.Client(), nil)
+
+	c := &summarize.Client{BaseURL: srv.URL, Model: "m", HTTP: srv.Client()}
+	done, failed := summarizeAll(s, c)
+	if done != 1 || failed != 0 {
+		t.Fatalf("want 1 summarized; got done=%d failed=%d", done, failed)
+	}
+	if pend, _ := s.PendingSummary(10); len(pend) != 0 {
+		t.Fatalf("summary backlog not drained: %d pending", len(pend))
+	}
+
+	// Failure path: a bad endpoint must NOT loop forever — single pass returns.
+	srvBad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "down", 500)
+	}))
+	defer srvBad.Close()
+	s.Upsert([]store.Item{{Source: "twitter", SourceID: "2", Kind: "like", Text: "b", URL: srv.URL + "/b"}})
+	enrichAll(s, srv.Client(), nil)
+	cBad := &summarize.Client{BaseURL: srvBad.URL, Model: "m", HTTP: srvBad.Client()}
+	d2, f2 := summarizeAll(s, cBad)
+	if d2 != 0 || f2 == 0 {
+		t.Fatalf("failure path: want 0 done, >0 failed; got done=%d failed=%d", d2, f2)
 	}
 }
 
