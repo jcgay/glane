@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/jcgay/glane/internal/store"
@@ -150,3 +151,32 @@ func statusJSON(id int) string {
 	return fmt.Sprintf(`{"id":"%d","created_at":"2023-01-01T00:00:00Z","url":"https://m/@u/%d","content":"<p>text%d</p>","account":{"acct":"u@m"}}`, id, id, id)
 }
 func srvURL(r *http.Request) string { return "http://" + r.Host }
+
+func TestSyncReportsProgress(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/favourites":
+			fmt.Fprint(w, `[`+statusJSON(30)+`]`)
+		case "/api/v1/accounts/verify_credentials":
+			fmt.Fprint(w, `{"id":"1"}`)
+		default:
+			fmt.Fprint(w, `[]`)
+		}
+	}))
+	defer srv.Close()
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	var msgs []string
+	if _, err := Sync(s, srv.URL, "tok", srv.Client(), func(m string) { msgs = append(msgs, m) }); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, m := range msgs {
+		if strings.Contains(m, "mastodon: favourites") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("no favourites progress: %v", msgs)
+	}
+}

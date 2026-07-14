@@ -105,7 +105,7 @@ func getJSON(hc *http.Client, jwt, reqURL string, out any) error {
 // feed (you unlike/delete it), the stop never fires and the whole feed is
 // re-scanned + re-upserted every run until a surviving item re-anchors the
 // cursor. Idempotent and fine at personal scale; revisit if a feed grows huge.
-func syncStream(s *store.Store, cursorKey string, fetch func(pageCursor string) ([]store.Item, string, error)) (int, error) {
+func syncStream(s *store.Store, cursorKey string, fetch func(pageCursor string) ([]store.Item, string, error), label string, report func(string)) (int, error) {
 	cursor, err := s.GetCursor(cursorKey)
 	if err != nil {
 		return 0, err
@@ -132,6 +132,7 @@ func syncStream(s *store.Store, cursorKey string, fetch func(pageCursor string) 
 			}
 			all = append(all, it)
 		}
+		report(fmt.Sprintf("%s… %d", label, len(all)))
 		if stop || next == "" {
 			break
 		}
@@ -235,7 +236,12 @@ func authorFeedFetch(hc *http.Client, jwt, handle string) func(string) ([]store.
 // Sync imports likes, then saved posts (bookmarks), then the author's own posts
 // and reposts. Order matters: later streams win kind on a shared post URI
 // (repost/own > bookmark > like) via Upsert's overwrite.
-func Sync(s *store.Store, handle, appPassword string, hc *http.Client) (int, error) {
+func Sync(s *store.Store, handle, appPassword string, hc *http.Client, progress ...func(string)) (int, error) {
+	report := func(string) {}
+	if len(progress) > 0 && progress[0] != nil {
+		report = progress[0]
+	}
+
 	jwt, err := createSession(handle, appPassword, hc)
 	if err != nil {
 		return 0, err
@@ -243,14 +249,15 @@ func Sync(s *store.Store, handle, appPassword string, hc *http.Client) (int, err
 	streams := []struct {
 		key   string
 		fetch func(string) ([]store.Item, string, error)
+		label string
 	}{
-		{"bluesky:likes", likesFetch(hc, jwt, handle)},
-		{"bluesky:bookmarks", bookmarksFetch(hc, jwt)},
-		{"bluesky:authorfeed", authorFeedFetch(hc, jwt, handle)},
+		{"bluesky:likes", likesFetch(hc, jwt, handle), "bluesky: likes"},
+		{"bluesky:bookmarks", bookmarksFetch(hc, jwt), "bluesky: saved"},
+		{"bluesky:authorfeed", authorFeedFetch(hc, jwt, handle), "bluesky: my posts"},
 	}
 	total := 0
 	for _, st := range streams {
-		n, err := syncStream(s, st.key, st.fetch)
+		n, err := syncStream(s, st.key, st.fetch, st.label, report)
 		total += n
 		if err != nil {
 			return total, err

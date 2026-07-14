@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/jcgay/glane/internal/store"
@@ -194,5 +195,29 @@ func TestSyncKindPrecedenceRepostOverLike(t *testing.T) {
 	// same uri liked AND reposted → one row; authorfeed runs last → repost wins
 	if len(res) != 1 || res[0].Kind != "repost" {
 		t.Fatalf("precedence failed, want single repost, got %+v", res)
+	}
+}
+
+func TestSyncReportsProgress(t *testing.T) {
+	srv := newServer(t, serverPages{likes: map[string]string{
+		"": fmt.Sprintf(`{"feed":[%s]}`, post("aaa")),
+	}})
+	defer srv.Close()
+	pdsBase = srv.URL
+	defer func() { pdsBase = "https://bsky.social" }()
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	var msgs []string
+	if _, err := Sync(s, "alice.bsky.social", "pw", srv.Client(), func(m string) { msgs = append(msgs, m) }); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, m := range msgs {
+		if strings.Contains(m, "bluesky: likes") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("no likes progress: %v", msgs)
 	}
 }

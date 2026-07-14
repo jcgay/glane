@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/jcgay/glane/internal/store"
@@ -114,4 +115,37 @@ func TestSyncAuthFailure(t *testing.T) {
 	if cur, _ := s.GetCursor("github"); cur != "" {
 		t.Fatalf("cursor must not advance on auth failure, got %q", cur)
 	}
+}
+
+func TestSyncReportsProgress(t *testing.T) {
+	perPage = 100
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "1" {
+			fmt.Fprint(w, starPage(3, 2))
+		} else {
+			fmt.Fprint(w, "[]")
+		}
+	}))
+	defer srv.Close()
+	apiBase = srv.URL
+	defer func() { apiBase = "https://api.github.com" }()
+
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	var msgs []string
+	if _, err := Sync(s, "tok", srv.Client(), func(m string) { msgs = append(msgs, m) }); err != nil {
+		t.Fatal(err)
+	}
+	if !containsSubstr(msgs, "github: stars") {
+		t.Fatalf("no stars progress: %v", msgs)
+	}
+}
+
+func containsSubstr(msgs []string, sub string) bool {
+	for _, m := range msgs {
+		if strings.Contains(m, sub) {
+			return true
+		}
+	}
+	return false
 }

@@ -50,7 +50,12 @@ func toItem(e starEntry) store.Item {
 
 // Sync pages the token owner's starred repos newest-first, upserts everything
 // newer than the stored cursor, and advances the cursor only after success.
-func Sync(s *store.Store, token string, hc *http.Client) (int, error) {
+func Sync(s *store.Store, token string, hc *http.Client, progress ...func(string)) (int, error) {
+	report := func(string) {}
+	if len(progress) > 0 && progress[0] != nil {
+		report = progress[0]
+	}
+
 	cursor, err := s.GetCursor("github")
 	if err != nil {
 		return 0, err
@@ -104,6 +109,7 @@ func Sync(s *store.Store, token string, hc *http.Client) (int, error) {
 			}
 			items = append(items, toItem(e))
 		}
+		report(fmt.Sprintf("github: stars… %d", len(items)))
 		if stop || len(entries) < perPage {
 			break
 		}

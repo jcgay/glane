@@ -80,7 +80,7 @@ func toItem(st status, kind string) store.Item {
 	}
 }
 
-func syncStream(s *store.Store, url, token, cursorKey string, hc *http.Client, mapItem func(status) store.Item) (int, error) {
+func syncStream(s *store.Store, url, token, cursorKey string, hc *http.Client, mapItem func(status) store.Item, label string, report func(string)) (int, error) {
 	cursor, err := s.GetCursor(cursorKey)
 	if err != nil {
 		return 0, err
@@ -127,6 +127,7 @@ func syncStream(s *store.Store, url, token, cursorKey string, hc *http.Client, m
 			}
 			items = append(items, mapItem(st))
 		}
+		report(fmt.Sprintf("%s… %d", label, len(items)))
 		if stop {
 			break
 		}
@@ -151,7 +152,12 @@ func syncStream(s *store.Store, url, token, cursorKey string, hc *http.Client, m
 // Sync imports Mastodon favourites (kind "like"), bookmarks (kind "bookmark"),
 // and the account's own feed: own posts (kind "own") and boosts (kind "repost",
 // mapped to the reblogged status).
-func Sync(s *store.Store, baseURL, token string, hc *http.Client) (int, error) {
+func Sync(s *store.Store, baseURL, token string, hc *http.Client, progress ...func(string)) (int, error) {
+	report := func(string) {}
+	if len(progress) > 0 && progress[0] != nil {
+		report = progress[0]
+	}
+
 	baseURL = strings.TrimRight(baseURL, "/")
 	like := func(st status) store.Item { return toItem(st, "like") }
 	bookmark := func(st status) store.Item { return toItem(st, "bookmark") }
@@ -162,11 +168,11 @@ func Sync(s *store.Store, baseURL, token string, hc *http.Client) (int, error) {
 		return toItem(st, "own")
 	}
 
-	fav, err := syncStream(s, baseURL+"/api/v1/favourites?limit=40", token, "mastodon:favourites", hc, like)
+	fav, err := syncStream(s, baseURL+"/api/v1/favourites?limit=40", token, "mastodon:favourites", hc, like, "mastodon: favourites", report)
 	if err != nil {
 		return fav, err
 	}
-	bm, err := syncStream(s, baseURL+"/api/v1/bookmarks?limit=40", token, "mastodon:bookmarks", hc, bookmark)
+	bm, err := syncStream(s, baseURL+"/api/v1/bookmarks?limit=40", token, "mastodon:bookmarks", hc, bookmark, "mastodon: bookmarks", report)
 	if err != nil {
 		return fav + bm, err
 	}
@@ -174,7 +180,7 @@ func Sync(s *store.Store, baseURL, token string, hc *http.Client) (int, error) {
 	if err != nil {
 		return fav + bm, err
 	}
-	af, err := syncStream(s, baseURL+"/api/v1/accounts/"+id+"/statuses?exclude_replies=true&limit=40", token, "mastodon:authorfeed", hc, author)
+	af, err := syncStream(s, baseURL+"/api/v1/accounts/"+id+"/statuses?exclude_replies=true&limit=40", token, "mastodon:authorfeed", hc, author, "mastodon: my posts", report)
 	if err != nil {
 		return fav + bm + af, err
 	}
