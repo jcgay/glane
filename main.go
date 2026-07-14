@@ -9,9 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jcgay/glane/internal/bluesky"
 	"github.com/jcgay/glane/internal/embed"
 	"github.com/jcgay/glane/internal/enrich"
 	"github.com/jcgay/glane/internal/github"
+	"github.com/jcgay/glane/internal/mastodon"
 	"github.com/jcgay/glane/internal/search"
 	"github.com/jcgay/glane/internal/store"
 	"github.com/jcgay/glane/internal/twitter"
@@ -56,6 +58,8 @@ func main() {
 	}
 }
 
+func syncClient() *http.Client { return &http.Client{Timeout: 30 * time.Second} }
+
 func cmdImport(s *store.Store, args []string) {
 	if len(args) < 2 || args[0] != "twitter" {
 		fatal(fmt.Errorf("usage: glane import twitter <archive-dir>"))
@@ -69,7 +73,7 @@ func cmdImport(s *store.Store, args []string) {
 
 func cmdSync(s *store.Store, args []string) {
 	if len(args) < 1 {
-		fatal(fmt.Errorf("usage: glane sync <github>"))
+		fatal(fmt.Errorf("usage: glane sync <github, mastodon, bluesky, all>"))
 	}
 	switch args[0] {
 	case "github":
@@ -77,14 +81,84 @@ func cmdSync(s *store.Store, args []string) {
 		if token == "" {
 			fatal(fmt.Errorf("set GITHUB_TOKEN to sync GitHub stars"))
 		}
-		n, err := github.Sync(s, token, &http.Client{Timeout: 30 * time.Second})
+		n, err := github.Sync(s, token, syncClient())
 		if err != nil {
 			fatal(err)
 		}
 		fmt.Printf("synced %d new stars\n", n)
+	case "mastodon":
+		base, token := os.Getenv("GLANE_MASTODON_URL"), os.Getenv("GLANE_MASTODON_TOKEN")
+		if base == "" || token == "" {
+			fatal(fmt.Errorf("set GLANE_MASTODON_URL and GLANE_MASTODON_TOKEN to sync Mastodon"))
+		}
+		n, err := mastodon.Sync(s, base, token, syncClient())
+		if err != nil {
+			fatal(err)
+		}
+		fmt.Printf("synced %d new mastodon items\n", n)
+	case "bluesky":
+		handle, pw := os.Getenv("GLANE_BLUESKY_HANDLE"), os.Getenv("GLANE_BLUESKY_APP_PASSWORD")
+		if handle == "" || pw == "" {
+			fatal(fmt.Errorf("set GLANE_BLUESKY_HANDLE and GLANE_BLUESKY_APP_PASSWORD to sync Bluesky"))
+		}
+		n, err := bluesky.Sync(s, handle, pw, syncClient())
+		if err != nil {
+			fatal(err)
+		}
+		fmt.Printf("synced %d new bluesky items\n", n)
+	case "all":
+		cmdSyncAll(s)
 	default:
-		fatal(fmt.Errorf("unknown sync source %q (known: github)", args[0]))
+		fatal(fmt.Errorf("unknown sync source %q (known: github, mastodon, bluesky, all)", args[0]))
 	}
+}
+
+// cmdSyncAll runs every connector whose config is present, skipping the rest
+// (reported, not errored). One connector's failure is logged but does not stop
+// the others; each connector's own cursor only advances on its own success.
+func cmdSyncAll(s *store.Store) {
+	hc := syncClient()
+	total := 0
+	var ran, skipped []string
+
+	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
+		if n, err := github.Sync(s, tok, hc); err != nil {
+			fmt.Fprintf(os.Stderr, "glane: github sync error: %v\n", err)
+		} else {
+			total += n
+			ran = append(ran, fmt.Sprintf("github:%d", n))
+		}
+	} else {
+		skipped = append(skipped, "github")
+	}
+
+	if base, tok := os.Getenv("GLANE_MASTODON_URL"), os.Getenv("GLANE_MASTODON_TOKEN"); base != "" && tok != "" {
+		if n, err := mastodon.Sync(s, base, tok, hc); err != nil {
+			fmt.Fprintf(os.Stderr, "glane: mastodon sync error: %v\n", err)
+		} else {
+			total += n
+			ran = append(ran, fmt.Sprintf("mastodon:%d", n))
+		}
+	} else {
+		skipped = append(skipped, "mastodon")
+	}
+
+	if h, pw := os.Getenv("GLANE_BLUESKY_HANDLE"), os.Getenv("GLANE_BLUESKY_APP_PASSWORD"); h != "" && pw != "" {
+		if n, err := bluesky.Sync(s, h, pw, hc); err != nil {
+			fmt.Fprintf(os.Stderr, "glane: bluesky sync error: %v\n", err)
+		} else {
+			total += n
+			ran = append(ran, fmt.Sprintf("bluesky:%d", n))
+		}
+	} else {
+		skipped = append(skipped, "bluesky")
+	}
+
+	fmt.Printf("synced %d new items [%s]", total, strings.Join(ran, " "))
+	if len(skipped) > 0 {
+		fmt.Printf(" (skipped, not configured: %s)", strings.Join(skipped, ", "))
+	}
+	fmt.Println()
 }
 
 // splitQueryArgs separates a leading multi-word query from trailing flags.
