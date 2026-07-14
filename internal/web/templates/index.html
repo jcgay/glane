@@ -3,31 +3,204 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>glane</title>
+  <title>glane · veille techno</title>
+  <meta name="description" content="Recherche dans votre veille technologique : dépôts, articles et posts glanés au fil de l'eau.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
   <script src="/static/htmx.min.js"></script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
-    input, select { font-size: 1rem; padding: .4rem; }
-    .hit { border-bottom: 1px solid #ddd; padding: .6rem 0; }
-    .badge { font-size: .75rem; background: #eee; border-radius: .3rem; padding: .1rem .4rem; }
-    .tags { margin: .2rem 0; }
-    .tag { font-size: .7rem; background: #eef; border-radius: .3rem; padding: .05rem .35rem; cursor: pointer; text-decoration: none; color: #334; }
-    .tag:hover { background: #dde; }
-    a { color: #06c; text-decoration: none; }
+    :root {
+      --bg: #faf9f7;
+      --surface: #ffffff;
+      --surface-2: #f3f1ec;
+      --border: #e7e2da;
+      --border-strong: #d8d2c7;
+      --ink: #1c1b18;
+      --muted: #6c665d;
+      --faint: #9a9389;
+      --accent: #b45309;
+      --accent-ink: #8a3f07;
+      --accent-soft: #fbeddd;
+      --ring: rgba(180, 83, 9, .32);
+      --shadow: 0 1px 2px rgba(60, 50, 30, .05), 0 8px 24px -12px rgba(60, 50, 30, .16);
+      --src-twitter: #4a86c6;
+      --src-bluesky: #0a7ea4;
+      --src-mastodon: #7a5bc0;
+      --src-github: #5b6470;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141310;
+        --surface: #1c1b16;
+        --surface-2: #24221b;
+        --border: #2d2b23;
+        --border-strong: #3a372d;
+        --ink: #ece9e2;
+        --muted: #a49d92;
+        --faint: #736d62;
+        --accent: #e79f56;
+        --accent-ink: #efb277;
+        --accent-soft: #2a2015;
+        --ring: rgba(231, 159, 86, .3);
+        --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .6);
+        --src-twitter: #6ba3dd;
+        --src-bluesky: #45a7c9;
+        --src-mastodon: #a281e0;
+        --src-github: #9aa2ad;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 0 1.25rem; }
+
+    /* --- header / hero --- */
+    header { padding: 3.25rem 0 1.5rem; }
+    .brand { display: flex; align-items: baseline; gap: .6rem; }
+    .brand h1 {
+      font-size: 2rem; font-weight: 600; letter-spacing: -.03em;
+      margin: 0; line-height: 1;
+    }
+    .brand .mark { font-size: 1.5rem; line-height: 1; transform: translateY(1px); }
+    .brand p {
+      margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: -.01em;
+    }
+
+    /* --- search toolbar (sticky) --- */
+    .toolbar {
+      position: sticky; top: 0; z-index: 10;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: saturate(1.4) blur(10px);
+      -webkit-backdrop-filter: saturate(1.4) blur(10px);
+      padding: .9rem 0 .75rem;
+      margin-bottom: .5rem;
+    }
+    .search {
+      position: relative; display: flex; align-items: center;
+    }
+    .search svg {
+      position: absolute; left: .95rem; width: 18px; height: 18px;
+      color: var(--faint); pointer-events: none;
+    }
+    .search input {
+      width: 100%; font: inherit; font-size: 1.05rem; color: var(--ink);
+      background: var(--surface); border: 1px solid var(--border-strong);
+      border-radius: .8rem; padding: .8rem 1rem .8rem 2.85rem;
+      box-shadow: var(--shadow); transition: border-color .18s, box-shadow .18s;
+    }
+    .search input::placeholder { color: var(--faint); }
+    .search input:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--ring), var(--shadow);
+    }
+
+    /* thin loading bar under the search field */
+    .bar {
+      height: 2px; margin-top: .55rem; border-radius: 2px; overflow: hidden;
+      background: transparent;
+    }
+    .bar.htmx-request { background: var(--border); }
+    .bar.htmx-request::after {
+      content: ""; display: block; height: 100%; width: 40%;
+      background: var(--accent); border-radius: 2px;
+      animation: slide 1s ease-in-out infinite;
+    }
+    @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }
+
+    /* --- source filter (segmented) --- */
+    .sources { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; }
+    .sources label {
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-size: .82rem; color: var(--muted); cursor: pointer;
+      padding: .3rem .7rem; border-radius: 2rem;
+      border: 1px solid var(--border); background: var(--surface);
+      transition: color .15s, border-color .15s, background .15s;
+      user-select: none;
+    }
+    .sources label:hover { border-color: var(--border-strong); color: var(--ink); }
+    .sources input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .sources label:has(input:checked) {
+      color: var(--accent-ink); border-color: var(--accent);
+      background: var(--accent-soft); font-weight: 500;
+    }
+    .sources label:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--ring); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+    .dot.twitter { background: var(--src-twitter); }
+    .dot.bluesky { background: var(--src-bluesky); }
+    .dot.mastodon { background: var(--src-mastodon); }
+    .dot.github { background: var(--src-github); }
+
+    /* --- results / states --- */
+    main { padding-bottom: 5rem; }
+    .idle {
+      color: var(--faint); text-align: center; padding: 3.5rem 1rem;
+      font-size: .95rem;
+    }
+    .idle kbd {
+      font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: .8em; background: var(--surface-2); color: var(--muted);
+      border: 1px solid var(--border); border-radius: .35rem; padding: .1rem .4rem;
+    }
+    #results:empty + .idle { display: block; }
+    #results:not(:empty) + .idle { display: none; }
   </style>
 </head>
 <body>
-  <h1>glane</h1>
-  <input type="search" name="q" placeholder="Rechercher…" autofocus
-         hx-get="/search" hx-trigger="input changed delay:300ms, search"
-         hx-target="#results" hx-include="[name='source']">
-  <select name="source" hx-get="/search" hx-target="#results" hx-include="[name='q']">
-    <option value="">toutes sources</option>
-    <option value="twitter">twitter</option>
-    <option value="bluesky">bluesky</option>
-    <option value="mastodon">mastodon</option>
-    <option value="github">github</option>
-  </select>
-  <div id="results"></div>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <span class="mark" aria-hidden="true">🌾</span>
+        <h1>glane</h1>
+        <p>votre veille, retrouvée d'un mot</p>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <form class="search-form">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path>
+          </svg>
+          <input type="search" name="q" placeholder="Rechercher un dépôt, un article, un post…" autofocus
+                 aria-label="Rechercher dans la veille"
+                 hx-get="/search" hx-trigger="input changed delay:300ms, search"
+                 hx-target="#results" hx-indicator=".bar" hx-include="closest form">
+        </div>
+        <div class="bar" aria-hidden="true"></div>
+
+        <div class="sources" role="radiogroup" aria-label="Filtrer par source">
+          <label><input type="radio" name="source" value="" checked
+                        hx-get="/search" hx-trigger="change" hx-target="#results"
+                        hx-indicator=".bar" hx-include="closest form">toutes</label>
+          <label><span class="dot twitter"></span><input type="radio" name="source" value="twitter"
+                        hx-get="/search" hx-trigger="change" hx-target="#results"
+                        hx-indicator=".bar" hx-include="closest form">twitter</label>
+          <label><span class="dot bluesky"></span><input type="radio" name="source" value="bluesky"
+                        hx-get="/search" hx-trigger="change" hx-target="#results"
+                        hx-indicator=".bar" hx-include="closest form">bluesky</label>
+          <label><span class="dot mastodon"></span><input type="radio" name="source" value="mastodon"
+                        hx-get="/search" hx-trigger="change" hx-target="#results"
+                        hx-indicator=".bar" hx-include="closest form">mastodon</label>
+          <label><span class="dot github"></span><input type="radio" name="source" value="github"
+                        hx-get="/search" hx-trigger="change" hx-target="#results"
+                        hx-indicator=".bar" hx-include="closest form">github</label>
+        </div>
+      </form>
+    </div>
+
+    <main>
+      <div id="results"></div>
+      <p class="idle">Tapez pour chercher. La recherche combine mots-clés et sens — essayez <kbd>rust async</kbd> ou <kbd>observabilité</kbd>.</p>
+    </main>
+  </div>
 </body>
 </html>

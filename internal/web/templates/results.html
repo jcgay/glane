@@ -1,10 +1,80 @@
-{{range .}}
-<div class="hit">
-  <span class="badge">{{.Source}}/{{.Kind}}</span>
-  <div>{{if .ArticleTitle}}<strong>{{.ArticleTitle}}</strong> — {{end}}{{if .ArticleSummary}}{{.ArticleSummary}}{{else}}{{.Text}}{{end}}</div>
-  {{if .Tags}}<div class="tags">{{range .Tags}}<a class="tag" href="#" hx-get="/search?tag={{. | urlquery}}" hx-target="#results">{{.}}</a> {{end}}</div>{{end}}
-  {{if .URL}}<a href="{{.URL}}" target="_blank" rel="noreferrer">{{.URL}}</a>{{end}}
-</div>
+<style>
+  .hits { list-style: none; margin: 0; padding: 0; }
+  .hit {
+    padding: 1.05rem .9rem; border-radius: .7rem;
+    border: 1px solid transparent; margin: 0 -.9rem;
+    transition: background .15s, border-color .15s;
+  }
+  .hit + .hit { border-top: 1px solid var(--border); border-radius: 0; }
+  .hit:hover { background: var(--surface); border-color: var(--border); border-radius: .7rem; }
+  .hit:hover + .hit { border-top-color: transparent; }
+
+  .meta {
+    display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .72rem; letter-spacing: .01em; color: var(--faint);
+    margin-bottom: .35rem; font-variant-numeric: tabular-nums;
+  }
+  .meta .src { display: inline-flex; align-items: center; gap: .35rem; color: var(--muted); }
+  .meta .kind { color: var(--faint); }
+  .meta .who { color: var(--muted); }
+  .meta time { margin-left: auto; color: var(--faint); }
+
+  .hit h3 {
+    margin: 0 0 .15rem; font-size: 1.02rem; font-weight: 600;
+    letter-spacing: -.011em; line-height: 1.35;
+  }
+  .hit p.text {
+    margin: .1rem 0 .5rem; color: var(--muted); font-size: .92rem;
+    line-height: 1.55; text-wrap: pretty;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  .tags { display: flex; flex-wrap: wrap; gap: .35rem; margin: .5rem 0 .1rem; }
+  .tag {
+    font-size: .74rem; color: var(--muted); text-decoration: none;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: .4rem; padding: .1rem .45rem; cursor: pointer;
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .tag::before { content: "#"; color: var(--faint); }
+  .tag:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-soft); }
+
+  .visit {
+    display: inline-flex; align-items: center; gap: .3rem; margin-top: .45rem;
+    font-size: .82rem; color: var(--accent-ink); text-decoration: none; font-weight: 500;
+  }
+  .visit:hover { text-decoration: underline; }
+  .visit .arrow { transition: transform .15s; }
+  .visit:hover .arrow { transform: translate(2px, -2px); }
+
+  .empty { color: var(--faint); text-align: center; padding: 3rem 1rem; font-size: .95rem; }
+</style>
+{{if .}}
+<ul class="hits">
+  {{range .}}
+  <li class="hit">
+    <div class="meta">
+      <span class="src"><span class="dot {{.Source}}"></span>{{.Source}}</span>
+      {{if .Kind}}<span class="kind">{{.Kind}}</span>{{end}}
+      {{if .Author}}<span class="who">{{.Author}}</span>{{end}}
+      {{if .CreatedAt}}<time>{{reltime .CreatedAt}}</time>{{end}}
+    </div>
+    {{if .ArticleTitle}}<h3>{{.ArticleTitle}}</h3>{{end}}
+    <p class="text">{{if .ArticleSummary}}{{.ArticleSummary}}{{else}}{{.Text}}{{end}}</p>
+    {{if .Tags}}
+    <div class="tags">
+      {{range .Tags}}<a class="tag" href="#" hx-get="/search?tag={{. | urlquery}}" hx-target="#results" hx-indicator=".bar">{{.}}</a>{{end}}
+    </div>
+    {{end}}
+    {{if .URL}}
+    <a class="visit" href="{{.URL}}" target="_blank" rel="noreferrer">
+      {{host .URL}}<span class="arrow" aria-hidden="true">↗</span>
+    </a>
+    {{end}}
+  </li>
+  {{end}}
+</ul>
 {{else}}
-<p>Aucun résultat.</p>
+<p class="empty">Aucun résultat. Essayez d'autres mots-clés ou changez de source.</p>
 {{end}}

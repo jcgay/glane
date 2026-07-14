@@ -2,9 +2,12 @@ package web
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
+	"time"
 
 	gembed "github.com/jcgay/glane/internal/embed"
 	"github.com/jcgay/glane/internal/search"
@@ -14,7 +17,41 @@ import (
 //go:embed templates/*.html static/*
 var assets embed.FS
 
-var tmpl = template.Must(template.ParseFS(assets, "templates/*.html"))
+var funcs = template.FuncMap{
+	// host strips a URL down to its display domain (no scheme, no "www.").
+	"host": func(raw string) string {
+		u, err := url.Parse(raw)
+		if err != nil || u.Host == "" {
+			return raw
+		}
+		h := u.Host
+		if len(h) > 4 && h[:4] == "www." {
+			h = h[4:]
+		}
+		return h
+	},
+	// reltime renders a unix timestamp as a short, human relative age.
+	"reltime": func(ts int64) string {
+		if ts <= 0 {
+			return ""
+		}
+		d := time.Since(time.Unix(ts, 0))
+		switch {
+		case d < time.Minute:
+			return "à l'instant"
+		case d < time.Hour:
+			return fmt.Sprintf("il y a %dmin", int(d.Minutes()))
+		case d < 24*time.Hour:
+			return fmt.Sprintf("il y a %dh", int(d.Hours()))
+		case d < 30*24*time.Hour:
+			return fmt.Sprintf("il y a %dj", int(d.Hours()/24))
+		default:
+			return time.Unix(ts, 0).Format("2 Jan 2006")
+		}
+	},
+}
+
+var tmpl = template.Must(template.New("").Funcs(funcs).ParseFS(assets, "templates/*.html"))
 
 func handler(s *store.Store) http.Handler {
 	mux := http.NewServeMux()
