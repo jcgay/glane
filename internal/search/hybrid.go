@@ -2,6 +2,8 @@ package search
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/jcgay/glane/internal/embed"
 	"github.com/jcgay/glane/internal/store"
@@ -25,6 +27,9 @@ func Hybrid(s *store.Store, c *embed.Client, query string, f store.Filter) ([]st
 	}
 	embs, err := s.AllEmbeddings(c.Model, f)
 	if err != nil || len(embs) == 0 {
+		if err == nil {
+			warnModelMismatch(s, c.Model)
+		}
 		return fts, nil
 	}
 	semIDs := SemanticIDs(qv[0], embs, 100)
@@ -51,4 +56,32 @@ func Hybrid(s *store.Store, c *embed.Client, query string, f store.Filter) ([]st
 		}
 	}
 	return out, nil
+}
+
+// warnModelMismatch prints a one-line stderr warning when the embeddings table
+// holds vectors, but none for the configured model — the signature of a changed
+// GLANE_EMBED_MODEL that silently orphaned every stored vector. Search still
+// succeeds (degraded to FTS-only, no error surfaced); the warning just tells the
+// operator to re-run `glane enrich` instead of debugging empty semantic results.
+func warnModelMismatch(s *store.Store, model string) {
+	models, err := s.EmbeddingModels()
+	if err != nil || !staleModel(models, model) {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "warning: no embeddings for model %q; stored vectors use %v — run `glane enrich` to re-embed (searching full-text only)\n", model, models)
+}
+
+// staleModel reports whether embeddings exist but none for the wanted model, i.e.
+// the model was switched. An empty table (nothing enriched) or a table that
+// contains the wanted model (empty result came from the filter) is not stale.
+func staleModel(models []string, want string) bool {
+	if len(models) == 0 {
+		return false
+	}
+	for _, m := range models {
+		if m == want {
+			return false
+		}
+	}
+	return true
 }

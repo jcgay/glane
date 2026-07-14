@@ -13,6 +13,26 @@ func (s *Store) SaveEmbedding(id int64, model string, v []float32) error {
 	return err
 }
 
+// EmbeddingModels returns the distinct model names present in the embeddings
+// table. Lets the search layer tell "nothing enriched yet" apart from "a changed
+// GLANE_EMBED_MODEL orphaned every stored vector" and warn accordingly.
+func (s *Store) EmbeddingModels() ([]string, error) {
+	rows, err := s.db.Query(`SELECT DISTINCT model FROM embeddings`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var m string
+		if err := rows.Scan(&m); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) AllEmbeddings(model string, f Filter) ([]Embedded, error) {
 	sql := `SELECT e.item_id, e.vector FROM embeddings e
 		JOIN items i ON i.id = e.item_id

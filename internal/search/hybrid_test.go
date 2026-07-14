@@ -7,6 +7,24 @@ import (
 	"github.com/jcgay/glane/internal/store"
 )
 
+func TestStaleModel(t *testing.T) {
+	cases := []struct {
+		models []string
+		want   string
+		stale  bool
+	}{
+		{nil, "bge-m3", false},                               // nothing enriched yet
+		{[]string{"bge-m3"}, "bge-m3", false},                // same model
+		{[]string{"text-embedding-3-small"}, "bge-m3", true}, // model switched
+		{[]string{"a", "bge-m3"}, "bge-m3", false},           // present among several
+	}
+	for _, c := range cases {
+		if got := staleModel(c.models, c.want); got != c.stale {
+			t.Errorf("staleModel(%v, %q) = %v, want %v", c.models, c.want, got, c.stale)
+		}
+	}
+}
+
 func TestHybridFallsBackToFTS(t *testing.T) {
 	s, err := store.Open(filepath.Join(t.TempDir(), "t.db"))
 	if err != nil {
