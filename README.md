@@ -298,9 +298,8 @@ link enrichment), live connectors for GitHub stars, Mastodon, and Bluesky with
 `sync all`, and the optional LLM summaries + tags. Ideas for later:
 
 - Clickable tags in the web UI (filter/browse by tag, not just display)
-- Capturing Bluesky external links (`embed.external`) so liked link posts enrich
-  as well as Mastodon's do
 - Tag normalization/aliasing if the free-tag vocabulary drifts (inspect with `glane tags`)
+- A `--quiet` flag to silence progress output
 - A documented cron/launchd entry for scheduled `sync all` + `enrich` + `summarize`
 
 Design and implementation notes live in `docs/superpowers/`.
