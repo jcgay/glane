@@ -25,8 +25,11 @@ planifiée documentée pour que glane se mette à jour tout seul.
 - **Code de sortie pour le monitoring** : `update` sort non-zéro si une phase a
   échoué (comme `sync all`), pour qu'un job planifié puisse alerter — mais une
   phase qui échoue n'empêche PAS les suivantes de tourner.
-- **Drain** : `enrich`/`summarize` traitent tout le backlog en bouclant, avec des
-  garde-fous de terminaison (voir plus bas).
+- **Drain en une passe** : `enrich`/`summarize` traitent tout le backlog en un
+  seul appel à grande limite (`drainLimit = 100000`, soit « tout » à échelle
+  perso), PAS en bouclant — ce qui évite tout risque de re-tenter à l'infini un
+  item de résumé qui échoue systématiquement. Au-delà de `drainLimit`, le reste
+  attend le prochain run.
 - **Pas de nouvelle logique** : `update` réutilise le sync-all, `enrich.Run`,
   `summarize` existants ; progression sur stderr via les callbacks existants.
 
@@ -46,18 +49,16 @@ Nouvelle sous-commande `update` (aucun flag pour v1). Déroulé :
 
 1. **sync all** — appelle le cœur partagé (voir refactor) ; note si un connecteur
    a échoué.
-2. **enrich (drain)** — boucle `enrich.Run(s, hc, emb, batch, progress)` (batch =
-   100) jusqu'à ce qu'un appel traite 0 item (`done+failed == 0` → plus rien en
-   attente). Chaque item traité passe `fetch_status` à `ok`/`failed`, donc
-   l'ensemble « pending » (`fetch_status = ''`) décroît strictement → terminaison
-   garantie. Une erreur d'`enrich.Run` arrête la phase enrich (notée en échec),
-   on continue vers summarize.
-3. **summarize (drain)** — si `summarize.FromEnv() == nil` → sauté (noté). Sinon
-   boucle : `PendingSummary(batch)` puis résume chaque item ; **on s'arrête dès
-   qu'un lot ne produit AUCUN succès** (`done == 0`), pour ne pas re-tenter à
-   l'infini des items dont le LLM échoue systématiquement (ils restent
-   `article_summary = ''` et seront retentés au prochain run planifié, pas dans
-   celui-ci).
+2. **enrich (drain, une passe)** — `enrich.Run(s, hc, emb, drainLimit, progress)`
+   en un seul appel : `PendingEnrichment(drainLimit)` récupère tout le backlog et
+   chaque item passe `fetch_status` à `ok`/`failed`. Une erreur d'`enrich.Run`
+   note la phase en échec ; on continue vers summarize.
+3. **summarize (drain, une passe)** — si `summarize.FromEnv() == nil` → sauté
+   (noté). Sinon `PendingSummary(drainLimit)` puis on résume chaque item **une
+   seule fois** (pas de re-boucle) : les items dont le LLM échoue restent
+   `article_summary = ''` et sont retentés au prochain run planifié, pas dans
+   celui-ci — ce qui évite toute boucle infinie sur un item définitivement en
+   échec.
 4. En fin : si une phase a signalé un échec → `os.Exit(1)`, sinon 0.
 
 Affichage : réutilise `stderrProgress` (progression par flux/item sur stderr) ;
