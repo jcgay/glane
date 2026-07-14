@@ -61,6 +61,7 @@ type status struct {
 	Account   struct {
 		Acct string `json:"acct"`
 	} `json:"account"`
+	Reblog *status `json:"reblog"`
 }
 
 func toItem(st status, kind string) store.Item {
@@ -79,7 +80,7 @@ func toItem(st status, kind string) store.Item {
 	}
 }
 
-func syncStream(s *store.Store, url, token, kind, cursorKey string, hc *http.Client) (int, error) {
+func syncStream(s *store.Store, url, token, cursorKey string, hc *http.Client, mapItem func(status) store.Item) (int, error) {
 	cursor, err := s.GetCursor(cursorKey)
 	if err != nil {
 		return 0, err
@@ -99,7 +100,7 @@ func syncStream(s *store.Store, url, token, kind, cursorKey string, hc *http.Cli
 		}
 		if resp.StatusCode == http.StatusUnauthorized {
 			resp.Body.Close()
-			return 0, fmt.Errorf("Mastodon auth failed (check GLANE_MASTODON_TOKEN)")
+			return 0, fmt.Errorf("Mastodon auth failed (check MASTODON_ACCESS_TOKEN)")
 		}
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
@@ -124,7 +125,7 @@ func syncStream(s *store.Store, url, token, kind, cursorKey string, hc *http.Cli
 			if idNewer(st.ID, newest) {
 				newest = st.ID
 			}
-			items = append(items, toItem(st, kind))
+			items = append(items, mapItem(st))
 		}
 		if stop {
 			break
@@ -147,16 +148,61 @@ func syncStream(s *store.Store, url, token, kind, cursorKey string, hc *http.Cli
 	return len(items), nil
 }
 
-// Sync imports Mastodon favourites (kind "like") and bookmarks (kind "bookmark").
+// Sync imports Mastodon favourites (kind "like"), bookmarks (kind "bookmark"),
+// and the account's own feed: own posts (kind "own") and boosts (kind "repost",
+// mapped to the reblogged status).
 func Sync(s *store.Store, baseURL, token string, hc *http.Client) (int, error) {
 	baseURL = strings.TrimRight(baseURL, "/")
-	fav, err := syncStream(s, baseURL+"/api/v1/favourites?limit=40", token, "like", "mastodon:favourites", hc)
+	like := func(st status) store.Item { return toItem(st, "like") }
+	bookmark := func(st status) store.Item { return toItem(st, "bookmark") }
+	author := func(st status) store.Item {
+		if st.Reblog != nil {
+			return toItem(*st.Reblog, "repost")
+		}
+		return toItem(st, "own")
+	}
+
+	fav, err := syncStream(s, baseURL+"/api/v1/favourites?limit=40", token, "mastodon:favourites", hc, like)
 	if err != nil {
 		return fav, err
 	}
-	bm, err := syncStream(s, baseURL+"/api/v1/bookmarks?limit=40", token, "bookmark", "mastodon:bookmarks", hc)
+	bm, err := syncStream(s, baseURL+"/api/v1/bookmarks?limit=40", token, "mastodon:bookmarks", hc, bookmark)
 	if err != nil {
 		return fav + bm, err
 	}
-	return fav + bm, nil
+	id, err := verifyCredentials(baseURL, token, hc)
+	if err != nil {
+		return fav + bm, err
+	}
+	af, err := syncStream(s, baseURL+"/api/v1/accounts/"+id+"/statuses?exclude_replies=true&limit=40", token, "mastodon:authorfeed", hc, author)
+	if err != nil {
+		return fav + bm + af, err
+	}
+	return fav + bm + af, nil
+}
+
+func verifyCredentials(baseURL, token string, hc *http.Client) (string, error) {
+	req, err := http.NewRequest("GET", baseURL+"/api/v1/accounts/verify_credentials", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := hc.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", fmt.Errorf("Mastodon auth failed (check MASTODON_ACCESS_TOKEN)")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Mastodon API status %d for verify_credentials", resp.StatusCode)
+	}
+	var acc struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&acc); err != nil {
+		return "", err
+	}
+	return acc.ID, nil
 }

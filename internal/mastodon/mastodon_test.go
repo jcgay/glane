@@ -34,6 +34,10 @@ func TestSyncBothStreamsPaginateAndMap(t *testing.T) {
 			}
 		case "/api/v1/bookmarks":
 			fmt.Fprint(w, `[`+statusJSON(50)+`]`)
+		case "/api/v1/accounts/verify_credentials":
+			fmt.Fprint(w, `{"id":"1"}`)
+		case "/api/v1/accounts/1/statuses":
+			fmt.Fprint(w, `[]`)
 		default:
 			http.Error(w, "no", 404)
 		}
@@ -69,9 +73,12 @@ func TestSyncBothStreamsPaginateAndMap(t *testing.T) {
 
 func TestSyncIncrementalStopsAtStatusID(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/favourites" {
+		switch {
+		case r.URL.Path == "/api/v1/favourites":
 			fmt.Fprint(w, `[`+statusJSON(20)+`,`+statusJSON(19)+`,`+statusJSON(18)+`]`)
-		} else {
+		case r.URL.Path == "/api/v1/accounts/verify_credentials":
+			fmt.Fprint(w, `{"id":"1"}`)
+		default:
 			fmt.Fprint(w, `[]`)
 		}
 	}))
@@ -98,6 +105,43 @@ func TestSyncAuthFailure(t *testing.T) {
 	defer s.Close()
 	if _, err := Sync(s, srv.URL, "tok", srv.Client()); err == nil {
 		t.Fatal("expected auth error")
+	}
+}
+
+func TestSyncAuthorFeedOwnVsBoost(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/v1/accounts/verify_credentials":
+			fmt.Fprint(w, `{"id":"7"}`)
+		case r.URL.Path == "/api/v1/accounts/7/statuses":
+			fmt.Fprint(w, `[
+				{"id":"200","created_at":"2023-01-01T00:00:00Z","url":"https://m/@me/200","content":"<p>my own note about rust</p>","account":{"acct":"me@m"}},
+				{"id":"199","created_at":"2023-01-01T00:00:00Z","url":"https://m/@me/199","content":"","account":{"acct":"me@m"},"reblog":{"id":"5001","created_at":"2022-12-01T00:00:00Z","url":"https://other/@bob/5001","content":"<p>bob on kubernetes</p>","account":{"acct":"bob@other"}}}
+			]`)
+		default:
+			fmt.Fprint(w, `[]`) // favourites + bookmarks empty
+		}
+	}))
+	defer srv.Close()
+
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	n, err := Sync(s, srv.URL, "tok", srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("want 2 (own + boost), got %d", n)
+	}
+	own, _ := s.SearchFTS("note", store.Filter{})
+	if len(own) != 1 || own[0].Kind != "own" {
+		t.Fatalf("own wrong: %+v", own)
+	}
+	// boost maps to the reblogged status (its id, author, content, url)
+	boost, _ := s.SearchFTS("kubernetes", store.Filter{})
+	if len(boost) != 1 || boost[0].Kind != "repost" || boost[0].SourceID != "5001" ||
+		boost[0].Author != "bob@other" || boost[0].URL != "https://other/@bob/5001" {
+		t.Fatalf("boost wrong: %+v", boost)
 	}
 }
 
