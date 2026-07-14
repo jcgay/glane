@@ -1,6 +1,7 @@
 package enrich
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -129,5 +130,29 @@ func TestRunGithubFetchesRepoURL(t *testing.T) {
 	}
 	if len(hits) < 1 {
 		t.Fatalf("expected repo page to be fetched (found via 'readme'), got %d hits", len(hits))
+	}
+}
+
+func TestRunReportsProgress(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `<html><head><title>T</title></head><body><article><p>hello world content</p></article></body></html>`)
+	}))
+	defer srv.Close()
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	s.Upsert([]store.Item{{Source: "twitter", SourceID: "1", Kind: "like", Text: "post", URL: srv.URL + "/a"}})
+
+	var msgs []string
+	if _, _, err := Run(s, srv.Client(), nil, 10, func(m string) { msgs = append(msgs, m) }); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, m := range msgs {
+		if strings.Contains(m, "enrich [1/1]") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("no enrich progress: %v", msgs)
 	}
 }

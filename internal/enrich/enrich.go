@@ -2,6 +2,7 @@ package enrich
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -33,13 +34,17 @@ type Enrichment struct {
 	Status  string // "ok" or "failed"
 }
 
-func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int) (int, int, error) {
+func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int, progress ...func(string)) (int, int, error) {
 	items, err := s.PendingEnrichment(limit)
 	if err != nil {
 		return 0, 0, err
 	}
 	var done, failed int
-	for _, it := range items {
+	report := func(string) {}
+	if len(progress) > 0 && progress[0] != nil {
+		report = progress[0]
+	}
+	for i, it := range items {
 		// The useful link is source-dependent: for GitHub stars it's the repo page
 		// (it.URL); for Twitter the real article link lives in the post text (the t.co).
 		var link string
@@ -51,6 +56,11 @@ func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int) (int, in
 				link = it.URL
 			}
 		}
+		host := link
+		if u, perr := url.Parse(link); perr == nil && u.Host != "" {
+			host = u.Host
+		}
+		report(fmt.Sprintf("enrich [%d/%d] %s…", i+1, len(items), host))
 		e := Enrichment{LinkURL: link, Status: "failed"}
 
 		resp, err := hc.Get(link)
