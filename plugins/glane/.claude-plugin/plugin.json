@@ -8,6 +8,5 @@
   },
   "homepage": "https://github.com/jcgay/glane",
   "repository": "https://github.com/jcgay/glane",
-  "keywords": ["search", "tech-watch", "veille", "bookmarks", "cli"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["search", "tech-watch", "veille", "bookmarks", "cli"]
 }
