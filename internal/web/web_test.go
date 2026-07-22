@@ -78,6 +78,25 @@ func TestTagRenderedAsClickableLink(t *testing.T) {
 	}
 }
 
+func TestIndexListsTagsForBrowsing(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	seedTagged(t, s, "1", "alpha", []string{"rust"})
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	body := rec.Body.String()
+	if rec.Code != 200 {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if !strings.Contains(body, "rust") {
+		t.Fatalf("tag not listed on index for browsing: %s", body)
+	}
+	if !strings.Contains(body, `hx-get="/search?tag=rust"`) {
+		t.Fatalf("index tag not rendered as an htmx link: %s", body)
+	}
+}
+
 func TestSearchFragmentRendersHits(t *testing.T) {
 	s, _ := store.Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()

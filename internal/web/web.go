@@ -62,7 +62,11 @@ func handler(s *store.Store) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		if err := tmpl.ExecuteTemplate(w, "index.html", nil); err != nil {
+		tags, err := s.TagCounts() // degrade silently: no tags just means no browse list
+		if err != nil {
+			log.Printf("glane: tag counts: %v", err)
+		}
+		if err := tmpl.ExecuteTemplate(w, "index.html", tags); err != nil {
 			log.Printf("glane: render index.html: %v", err)
 		}
 	})

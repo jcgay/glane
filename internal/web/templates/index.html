@@ -152,6 +152,25 @@
     }
     #results:empty + .idle { display: block; }
     #results:not(:empty) + .idle { display: none; }
+
+    /* --- tag browse --- */
+    .idle .prompt { margin: 0 0 2.5rem; }
+    .browse h2 {
+      font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: .74rem; font-weight: 500; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--faint); margin: 0 0 .8rem;
+    }
+    .tagcloud { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; }
+    .tagcloud .tag {
+      font-size: .82rem; color: var(--muted); text-decoration: none;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: .5rem; padding: .2rem .6rem;
+      transition: color .15s, border-color .15s, background .15s;
+    }
+    .tagcloud .tag::before { content: "#"; color: var(--faint); }
+    .tagcloud .tag .n { color: var(--faint); margin-left: .3rem; font-variant-numeric: tabular-nums; }
+    .tagcloud .tag .n::before { content: "·"; margin-right: .15rem; }
+    .tagcloud .tag:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-soft); }
   </style>
 </head>
 <body>
@@ -199,7 +218,17 @@
 
     <main>
       <div id="results"></div>
-      <p class="idle">Tapez pour chercher. La recherche combine mots-clés et sens — essayez <kbd>rust async</kbd> ou <kbd>observabilité</kbd>.</p>
+      <div class="idle">
+        <p class="prompt">Tapez pour chercher. La recherche combine mots-clés et sens — essayez <kbd>rust async</kbd> ou <kbd>observabilité</kbd>.</p>
+        {{if .}}
+        <div class="browse">
+          <h2>Parcourir par tag</h2>
+          <div class="tagcloud">
+            {{range .}}<a class="tag" href="#" hx-get="/search?tag={{.Tag | urlquery}}" hx-target="#results" hx-indicator=".bar">{{.Tag}}<span class="n">{{.Count}}</span></a>{{end}}
+          </div>
+        </div>
+        {{end}}
+      </div>
     </main>
   </div>
 </body>
