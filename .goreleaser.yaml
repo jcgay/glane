@@ -23,6 +23,8 @@ builds:
 
 archives:
   - formats: [tar.gz]
+    files:
+      - completions/glane.fish
     format_overrides:
       - goos: windows
         formats: [zip]
@@ -37,6 +39,8 @@ brews:
     directory: . # formulae live at the repo root, not in Formula/
     homepage: "https://github.com/jcgay/glane"
     description: "Full-text and semantic search over your saved tech-watch posts"
+    extra_install: |
+      fish_completion.install "completions/glane.fish"
 
 checksum:
   name_template: "checksums.txt"
