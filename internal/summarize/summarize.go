@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,18 +22,36 @@ type Client struct {
 	Model   string
 	APIKey  string
 	HTTP    *http.Client
+	// RetryBackoff is the base wait between retries on a busy (503/429) server;
+	// zero disables the wait (tests). Backoff grows linearly per attempt.
+	RetryBackoff time.Duration
 }
+
+// maxRetries bounds retries on a busy server so one wedged endpoint can't stall
+// a whole run indefinitely.
+const maxRetries = 5
 
 func FromEnv() *Client {
 	url := os.Getenv("GLANE_SUMMARY_URL")
 	if url == "" {
 		return nil
 	}
+	// A hard timeout that fires mid-generation disconnects the client, which on a
+	// single-slot local server (e.g. MLX) leaves the aborted generation occupying
+	// the slot and every following request gets 503. Default generously; override
+	// with GLANE_SUMMARY_TIMEOUT (seconds) if your model/articles need more.
+	timeout := 180 * time.Second
+	if v := os.Getenv("GLANE_SUMMARY_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			timeout = time.Duration(n) * time.Second
+		}
+	}
 	return &Client{
-		BaseURL: url,
-		Model:   os.Getenv("GLANE_SUMMARY_MODEL"),
-		APIKey:  os.Getenv("GLANE_SUMMARY_KEY"),
-		HTTP:    &http.Client{Timeout: 60 * time.Second},
+		BaseURL:      url,
+		Model:        os.Getenv("GLANE_SUMMARY_MODEL"),
+		APIKey:       os.Getenv("GLANE_SUMMARY_KEY"),
+		HTTP:         &http.Client{Timeout: timeout},
+		RetryBackoff: 2 * time.Second,
 	}
 }
 
@@ -50,15 +69,7 @@ func (c *Client) Summarize(ctx context.Context, title, article string, knownTags
 			{"role": "user", "content": title + "\n\n" + cutRunes(article, 8000)},
 		},
 	})
-	req, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/chat/completions", bytes.NewReader(body))
-	if err != nil {
-		return Result{}, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if c.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.APIKey)
-	}
-	resp, err := c.HTTP.Do(req)
+	resp, err := c.do(ctx, body)
 	if err != nil {
 		return Result{}, err
 	}
@@ -90,6 +101,40 @@ func (c *Client) Summarize(ctx context.Context, title, article string, knownTags
 		return Result{}, fmt.Errorf("summary: empty summary")
 	}
 	return Result{Summary: parsed.Summary, Tags: cleanTags(parsed.Tags)}, nil
+}
+
+// do POSTs the chat request, retrying on a busy server (503/429) with a linear
+// backoff. Other statuses and network errors return immediately — only "come
+// back later" is worth retrying.
+func (c *Client) do(ctx context.Context, body []byte) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+	for attempt := 0; ; attempt++ {
+		req, rerr := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/chat/completions", bytes.NewReader(body))
+		if rerr != nil {
+			return nil, rerr
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if c.APIKey != "" {
+			req.Header.Set("Authorization", "Bearer "+c.APIKey)
+		}
+		resp, err = c.HTTP.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != http.StatusServiceUnavailable && resp.StatusCode != http.StatusTooManyRequests {
+			return resp, nil
+		}
+		resp.Body.Close()
+		if attempt >= maxRetries {
+			return nil, fmt.Errorf("summary: server busy (status %d) after %d retries", resp.StatusCode, maxRetries)
+		}
+		select {
+		case <-time.After(time.Duration(attempt+1) * c.RetryBackoff):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 }
 
 // extractJSON returns the substring from the first '{' to the last '}', so a

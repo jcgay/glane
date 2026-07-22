@@ -196,6 +196,10 @@ export GLANE_SUMMARY_MODEL=gemma3
 
 - Resumable: only un-summarized enriched items are processed.
 - Fail-soft: an item the model can't summarize is logged and skipped, retried next run.
+- A busy server (`503`/`429`) is retried a few times with backoff. Each request
+  waits up to `GLANE_SUMMARY_TIMEOUT` seconds (default 180) — raise it if a slow
+  local model gets cut off mid-generation (a premature cutoff can wedge a
+  single-slot server into refusing every following request).
 - The summary is searchable (full-text) and becomes the result snippet; tags feed
   `--tag` and `glane tags`. Embeddings are left untouched (a summary vector isn't
   reliably better than the existing one).
@@ -330,6 +334,7 @@ Three rules keep the shared file consistent:
 | `GLANE_SUMMARY_URL` | `summarize` | OpenAI-compatible chat base URL; unset → `summarize` errors |
 | `GLANE_SUMMARY_MODEL` | `summarize` | Chat model name (e.g. `gemma3`) |
 | `GLANE_SUMMARY_KEY` | `summarize` | Chat API key; omit for local endpoints |
+| `GLANE_SUMMARY_TIMEOUT` | `summarize` | Per-request timeout in seconds (default 180) |
 
 > The Mastodon/Bluesky variables intentionally match
 > [social-timeline](https://github.com/jcgay/social-timeline), so the same
