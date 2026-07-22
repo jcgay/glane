@@ -31,6 +31,20 @@ func (s *Store) PendingEnrichment(limit int) ([]Item, error) {
 	return out, rows.Err()
 }
 
+// ResetEnrichment clears prior fetch results so PendingEnrichment picks every
+// item up again — used by `enrich --force` to re-fetch (re-un-shorten links,
+// backfill embeddings). Stored embeddings are left in place; a successful
+// re-enrich overwrites them. Returns the number of items reset.
+func (s *Store) ResetEnrichment() (int64, error) {
+	res, err := s.db.Exec(`
+		UPDATE items SET fetch_status='', link_url='', article_title='', article_text=''
+		WHERE fetch_status != ''`)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (s *Store) SaveEnrichment(id int64, e Enrichment) error {
 	_, err := s.db.Exec(`
 		UPDATE items SET link_url=?, article_title=?, article_text=?,

@@ -170,7 +170,7 @@ If an embeddings endpoint is configured (see [Semantic search](#semantic-search)
 results blend full-text and semantic rankings automatically. If not, it's
 full-text only — same command, no error.
 
-### `glane enrich [--limit N]`
+### `glane enrich [--limit N] [--force]`
 Most saved posts are just a link; the value is the article behind it. `enrich`
 fetches each item's primary link, extracts the article body, and adds it to the
 search index — so you can find a post by the content of the page it pointed to,
@@ -181,10 +181,16 @@ not just its 100-character text.
 ```
 
 - Resumable: only un-fetched items are processed, so you can run it in batches.
+- The stored link is the **final URL after redirects** with tracking params
+  (`utm_*`, `fbclid`, …) stripped — so `t.co` and other shorteners are resolved.
 - Dead links (common for old `t.co` URLs) are marked failed; the post stays
   searchable by its own text.
 - If an embeddings endpoint is configured, `enrich` also generates and stores a
   vector for each enriched item.
+- `--force` re-enriches already-fetched items (re-resolve links, backfill
+  embeddings for items indexed before an embed endpoint was set). It resets
+  every fetched item, then processes up to `--limit`; run repeatedly (or with a
+  high `--limit`) to drain the backlog.
 
 ### `glane summarize [--limit N]`
 Optional LLM step. For each enriched article without one yet, a single

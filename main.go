@@ -371,7 +371,15 @@ func cmdServe(s *store.Store, args []string) {
 func cmdEnrich(s *store.Store, args []string) {
 	fs := flag.NewFlagSet("enrich", flag.ExitOnError)
 	limit := fs.Int("limit", 100, "max items to fetch this run")
+	force := fs.Bool("force", false, "re-enrich already-fetched items (re-resolve links, backfill embeddings)")
 	fs.Parse(args)
+	if *force {
+		n, err := s.ResetEnrichment()
+		if err != nil {
+			fatal(err)
+		}
+		fmt.Fprintf(os.Stderr, "reset %d items for re-enrichment\n", n)
+	}
 	done, failed, err := enrich.Run(s, enrich.DefaultClient(), embed.FromEnv(), *limit, stderrProgress)
 	if err != nil {
 		fatal(err)
