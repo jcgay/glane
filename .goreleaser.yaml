@@ -1,0 +1,50 @@
+# https://goreleaser.com
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0 # pure-Go modernc.org/sqlite, no cgo
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+
+brews:
+  - repository:
+      owner: jcgay
+      name: homebrew-jcgay
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    directory: . # formulae live at the repo root, not in Formula/
+    homepage: "https://github.com/jcgay/glane"
+    description: "Full-text and semantic search over your saved tech-watch posts"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

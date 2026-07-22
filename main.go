@@ -22,6 +22,8 @@ import (
 	"github.com/jcgay/glane/internal/web"
 )
 
+var version = "dev" // set by goreleaser via -ldflags
+
 func dbPath() string {
 	if p := os.Getenv("GLANE_DB"); p != "" {
 		return p
@@ -34,8 +36,12 @@ func dbPath() string {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|summarize|update|tags|serve> ...")
+		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|summarize|update|tags|serve|version> ...")
 		os.Exit(2)
+	}
+	if a := os.Args[1]; a == "version" || a == "--version" || a == "-v" {
+		fmt.Println(version)
+		return
 	}
 	s, err := store.Open(dbPath())
 	if err != nil {
