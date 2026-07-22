@@ -1,2 +1,23 @@
 [tools]
 go = "1.25.12"
+
+[tasks.build]
+description = "Build the self-contained glane binary"
+run = "go build -o glane ."
+
+[tasks.test]
+description = "Run all tests"
+run = "go test ./..."
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
+
+[tasks.format]
+description = "Format all Go code"
+run = "gofmt -w ."
+
+[tasks.check]
+description = "Run test, vet and check formatting"
+depends = ["test", "vet"]
+run = "test -z \"$(gofmt -l .)\" || { echo 'unformatted files:'; gofmt -l .; exit 1; }"
