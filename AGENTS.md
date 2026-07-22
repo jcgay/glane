@@ -54,4 +54,5 @@ dispatcher (`switch os.Args[1]` → `cmd*` functions); each subcommand parses it
   **stdout** so piping stays clean. Keep this split.
 - External LLM/embedding endpoints are entirely optional and driven by env vars — every
   feature must still work offline with no model configured.
-- Update `README.md` whenever CLI surface, flags, or env vars change (see auto-memory).
+- Update `README.md` **and** `completions/glane.fish` whenever CLI surface, flags, or
+  env vars change (see auto-memory).
