@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	readability "github.com/go-shiori/go-readability"
@@ -65,6 +66,9 @@ func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int, progress
 
 		resp, err := hc.Get(link)
 		if err == nil && resp.StatusCode == 200 {
+			// resp.Request.URL is the final URL after redirects, so this
+			// un-shortens t.co (and any other shortener) for free.
+			e.LinkURL = cleanURL(resp.Request.URL)
 			if title, text, xerr := Extract(resp.Body, link); xerr == nil {
 				e.Title, e.Text, e.Status = title, text, "ok"
 			}
@@ -94,6 +98,27 @@ func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int, progress
 
 // DefaultClient is a link fetcher that gives up quickly on dead links.
 func DefaultClient() *http.Client { return &http.Client{Timeout: 15 * time.Second} }
+
+// trackingParams are query keys stripped from resolved links; utm_* is matched
+// by prefix. Add here if a new tracker shows up rather than growing the blocklist prose.
+var trackingParams = map[string]bool{
+	"fbclid": true, "gclid": true, "gclsrc": true, "dclid": true, "msclkid": true,
+	"twclid": true, "yclid": true, "igshid": true, "mc_cid": true, "mc_eid": true,
+	"ref_src": true, "ref_url": true, "cmpid": true,
+}
+
+// cleanURL returns u without tracking query params. Non-tracking params are
+// kept — many links need their query to resolve to the right content.
+func cleanURL(u *url.URL) string {
+	q := u.Query()
+	for k := range q {
+		if trackingParams[k] || strings.HasPrefix(k, "utm_") {
+			q.Del(k)
+		}
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
 
 // cutRunes truncates s to at most n runes, never splitting a multibyte rune.
 func cutRunes(s string, n int) string {

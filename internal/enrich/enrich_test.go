@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -130,6 +131,53 @@ func TestRunGithubFetchesRepoURL(t *testing.T) {
 	}
 	if len(hits) < 1 {
 		t.Fatalf("expected repo page to be fetched (found via 'readme'), got %d hits", len(hits))
+	}
+}
+
+// TestRunUnshortensAndStripsTracking pins down that the stored LinkURL is the
+// final URL after redirects (t.co un-shortened) with tracking params removed,
+// not the original shortener link.
+func TestRunUnshortensAndStripsTracking(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/short" {
+			http.Redirect(w, r, "/final?utm_source=twitter&id=42", http.StatusFound)
+			return
+		}
+		w.Write([]byte(`<html><head><title>Final</title></head><body><article><p>resolved article about wasm runtimes</p></article></body></html>`))
+	}))
+	defer srv.Close()
+
+	s, err := store.Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	if _, err := s.Upsert([]store.Item{
+		{Source: "twitter", SourceID: "1", Kind: "like", Text: "cool " + srv.URL + "/short", URL: srv.URL + "/short"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := Run(s, srv.Client(), nil, 10); err != nil {
+		t.Fatal(err)
+	}
+
+	hits, err := s.SearchFTS("wasm", store.Filter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("want 1 hit, got %d", len(hits))
+	}
+	if want := srv.URL + "/final?id=42"; hits[0].LinkURL != want {
+		t.Fatalf("LinkURL = %q, want %q", hits[0].LinkURL, want)
+	}
+}
+
+func TestCleanURL(t *testing.T) {
+	u, _ := url.Parse("https://ex.com/p?utm_source=a&fbclid=b&id=7&q=go")
+	if got := cleanURL(u); got != "https://ex.com/p?id=7&q=go" {
+		t.Fatalf("got %q", got)
 	}
 }
 
