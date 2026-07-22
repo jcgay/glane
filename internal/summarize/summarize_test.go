@@ -3,8 +3,10 @@ package summarize
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -38,7 +40,7 @@ func TestSummarizeParsesPlainJSON(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{BaseURL: srv.URL, Model: "m", HTTP: srv.Client()}
-	res, err := c.Summarize(context.Background(), "Title", "body")
+	res, err := c.Summarize(context.Background(), "Title", "body", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,12 +59,29 @@ func TestSummarizeExtractsFencedJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := &Client{BaseURL: srv.URL, Model: "m", HTTP: srv.Client()}
-	res, err := c.Summarize(context.Background(), "t", "b")
+	res, err := c.Summarize(context.Background(), "t", "b", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Summary != "S" || len(res.Tags) != 1 || res.Tags[0] != "go" {
 		t.Fatalf("got %+v", res)
+	}
+}
+
+func TestSummarizePassesKnownTagsInPrompt(t *testing.T) {
+	var gotBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		fmt.Fprint(w, chatResponse(`{"summary":"S","tags":["go"]}`))
+	}))
+	defer srv.Close()
+	c := &Client{BaseURL: srv.URL, Model: "m", HTTP: srv.Client()}
+	if _, err := c.Summarize(context.Background(), "t", "b", []string{"golang", "aws"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(gotBody, "golang, aws") {
+		t.Fatalf("known tags not in request: %s", gotBody)
 	}
 }
 
@@ -72,7 +91,7 @@ func TestSummarizeErrorsOnNon200(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := &Client{BaseURL: srv.URL, Model: "m", HTTP: srv.Client()}
-	if _, err := c.Summarize(context.Background(), "t", "b"); err == nil {
+	if _, err := c.Summarize(context.Background(), "t", "b", nil); err == nil {
 		t.Fatal("expected error")
 	}
 }

@@ -208,10 +208,11 @@ func summarizeAll(s *store.Store, c *summarize.Client) (int, int) {
 		fmt.Fprintf(os.Stderr, "glane: summarize error: %v\n", err)
 		return 0, 1 // treat as a failure so update signals it
 	}
+	known := topTags(s, 50)
 	done, failed := 0, 0
 	for i, it := range items {
 		stderrProgress(fmt.Sprintf("summarize [%d/%d]…", i+1, len(items)))
-		res, serr := c.Summarize(context.Background(), it.ArticleTitle, it.ArticleText)
+		res, serr := c.Summarize(context.Background(), it.ArticleTitle, it.ArticleText, known)
 		if serr != nil {
 			failed++
 			fmt.Fprintf(os.Stderr, "glane: summarize item %d: %v\n", it.ID, serr)
@@ -375,10 +376,11 @@ func cmdSummarize(s *store.Store, args []string) {
 	if err != nil {
 		fatal(err)
 	}
+	known := topTags(s, 50)
 	done, failed := 0, 0
 	for i, it := range items {
 		stderrProgress(fmt.Sprintf("summarize [%d/%d]…", i+1, len(items)))
-		res, err := c.Summarize(context.Background(), it.ArticleTitle, it.ArticleText)
+		res, err := c.Summarize(context.Background(), it.ArticleTitle, it.ArticleText, known)
 		if err != nil {
 			failed++
 			fmt.Fprintf(os.Stderr, "glane: summarize item %d: %v\n", it.ID, err)
@@ -390,6 +392,24 @@ func cmdSummarize(s *store.Store, args []string) {
 		done++
 	}
 	fmt.Printf("summarized %d items (%d failed)\n", done, failed)
+}
+
+// topTags returns the n most-used existing tags to steer the LLM toward reusing
+// the established taxonomy instead of inventing near-duplicates. Best-effort: a
+// query error just means no hint this run.
+func topTags(s *store.Store, n int) []string {
+	counts, err := s.TagCounts()
+	if err != nil {
+		return nil
+	}
+	out := []string{}
+	for _, tc := range counts {
+		if len(out) >= n {
+			break
+		}
+		out = append(out, tc.Tag)
+	}
+	return out
 }
 
 func cmdTags(s *store.Store) {

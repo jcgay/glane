@@ -38,11 +38,15 @@ func FromEnv() *Client {
 
 const systemPrompt = `You summarize and categorize technical articles. Reply with ONLY a JSON object, no prose and no code fences: {"summary": "a 2-3 sentence summary for a technical reader focusing on the key takeaway", "tags": ["3-6 lowercase topic or technology tags"]}`
 
-func (c *Client) Summarize(ctx context.Context, title, article string) (Result, error) {
+func (c *Client) Summarize(ctx context.Context, title, article string, knownTags []string) (Result, error) {
+	system := systemPrompt
+	if len(knownTags) > 0 {
+		system += "\nPrefer reusing these existing tags when they fit; only invent a new tag when none apply: " + strings.Join(knownTags, ", ")
+	}
 	body, _ := json.Marshal(map[string]any{
 		"model": c.Model,
 		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
+			{"role": "system", "content": system},
 			{"role": "user", "content": title + "\n\n" + cutRunes(article, 8000)},
 		},
 	})
