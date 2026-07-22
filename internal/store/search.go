@@ -11,7 +11,35 @@ type Filter struct {
 
 type Result struct {
 	Item
-	Score float64
+	Score   float64
+	Snippet string // FTS extract with matched terms bracketed by MarkStart/MarkEnd; empty for semantic-only hits
+}
+
+// MarkStart and MarkEnd bracket matched terms inside Result.Snippet. They are
+// neutral control bytes (not HTML, not printable), so the store stays render-
+// agnostic: the web layer maps them to <mark>, the CLI to ANSI. See Excerpt.
+const (
+	MarkStart = "\x02"
+	MarkEnd   = "\x03"
+)
+
+// Excerpt returns the snippet to show below the summary (matched terms still
+// bracketed by MarkStart/MarkEnd), or "" when there is nothing worth showing:
+// no FTS match (semantic-only hit), or the matched passage is already visible
+// in the summary/text the card displays.
+func (r Result) Excerpt() string {
+	if r.Snippet == "" {
+		return ""
+	}
+	shown := r.Text
+	if r.ArticleSummary != "" {
+		shown = r.ArticleSummary
+	}
+	core := strings.Trim(strings.NewReplacer(MarkStart, "", MarkEnd, "").Replace(r.Snippet), "… ")
+	if core != "" && strings.Contains(shown, core) {
+		return "" // redundant with what the card already shows
+	}
+	return r.Snippet
 }
 
 // sanitizeFTS turns an arbitrary user query into a safe FTS5 MATCH expression:
@@ -44,7 +72,8 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 	sql := `
 		SELECT i.id, i.source, i.source_id, i.kind, i.author, i.text, i.url,
 		       i.created_at, i.link_url, i.article_title, i.article_summary,
-		       bm25(items_fts) AS score
+		       bm25(items_fts) AS score,
+		       snippet(items_fts, -1, char(2), char(3), '…', 15) AS snip
 		FROM items_fts JOIN items i ON i.id = items_fts.rowid
 		WHERE items_fts MATCH ?`
 	args := []any{match}
@@ -74,7 +103,7 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 		var r Result
 		if err := rows.Scan(&r.ID, &r.Source, &r.SourceID, &r.Kind, &r.Author,
 			&r.Text, &r.URL, &r.CreatedAt, &r.LinkURL, &r.ArticleTitle,
-			&r.ArticleSummary, &r.Score); err != nil {
+			&r.ArticleSummary, &r.Score, &r.Snippet); err != nil {
 			return nil, err
 		}
 		out = append(out, r)

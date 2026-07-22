@@ -155,7 +155,9 @@ as a prefix (type-ahead): `useTa` finds `useTabs`.
 | `--since` | — | Only items on/after a date: `YYYY` or `YYYY-MM-DD` |
 | `--limit` | 20 | Max results |
 
-Results lead with the LLM summary (when present) and show the item's tags.
+Results lead with the LLM summary (when present) and show the item's tags. When
+a full-text match falls outside the shown summary — e.g. deep in the article
+body — the matching passage is shown as an excerpt with the terms highlighted.
 
 ```sh
 ./glane search cold start lambda --source twitter --limit 10

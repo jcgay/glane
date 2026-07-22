@@ -322,10 +322,24 @@ func renderResults(res []store.Result) string {
 		if len(r.Tags) > 0 {
 			fmt.Fprintf(&b, "  #%s", strings.Join(r.Tags, " #"))
 		}
-		b.WriteString("\n\n")
+		b.WriteByte('\n')
+		if ex := r.Excerpt(); ex != "" {
+			ex = strings.Join(strings.Fields(ex), " ") // collapse newlines/whitespace
+			fmt.Fprintf(&b, "     %s\n", termHighlight(ex))
+		}
+		b.WriteByte('\n')
 	}
 	fmt.Fprintf(&b, "(%d results)\n", len(res))
 	return b.String()
+}
+
+// termHighlight turns snippet match sentinels into ANSI bold when stdout is a
+// terminal, and strips them otherwise so piped/redirected output stays clean.
+func termHighlight(s string) string {
+	if fi, err := os.Stdout.Stat(); err == nil && fi.Mode()&os.ModeCharDevice != 0 {
+		return strings.NewReplacer(store.MarkStart, "\033[1m", store.MarkEnd, "\033[0m").Replace(s)
+	}
+	return strings.NewReplacer(store.MarkStart, "", store.MarkEnd, "").Replace(s)
 }
 
 // parseSince converts "YYYY" or "YYYY-MM-DD" to a Unix timestamp (start of that day/year).

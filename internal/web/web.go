@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	gembed "github.com/jcgay/glane/internal/embed"
@@ -17,7 +18,15 @@ import (
 //go:embed templates/*.html static/*
 var assets embed.FS
 
+var markReplacer = strings.NewReplacer(store.MarkStart, "<mark>", store.MarkEnd, "</mark>")
+
 var funcs = template.FuncMap{
+	// mark renders an FTS snippet as safe HTML: escape the article text first
+	// (it can contain arbitrary HTML), then turn the neutral match sentinels
+	// into <mark> tags. Escaping before replacing is what keeps this XSS-safe.
+	"mark": func(snip string) template.HTML {
+		return template.HTML(markReplacer.Replace(template.HTMLEscapeString(snip)))
+	},
 	// host strips a URL down to its display domain (no scheme, no "www.").
 	"host": func(raw string) string {
 		u, err := url.Parse(raw)

@@ -30,6 +30,16 @@
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
   }
 
+  .excerpt {
+    margin: -.15rem 0 .5rem; padding-left: .6rem;
+    border-left: 2px solid var(--border); color: var(--faint);
+    font-size: .84rem; line-height: 1.5; font-style: italic;
+  }
+  .excerpt mark {
+    background: var(--accent-soft); color: var(--accent-ink);
+    border-radius: .2rem; padding: 0 .1rem; font-style: normal;
+  }
+
   .tags { display: flex; flex-wrap: wrap; gap: .35rem; margin: .5rem 0 .1rem; }
   .tag {
     font-size: .74rem; color: var(--muted); text-decoration: none;
@@ -67,6 +77,7 @@
     </div>
     {{if .ArticleTitle}}<h3>{{.ArticleTitle}}</h3>{{end}}
     <p class="text">{{if .ArticleSummary}}{{.ArticleSummary}}{{else}}{{.Text}}{{end}}</p>
+    {{with .Excerpt}}<p class="excerpt">{{mark .}}</p>{{end}}
     {{if .Tags}}
     <div class="tags">
       {{range .Tags}}<a class="tag" href="#" hx-get="/search?tag={{. | urlquery}}" hx-target="#results" hx-indicator=".bar">{{.}}</a>{{end}}

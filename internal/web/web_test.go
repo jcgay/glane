@@ -119,6 +119,33 @@ func TestEnrichedLinkShownAsPrimary(t *testing.T) {
 	}
 }
 
+func TestSearchRendersHighlightedExcerpt(t *testing.T) {
+	s, _ := store.Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	s.Upsert([]store.Item{{Source: "twitter", SourceID: "1", Kind: "like", Text: "cool physics", URL: "http://x"}})
+	res, _ := s.SearchFTS("physics", store.Filter{})
+	// Body match, with hostile HTML mixed in, so we can check escaping too.
+	s.SaveEnrichment(res[0].ID, store.Enrichment{
+		Text:   `<script>alert(1)</script> a note on quantum entanglement today`,
+		Status: "ok",
+	})
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=entanglement", nil))
+	body := rec.Body.String()
+
+	if !strings.Contains(body, "<mark>entanglement</mark>") {
+		t.Fatalf("matched term not highlighted in excerpt: %s", body)
+	}
+	// The article body's own HTML must be escaped, not rendered.
+	if strings.Contains(body, "<script>alert") {
+		t.Fatalf("article HTML leaked unescaped (XSS): %s", body)
+	}
+	if !strings.Contains(body, "&lt;script&gt;") {
+		t.Fatalf("expected escaped article HTML in excerpt: %s", body)
+	}
+}
+
 func TestSearchFragmentRendersHits(t *testing.T) {
 	s, _ := store.Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()

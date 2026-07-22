@@ -139,6 +139,22 @@ func TestRenderResultsFlattensAndNumbers(t *testing.T) {
 	}
 }
 
+func TestRenderResultsShowsExcerpt(t *testing.T) {
+	res := []store.Result{
+		{Item: store.Item{Source: "github", Kind: "star", Text: "cool physics", URL: "https://gh/1"},
+			Snippet: "a note on quantum " + store.MarkStart + "entanglement" + store.MarkEnd + " today"},
+	}
+	got := renderResults(res)
+	// Excerpt text appears; test stdout is not a TTY, so sentinels are stripped
+	// (no raw control bytes leak into piped output).
+	if !strings.Contains(got, "quantum entanglement today") {
+		t.Fatalf("excerpt missing from output:\n%q", got)
+	}
+	if strings.ContainsAny(got, store.MarkStart+store.MarkEnd) {
+		t.Fatalf("match sentinels leaked into piped output:\n%q", got)
+	}
+}
+
 func TestCutRunes(t *testing.T) {
 	got := cutRunes("café☕more", 5)
 	if !utf8.ValidString(got) {
