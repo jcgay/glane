@@ -64,6 +64,11 @@ func (c *Client) Summarize(ctx context.Context, title, article string, knownTags
 	}
 	body, _ := json.Marshal(map[string]any{
 		"model": c.Model,
+		// A summary + tags is short. Without a cap, OpenAI-compatible servers reserve
+		// a full-context KV block per request; on memory-bound local backends (e.g.
+		// MLX) that projected reservation exceeds the GPU cap and the request is
+		// rejected with 503 before it's even enqueued.
+		"max_tokens": 512,
 		"messages": []map[string]string{
 			{"role": "system", "content": system},
 			{"role": "user", "content": title + "\n\n" + cutRunes(article, 8000)},
