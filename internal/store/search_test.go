@@ -28,6 +28,30 @@ func TestSearchFTSMatchesAndFilters(t *testing.T) {
 	}
 }
 
+func TestSearchFTSPrefixOnLastToken(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	s.Upsert([]Item{
+		{Source: "github", SourceID: "1", Kind: "star", Text: "prettier useTabs option"},
+		{Source: "github", SourceID: "2", Kind: "star", Text: "async rust runtime"},
+	})
+
+	// Last token is a prefix: "useTa" matches "useTabs".
+	res, err := s.SearchFTS("useTa", Filter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != 1 {
+		t.Fatalf("want 1 prefix hit for useTa, got %d", len(res))
+	}
+
+	// Earlier tokens stay exact, only the last is a prefix.
+	res, _ = s.SearchFTS("async ru", Filter{})
+	if len(res) != 1 {
+		t.Fatalf("want 1 hit for 'async ru', got %d", len(res))
+	}
+}
+
 func TestSearchFTSEmptyQuery(t *testing.T) {
 	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()

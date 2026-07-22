@@ -145,7 +145,8 @@ fails. This is the command to schedule.
 
 ### `glane search <query> [flags]`
 Searches the index. **The query comes first** (multiple words are fine unquoted);
-flags come after.
+flags come after. Words match whole tokens, except the last word, which matches
+as a prefix (type-ahead): `useTa` finds `useTabs`.
 
 | Flag | Default | Meaning |
 |------|---------|---------|

@@ -17,12 +17,18 @@ type Result struct {
 // sanitizeFTS turns an arbitrary user query into a safe FTS5 MATCH expression:
 // each whitespace-separated token becomes a double-quoted string (internal
 // double-quotes doubled), so special characters are treated literally and the
-// tokens are ANDed. Empty input yields "" (caller should treat as no query).
+// tokens are ANDed. The last token also gets a trailing "*" for type-ahead
+// prefix matching ("useTa" matches "useTabs"); earlier tokens stay exact.
+// Empty input yields "" (caller should treat as no query).
 func sanitizeFTS(query string) string {
 	fields := strings.Fields(query)
 	quoted := make([]string, 0, len(fields))
-	for _, f := range fields {
-		quoted = append(quoted, `"`+strings.ReplaceAll(f, `"`, `""`)+`"`)
+	for i, f := range fields {
+		q := `"` + strings.ReplaceAll(f, `"`, `""`) + `"`
+		if i == len(fields)-1 {
+			q += "*"
+		}
+		quoted = append(quoted, q)
 	}
 	return strings.Join(quoted, " ")
 }
