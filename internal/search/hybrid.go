@@ -34,10 +34,10 @@ func Hybrid(s *store.Store, c *embed.Client, query string, f store.Filter) ([]st
 	}
 	semIDs := SemanticIDs(qv[0], embs, 100)
 	ftsIDs := make([]int64, len(fts))
-	snips := make(map[int64]string, len(fts))
+	ftsByID := make(map[int64]store.Result, len(fts))
 	for i, r := range fts {
 		ftsIDs[i] = r.ID
-		snips[r.ID] = r.Snippet // keep FTS snippets before RRF re-fetches bare items
+		ftsByID[r.ID] = r // keep FTS snippet + highlights before RRF re-fetches bare items
 	}
 	fused := RRF([][]int64{ftsIDs, semIDs}, 60)
 	limit := f.Limit
@@ -54,7 +54,14 @@ func Hybrid(s *store.Store, c *embed.Client, query string, f store.Filter) ([]st
 	out := make([]store.Result, 0, len(fused))
 	for _, id := range fused {
 		if it, ok := items[id]; ok {
-			out = append(out, store.Result{Item: it, Snippet: snips[id]}) // "" for semantic-only hits
+			f := ftsByID[id] // zero Result for semantic-only hits: empty snippet/highlights → raw fallback
+			out = append(out, store.Result{
+				Item:      it,
+				Snippet:   f.Snippet,
+				TitleHL:   f.TitleHL,
+				SummaryHL: f.SummaryHL,
+				TextHL:    f.TextHL,
+			})
 		}
 	}
 	return out, nil

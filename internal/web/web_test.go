@@ -146,6 +146,21 @@ func TestSearchRendersHighlightedExcerpt(t *testing.T) {
 	}
 }
 
+func TestSearchHighlightsShownSummary(t *testing.T) {
+	s, _ := store.Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	s.Upsert([]store.Item{{Source: "twitter", SourceID: "1", Kind: "like", Text: "x", URL: "http://x"}})
+	res, _ := s.SearchFTS("x", store.Filter{})
+	s.SaveSummary(res[0].ID, "a thread about lambda cold starts", nil)
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=lambda", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, "<mark>lambda</mark>") {
+		t.Fatalf("term in shown summary not highlighted: %s", body)
+	}
+}
+
 func TestSearchFragmentRendersHits(t *testing.T) {
 	s, _ := store.Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()

@@ -311,13 +311,10 @@ func renderResults(res []store.Result) string {
 	}
 	var b strings.Builder
 	for i, r := range res {
-		snippet := r.Text
-		if r.ArticleSummary != "" {
-			snippet = r.ArticleSummary
-		}
-		snippet = strings.Join(strings.Fields(snippet), " ") // collapse newlines/runs of whitespace
+		body := strings.Join(strings.Fields(r.BodyMarked()), " ") // collapse newlines/runs of whitespace
+		body = trunc(body, 160)
 		label := fmt.Sprintf("[%s/%s]", r.Source, r.Kind)
-		fmt.Fprintf(&b, "%3d. %-*s %s\n", i+1, labelWidth, label, trunc(snippet, 160))
+		fmt.Fprintf(&b, "%3d. %-*s %s\n", i+1, labelWidth, label, termHighlight(body))
 		fmt.Fprintf(&b, "     %s", r.URL)
 		if len(r.Tags) > 0 {
 			fmt.Fprintf(&b, "  #%s", strings.Join(r.Tags, " #"))
@@ -333,9 +330,13 @@ func renderResults(res []store.Result) string {
 	return b.String()
 }
 
-// termHighlight turns snippet match sentinels into ANSI bold when stdout is a
-// terminal, and strips them otherwise so piped/redirected output stays clean.
+// termHighlight turns match sentinels into ANSI bold when stdout is a terminal,
+// and strips them otherwise so piped/redirected output stays clean. It closes a
+// dangling open marker so truncation mid-highlight can't bleed bold to line end.
 func termHighlight(s string) string {
+	if strings.Count(s, store.MarkStart) > strings.Count(s, store.MarkEnd) {
+		s += store.MarkEnd
+	}
 	if fi, err := os.Stdout.Stat(); err == nil && fi.Mode()&os.ModeCharDevice != 0 {
 		return strings.NewReplacer(store.MarkStart, "\033[1m", store.MarkEnd, "\033[0m").Replace(s)
 	}

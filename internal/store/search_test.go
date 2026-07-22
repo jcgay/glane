@@ -91,6 +91,39 @@ func TestSearchFTSSnippetAndExcerpt(t *testing.T) {
 	}
 }
 
+func TestSearchFTSHighlightsDisplayedFields(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	s.Upsert([]Item{
+		{Source: "github", SourceID: "1", Kind: "star", Text: "cool physics"},             // match will be in the title
+		{Source: "twitter", SourceID: "2", Kind: "like", Text: "raw useState in a tweet"}, // match in the raw text (no summary)
+	})
+	s.SaveEnrichment(1, Enrichment{Title: "Kubernetes networking guide", Text: "unrelated body"})
+	s.SaveSummary(1, "a summary mentioning kubernetes clearly", nil)
+
+	// Title match: the shown title is highlighted, and the excerpt is suppressed
+	// (the term is already visible on the card).
+	res, err := s.SearchFTS("kubernetes", Filter{Source: "github"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res[0].TitleMarked(), MarkStart+"Kubernetes"+MarkEnd) {
+		t.Fatalf("title should be highlighted, got %q", res[0].TitleMarked())
+	}
+	if !strings.Contains(res[0].BodyMarked(), MarkStart+"kubernetes"+MarkEnd) {
+		t.Fatalf("summary should be highlighted, got %q", res[0].BodyMarked())
+	}
+	if res[0].Excerpt() != "" {
+		t.Fatalf("excerpt should be suppressed when the match is in shown fields, got %q", res[0].Excerpt())
+	}
+
+	// Raw-text match (no summary): the body falls back to Text, highlighted.
+	res, _ = s.SearchFTS("useState", Filter{Source: "twitter"})
+	if !strings.Contains(res[0].BodyMarked(), MarkStart+"useState"+MarkEnd) {
+		t.Fatalf("raw text should be highlighted, got %q", res[0].BodyMarked())
+	}
+}
+
 func TestSearchFTSEmptyQuery(t *testing.T) {
 	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()

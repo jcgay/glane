@@ -13,6 +13,38 @@ type Result struct {
 	Item
 	Score   float64
 	Snippet string // FTS extract with matched terms bracketed by MarkStart/MarkEnd; empty for semantic-only hits
+
+	// Displayed fields with matched terms bracketed by MarkStart/MarkEnd, from
+	// FTS highlight(). Empty for semantic-only hits — use TitleMarked/BodyMarked,
+	// which fall back to the raw field. See MarkStart.
+	TitleHL   string
+	SummaryHL string
+	TextHL    string
+}
+
+// TitleMarked returns the article title with matched terms bracketed, or the
+// plain title for semantic-only hits (and "" when there is no title).
+func (r Result) TitleMarked() string {
+	if r.TitleHL != "" {
+		return r.TitleHL
+	}
+	return r.ArticleTitle
+}
+
+// BodyMarked returns the card's body text — the summary if present, else the
+// raw text — with matched terms bracketed, falling back to the raw field for
+// semantic-only hits. Mirrors what the card displays.
+func (r Result) BodyMarked() string {
+	if r.ArticleSummary != "" {
+		if r.SummaryHL != "" {
+			return r.SummaryHL
+		}
+		return r.ArticleSummary
+	}
+	if r.TextHL != "" {
+		return r.TextHL
+	}
+	return r.Text
 }
 
 // MarkStart and MarkEnd bracket matched terms inside Result.Snippet. They are
@@ -36,8 +68,8 @@ func (r Result) Excerpt() string {
 		shown = r.ArticleSummary
 	}
 	core := strings.Trim(strings.NewReplacer(MarkStart, "", MarkEnd, "").Replace(r.Snippet), "… ")
-	if core != "" && strings.Contains(shown, core) {
-		return "" // redundant with what the card already shows
+	if core != "" && (strings.Contains(shown, core) || strings.Contains(r.ArticleTitle, core)) {
+		return "" // redundant with the title/body the card already shows
 	}
 	return r.Snippet
 }
@@ -73,7 +105,10 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 		SELECT i.id, i.source, i.source_id, i.kind, i.author, i.text, i.url,
 		       i.created_at, i.link_url, i.article_title, i.article_summary,
 		       bm25(items_fts) AS score,
-		       snippet(items_fts, -1, char(2), char(3), '…', 15) AS snip
+		       snippet(items_fts, -1, char(2), char(3), '…', 15) AS snip,
+		       highlight(items_fts, 1, char(2), char(3)) AS title_hl,
+		       highlight(items_fts, 3, char(2), char(3)) AS summary_hl,
+		       highlight(items_fts, 0, char(2), char(3)) AS text_hl
 		FROM items_fts JOIN items i ON i.id = items_fts.rowid
 		WHERE items_fts MATCH ?`
 	args := []any{match}
@@ -103,7 +138,8 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 		var r Result
 		if err := rows.Scan(&r.ID, &r.Source, &r.SourceID, &r.Kind, &r.Author,
 			&r.Text, &r.URL, &r.CreatedAt, &r.LinkURL, &r.ArticleTitle,
-			&r.ArticleSummary, &r.Score, &r.Snippet); err != nil {
+			&r.ArticleSummary, &r.Score, &r.Snippet,
+			&r.TitleHL, &r.SummaryHL, &r.TextHL); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
