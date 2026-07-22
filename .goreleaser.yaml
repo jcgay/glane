@@ -41,6 +41,10 @@ brews:
     description: "Full-text and semantic search over your saved tech-watch posts"
     extra_install: |
       fish_completion.install "completions/glane.fish"
+    caveats: |
+      To let Claude Code search your tech-watch, register the plugin:
+        claude plugin marketplace add jcgay/glane
+        claude plugin install glane@glane
 
 checksum:
   name_template: "checksums.txt"
