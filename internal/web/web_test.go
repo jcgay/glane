@@ -97,6 +97,28 @@ func TestIndexListsTagsForBrowsing(t *testing.T) {
 	}
 }
 
+func TestEnrichedLinkShownAsPrimary(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	s.Upsert([]store.Item{{Source: "bluesky", SourceID: "1", Kind: "like", Text: "check this", URL: "http://bsky/post/1"}})
+	res, _ := s.SearchFTS("check", store.Filter{})
+	if err := s.SaveEnrichment(res[0].ID, store.Enrichment{LinkURL: "http://realsite.com/article", Status: "ok"}); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=check", nil))
+	body := rec.Body.String()
+	// enriched link is the primary destination…
+	if !strings.Contains(body, `href="http://realsite.com/article"`) {
+		t.Fatalf("enriched link not shown as primary: %s", body)
+	}
+	// …and the source post stays reachable as a secondary link
+	if !strings.Contains(body, `href="http://bsky/post/1"`) {
+		t.Fatalf("source post link missing: %s", body)
+	}
+}
+
 func TestSearchFragmentRendersHits(t *testing.T) {
 	s, _ := store.Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()

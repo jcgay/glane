@@ -48,6 +48,11 @@
   .visit .arrow { transition: transform .15s; }
   .visit:hover .arrow { transform: translate(2px, -2px); }
 
+  .links { display: flex; align-items: baseline; flex-wrap: wrap; gap: .6rem; }
+  .visit-src { font-size: .78rem; color: var(--faint); text-decoration: none; }
+  .visit-src::before { content: "· "; }
+  .visit-src:hover { color: var(--muted); text-decoration: underline; }
+
   .empty { color: var(--faint); text-align: center; padding: 3rem 1rem; font-size: .95rem; }
 </style>
 {{if .}}
@@ -67,7 +72,14 @@
       {{range .Tags}}<a class="tag" href="#" hx-get="/search?tag={{. | urlquery}}" hx-target="#results" hx-indicator=".bar">{{.}}</a>{{end}}
     </div>
     {{end}}
-    {{if .URL}}
+    {{if .LinkURL}}
+    <div class="links">
+      <a class="visit" href="{{.LinkURL}}" target="_blank" rel="noreferrer">
+        {{host .LinkURL}}<span class="arrow" aria-hidden="true">↗</span>
+      </a>
+      {{if ne .LinkURL .URL}}<a class="visit-src" href="{{.URL}}" target="_blank" rel="noreferrer">sur {{.Source}}</a>{{end}}
+    </div>
+    {{else if .URL}}
     <a class="visit" href="{{.URL}}" target="_blank" rel="noreferrer">
       {{host .URL}}<span class="arrow" aria-hidden="true">↗</span>
     </a>
