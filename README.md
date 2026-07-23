@@ -23,6 +23,12 @@ a forgotten bookmark at a glance and browse your veille by topic.
 mise install          # installs the pinned Go
 ```
 
+## Install
+
+```sh
+brew install jcgay/jcgay/glane
+```
+
 ## Build
 
 ```sh
