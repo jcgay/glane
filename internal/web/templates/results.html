@@ -20,6 +20,14 @@
   .meta .who { color: var(--muted); }
   .meta time { margin-left: auto; color: var(--faint); }
 
+  .prov {
+    display: inline-flex; align-items: center; gap: .2rem;
+    font-size: .66rem; letter-spacing: .02em; text-transform: uppercase;
+    border-radius: .3rem; padding: .05rem .3rem; border: 1px solid var(--border);
+  }
+  .prov.fts { color: var(--muted); }
+  .prov.sem { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-soft); }
+
   .hit h3 {
     margin: 0 0 .15rem; font-size: 1.02rem; font-weight: 600;
     letter-spacing: -.011em; line-height: 1.35;
@@ -73,6 +81,8 @@
       <span class="src"><span class="dot {{.Source}}"></span>{{.Source}}</span>
       {{if .Kind}}<span class="kind">{{.Kind}}</span>{{end}}
       {{if .Author}}<span class="who">{{.Author}}</span>{{end}}
+      {{if .FromFTS}}<span class="prov fts" title="Trouvé par la recherche plein texte">texte</span>{{end}}
+      {{if .FromSemantic}}<span class="prov sem" title="Trouvé par la recherche sémantique">sémantique</span>{{end}}
       {{if .CreatedAt}}<time>{{reltime .CreatedAt}}</time>{{end}}
     </div>
     {{if .ArticleTitle}}<h3>{{mark .TitleMarked}}</h3>{{end}}

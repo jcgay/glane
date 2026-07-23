@@ -20,6 +20,11 @@ type Result struct {
 	TitleHL   string
 	SummaryHL string
 	TextHL    string
+
+	// Which engine(s) surfaced this hit. Both true means FTS and semantic
+	// agreed (what RRF rewards). In FTS-only mode FromSemantic is always false.
+	FromFTS      bool
+	FromSemantic bool
 }
 
 // TitleMarked returns the article title with matched terms bracketed, or the

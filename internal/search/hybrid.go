@@ -18,6 +18,9 @@ func Hybrid(s *store.Store, c *embed.Client, query string, f store.Filter) ([]st
 	if err != nil {
 		return nil, err
 	}
+	for i := range fts {
+		fts[i].FromFTS = true // carried through every FTS-only fallback below
+	}
 	if c == nil {
 		return fts, nil
 	}
@@ -33,6 +36,10 @@ func Hybrid(s *store.Store, c *embed.Client, query string, f store.Filter) ([]st
 		return fts, nil
 	}
 	semIDs := SemanticIDs(qv[0], embs, 100)
+	semSet := make(map[int64]bool, len(semIDs))
+	for _, id := range semIDs {
+		semSet[id] = true
+	}
 	ftsIDs := make([]int64, len(fts))
 	ftsByID := make(map[int64]store.Result, len(fts))
 	for i, r := range fts {
@@ -56,11 +63,13 @@ func Hybrid(s *store.Store, c *embed.Client, query string, f store.Filter) ([]st
 		if it, ok := items[id]; ok {
 			f := ftsByID[id] // zero Result for semantic-only hits: empty snippet/highlights → raw fallback
 			out = append(out, store.Result{
-				Item:      it,
-				Snippet:   f.Snippet,
-				TitleHL:   f.TitleHL,
-				SummaryHL: f.SummaryHL,
-				TextHL:    f.TextHL,
+				Item:         it,
+				Snippet:      f.Snippet,
+				TitleHL:      f.TitleHL,
+				SummaryHL:    f.SummaryHL,
+				TextHL:       f.TextHL,
+				FromFTS:      f.FromFTS,
+				FromSemantic: semSet[id],
 			})
 		}
 	}
