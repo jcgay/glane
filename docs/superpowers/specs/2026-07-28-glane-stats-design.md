@@ -1,15 +1,16 @@
 # glane stats — design
 
-## Purpose
+## Objectif
 
-Give users a quick overview of what's in their glane database: how much has been
-imported/synced, how much has been enriched (article extraction), summarized/tagged,
-and embedded — plus per-source sync freshness. Available both as a CLI command
-(`glane stats`) and a web UI page (`/stats`), sharing the same underlying data.
+Donner un aperçu rapide de ce que contient la base glane : combien d'items ont été
+importés/synchronisés, combien ont été enrichis (extraction d'article), résumés/tagués,
+et vectorisés (embeddings) — ainsi que la fraîcheur du sync par source. Disponible à la
+fois comme commande CLI (`glane stats`) et comme page web (`/stats`), en s'appuyant sur
+les mêmes données.
 
-## Data model
+## Modèle de données
 
-No schema changes. All numbers are derived from existing tables:
+Aucun changement de schéma. Tous les chiffres sont dérivés des tables existantes :
 `items`, `embeddings`, `item_tags`, `sync_state`.
 
 ### `internal/store/stats.go`
@@ -22,47 +23,49 @@ type SourceCount struct {
 
 type SourceSync struct {
     Source    string
-    UpdatedAt int64 // unix seconds, 0 = never synced
+    UpdatedAt int64 // unix seconds, 0 = jamais synchronisé
 }
 
 type Stats struct {
     Total          int
-    BySource       []SourceCount // ordered by count desc, then source asc
-    Enriched       int           // items with fetch_status = 'ok'
-    Summarized     int           // items with article_summary != ''
-    Embedded       int           // distinct item_id in embeddings
-    DistinctTags   int           // distinct tag in item_tags
-    LastSyncBySource []SourceSync // one row per source present in sync_state
+    BySource       []SourceCount // triés par count décroissant, puis source croissante
+    Enriched       int           // items avec fetch_status = 'ok'
+    Summarized     int           // items avec article_summary != ''
+    Embedded       int           // item_id distincts dans embeddings
+    DistinctTags   int           // tag distincts dans item_tags
+    LastSyncBySource []SourceSync // une ligne par source présente dans sync_state
 }
 
 func (s *Store) Stats() (Stats, error)
 ```
 
-Implementation notes:
-- `BySource`: `SELECT source, COUNT(*) FROM items GROUP BY source ORDER BY COUNT(*) DESC, source`.
-- `Enriched`: `SELECT COUNT(*) FROM items WHERE fetch_status = 'ok'`. This is the
-  existing success marker written by `internal/enrich` (see `store/enrich.go`
-  `SaveEnrichment`); it intentionally excludes `'error'` and `''`/pending rows.
-- `Summarized`: `SELECT COUNT(*) FROM items WHERE article_summary != ''`.
-- `Embedded`: `SELECT COUNT(DISTINCT item_id) FROM embeddings`.
-- `DistinctTags`: `SELECT COUNT(DISTINCT tag) FROM item_tags`.
-- `LastSyncBySource`: `SELECT source, updated_at FROM sync_state ORDER BY source`.
-- All queries run against the existing `*sql.DB`; no new indexes needed at this scale
-  (single-user local SQLite file).
-- Follows the same degrade-silently-on-error philosophy as `TagCounts`/`AttachTags`
-  only at the call site (web handler), not inside `Stats()` itself: `Stats()` returns
-  a real error like other store methods (`SearchFTS`, `TagCounts`), and callers decide
-  how to handle it (CLI: `fatal`; web: log + best-effort empty state).
+Notes d'implémentation :
+- `BySource` : `SELECT source, COUNT(*) FROM items GROUP BY source ORDER BY COUNT(*) DESC, source`.
+- `Enriched` : `SELECT COUNT(*) FROM items WHERE fetch_status = 'ok'`. C'est le marqueur
+  de succès déjà utilisé par `internal/enrich` (voir `store/enrich.go`
+  `SaveEnrichment`) ; il exclut volontairement `'error'` et les lignes vides/en attente.
+- `Summarized` : `SELECT COUNT(*) FROM items WHERE article_summary != ''`.
+- `Embedded` : `SELECT COUNT(DISTINCT item_id) FROM embeddings`.
+- `DistinctTags` : `SELECT COUNT(DISTINCT tag) FROM item_tags`.
+- `LastSyncBySource` : `SELECT source, updated_at FROM sync_state ORDER BY source`.
+- Toutes les requêtes s'exécutent sur le `*sql.DB` existant ; pas besoin de nouveaux
+  index à cette échelle (fichier SQLite local mono-utilisateur).
+- Suit la même philosophie de dégradation silencieuse que `TagCounts`/`AttachTags`,
+  mais uniquement côté appelant (handler web), pas dans `Stats()` elle-même :
+  `Stats()` retourne une vraie erreur comme les autres méthodes du store (`SearchFTS`,
+  `TagCounts`), et chaque appelant décide comment la gérer (CLI : `fatal` ; web : log
+  + affichage best-effort avec des valeurs à zéro).
 
-## CLI command
+## Commande CLI
 
 ### `main.go`
 
-- Add `"stats"` to the usage string and the `switch os.Args[1]` dispatch, calling
+- Ajouter `"stats"` au message d'usage et au `switch os.Args[1]`, en appelant
   `cmdStats(s, os.Args[2:])`.
-- `cmdStats` parses a small `flag.FlagSet` with one flag: `-json` (bool, default false).
-- Default (text) output — aligned, stderr/stdout split not applicable here since this
-  is a one-shot summary, not a progress-emitting command; everything goes to stdout:
+- `cmdStats` parse un petit `flag.FlagSet` avec un seul flag : `-json` (bool, défaut false).
+- Sortie texte par défaut — alignée, pas de séparation stdout/stderr applicable ici
+  puisqu'il s'agit d'un résumé ponctuel et non d'une commande à progression ; tout
+  part sur stdout :
 
 ```
 Total          1234 items
@@ -79,71 +82,76 @@ Dernier sync
   mastodon      il y a 1j
   bluesky       jamais
 ```
-  - Sources with no `sync_state` row (never synced, e.g. `twitter` which is
-    import-only) are omitted from "Dernier sync" — only sources actually present
-    in `sync_state` are listed. (`twitter` never appears there since it's a one-shot
-    archive import, not a live sync connector.)
-  - Relative time formatting reuses the same logic as the web `reltime` template func
-    (a small shared implementation duplicated as a plain Go function since `reltime`
-    currently lives inside `internal/web`'s template.FuncMap — see below).
+  - Les sources sans ligne `sync_state` (jamais synchronisées, ex. `twitter` qui est
+    import-only) sont omises de la section "Dernier sync" — seules les sources
+    réellement présentes dans `sync_state` sont listées (`twitter` n'y apparaît
+    jamais, car c'est un import d'archive ponctuel, pas un connecteur de sync live).
+  - Le formatage du temps relatif reprend la même logique que la fonction de template
+    web `reltime` (implémentation partagée sous forme de petite fonction Go dupliquée,
+    voir ci-dessous).
 
-- `-json` output: `json.MarshalIndent` of the `store.Stats` struct directly (field
-  names as-is via default Go JSON tags — no need for custom tags since this is a
-  read-only reporting struct, not a wire API contract).
+- Sortie `-json` : `json.MarshalIndent` de la struct `store.Stats` directement (noms
+  de champs par défaut via les tags JSON de Go — pas besoin de tags personnalisés
+  puisqu'il s'agit d'une struct de reporting en lecture seule, pas d'un contrat d'API).
 
-### Shared relative-time helper
+### Aide au temps relatif partagée
 
-`reltime` currently lives as an unexported closure inside `internal/web/web.go`'s
-`template.FuncMap`. Rather than introduce a dependency from `main` on `internal/web`
-(or a new shared package for one helper), `main.go` gets its own small private
-`relTime(ts int64) string` function — a straight copy of the same few lines already
-in `internal/web/web.go`. This ~10-line duplication is consistent with the codebase's
-existing preference for small, isolated packages over premature sharing. If a third
-consumer needs it later, that's the trigger to extract a shared helper.
+`reltime` vit actuellement sous forme de closure non-exportée dans le
+`template.FuncMap` de `internal/web/web.go`. Plutôt que d'introduire une dépendance de
+`main` vers `internal/web` (ou un nouveau package partagé pour un seul helper),
+`main.go` reçoit sa propre petite fonction privée `relTime(ts int64) string` — une
+copie directe des mêmes quelques lignes déjà présentes dans `internal/web/web.go`.
+Cette duplication d'une dizaine de lignes est cohérente avec la préférence du code
+pour des packages petits et isolés plutôt qu'un partage prématuré. Si un troisième
+consommateur en a besoin plus tard, ce sera le déclencheur pour extraire un helper
+commun.
 
-## Web UI
+## Interface web
 
 ### Route
 
-`internal/web/web.go`: add `mux.HandleFunc("/stats", ...)` calling `s.Stats()`,
-logging+continuing on error (renders the page with zero values rather than a hard
-500, consistent with the "degrade silently" philosophy used elsewhere for optional
-data), then executing a new `stats.html` template.
+`internal/web/web.go` : ajouter `mux.HandleFunc("/stats", ...)` appelant `s.Stats()`,
+avec log + poursuite en cas d'erreur (affiche la page avec des valeurs à zéro plutôt
+qu'un 500 dur, cohérent avec la philosophie de "dégradation silencieuse" déjà utilisée
+ailleurs pour des données optionnelles), puis exécute un nouveau template `stats.html`.
 
 ### Template (`internal/web/templates/stats.html`)
 
-Same visual language as `index.html` (same CSS variables, reuses the existing
-`<style>` custom properties by living in the same template set so `template.FuncMap`
-and embedded CSS custom properties are available). Layout: a grid of small stat
-cards (Total, Enrichis, Résumés, Embeddings, Tags) above a "Par source" breakdown
-table and a "Dernier sync" list. No htmx interactivity needed — it's a static
-snapshot page, plain server-rendered HTML.
+Même langage visuel que `index.html` (mêmes variables CSS, réutilise les propriétés
+personnalisées du `<style>` existant en vivant dans le même ensemble de templates, donc
+`template.FuncMap` et les variables CSS embarquées sont disponibles). Mise en page :
+une grille de petites cartes de statistiques (Total, Enrichis, Résumés, Embeddings,
+Tags) au-dessus d'un tableau de répartition "Par source" et d'une liste "Dernier
+sync". Pas d'interactivité htmx nécessaire — c'est une page statique, un instantané
+rendu côté serveur.
 
 ### Navigation
 
-Add a simple link "Stats" in the `<header>` of `index.html` (next to the `glane`
-brand), pointing to `/stats`. Add a symmetric "← Recherche" link back to `/` at the
-top of `stats.html`.
+Ajouter un simple lien "Stats" dans le `<header>` de `index.html` (à côté de la marque
+`glane`), pointant vers `/stats`. Ajouter un lien symétrique "← Recherche" vers `/`
+en haut de `stats.html`.
 
-## Testing
+## Tests
 
-- `internal/store/stats_test.go`: seed a handful of items across sources with mixed
-  `fetch_status`/`article_summary`/embeddings/tags/sync_state rows, assert `Stats()`
-  returns the expected aggregates. Cover the zero-data case (empty DB → all zeros,
-  no error).
-- `internal/web/web_test.go`: add a case hitting `GET /stats` on a seeded store,
-  assert 200 and that key numbers appear in the body.
-- No new test file for `main.go`'s `cmdStats` (existing convention: `main.go`'s
-  `cmd*` functions aren't unit-tested directly; they're thin wrappers over
-  `store`/`internal/*` which already have their own tests). Manual smoke check
-  (`go build && ./glane stats` / `./glane stats -json`) during implementation is
-  sufficient, matching how other `cmd*` functions in this codebase are validated.
+- `internal/store/stats_test.go` : semer quelques items répartis sur plusieurs
+  sources avec des `fetch_status`/`article_summary`/embeddings/tags/sync_state
+  variés, vérifier que `Stats()` retourne les agrégats attendus. Couvrir le cas
+  base vide (DB vide → tout à zéro, pas d'erreur).
+- `internal/web/web_test.go` : ajouter un cas qui appelle `GET /stats` sur un store
+  peuplé, vérifier un code 200 et la présence des chiffres clés dans le corps.
+- Pas de nouveau fichier de test pour `cmdStats` dans `main.go` (convention
+  existante : les fonctions `cmd*` de `main.go` ne sont pas testées unitairement
+  directement ; ce sont de fines enveloppes autour de `store`/`internal/*` qui ont
+  déjà leurs propres tests). Une vérification manuelle
+  (`go build && ./glane stats` / `./glane stats -json`) pendant l'implémentation
+  suffit, comme pour les autres fonctions `cmd*` de ce dépôt.
 
-## Out of scope
+## Hors périmètre
 
-- No historical/trend data (e.g., items added per day) — this is a point-in-time
-  snapshot only.
-- No new CLI flags beyond `-json` (no `-source` filter, etc.) — YAGNI until requested.
-- No changes to `sync_state` schema to track per-source item counts incrementally —
-  computed on read, which is cheap at expected data volumes (single-user archive,
-  thousands not millions of rows).
+- Pas de données historiques/de tendance (ex. items ajoutés par jour) — c'est un
+  instantané à un instant T uniquement.
+- Pas de nouveaux flags CLI au-delà de `-json` (pas de filtre `-source`, etc.) —
+  YAGNI tant que ce n'est pas demandé.
+- Pas de changement de schéma sur `sync_state` pour suivre les compteurs par source
+  de façon incrémentale — calculé à la lecture, ce qui reste peu coûteux au vu des
+  volumes attendus (archive mono-utilisateur, milliers et non millions de lignes).
