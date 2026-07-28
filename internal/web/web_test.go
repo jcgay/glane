@@ -177,3 +177,33 @@ func TestSearchFragmentRendersHits(t *testing.T) {
 		t.Fatalf("fragment missing hit: %s", rec.Body.String())
 	}
 }
+
+func TestStatsPageShowsCounts(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	seedTagged(t, s, "1", "alpha", []string{"rust"})
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/stats", nil))
+	if rec.Code != 200 {
+		t.Fatalf("status %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `<div class="n">1</div>`) {
+		t.Fatalf("expected a stat card showing 1: %s", body)
+	}
+	if !strings.Contains(body, "<td>bluesky</td>") {
+		t.Fatalf("expected bluesky row in per-source table: %s", body)
+	}
+}
+
+func TestIndexHasStatsLink(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	if !strings.Contains(rec.Body.String(), `href="/stats"`) {
+		t.Fatalf("index missing nav link to /stats: %s", rec.Body.String())
+	}
+}

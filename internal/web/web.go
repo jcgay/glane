@@ -80,6 +80,16 @@ func handler(s *store.Store) http.Handler {
 		}
 	})
 
+	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+		st, err := s.Stats() // degrade silently: render zero-value stats rather than a hard 500
+		if err != nil {
+			log.Printf("glane: stats: %v", err)
+		}
+		if err := tmpl.ExecuteTemplate(w, "stats.html", st); err != nil {
+			log.Printf("glane: render stats.html: %v", err)
+		}
+	})
+
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("q")
 		tag := r.URL.Query().Get("tag")

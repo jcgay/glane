@@ -64,7 +64,12 @@
     .wrap { max-width: 780px; margin: 0 auto; padding: 0 1.25rem; }
 
     /* --- header / hero --- */
-    header { padding: 3.25rem 0 1.5rem; }
+    header {
+      padding: 3.25rem 0 1.5rem;
+      display: flex; align-items: baseline; justify-content: space-between;
+    }
+    a.stats-link { color: var(--muted); text-decoration: none; font-size: .9rem; }
+    a.stats-link:hover { color: var(--accent-ink); }
     .brand { display: flex; align-items: baseline; gap: .6rem; }
     .brand h1 {
       font-size: 2rem; font-weight: 600; letter-spacing: -.03em;
@@ -181,6 +186,7 @@
         <h1>glane</h1>
         <p>votre veille, retrouvée d'un mot</p>
       </div>
+      <a class="stats-link" href="/stats">Stats</a>
     </header>
 
     <div class="toolbar">
