@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>glane · statistiques</title>
+  <meta name="description" content="Statistiques sur votre veille technologique glanée : items importés, enrichis, résumés et vectorisés.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
+  <style>
+    :root {
+      --bg: #faf9f7;
+      --surface: #ffffff;
+      --surface-2: #f3f1ec;
+      --border: #e7e2da;
+      --border-strong: #d8d2c7;
+      --ink: #1c1b18;
+      --muted: #6c665d;
+      --faint: #9a9389;
+      --accent: #b45309;
+      --accent-ink: #8a3f07;
+      --accent-soft: #fbeddd;
+      --ring: rgba(180, 83, 9, .32);
+      --shadow: 0 1px 2px rgba(60, 50, 30, .05), 0 8px 24px -12px rgba(60, 50, 30, .16);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141310;
+        --surface: #1c1b16;
+        --surface-2: #24221b;
+        --border: #2d2b23;
+        --border-strong: #3a372d;
+        --ink: #ece9e2;
+        --muted: #a49d92;
+        --faint: #736d62;
+        --accent: #e79f56;
+        --accent-ink: #efb277;
+        --accent-soft: #2a2015;
+        --ring: rgba(231, 159, 86, .3);
+        --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .6);
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 0 1.25rem; }
+    header {
+      padding: 3.25rem 0 1.5rem;
+      display: flex; align-items: baseline; justify-content: space-between;
+    }
+    .brand { display: flex; align-items: baseline; gap: .6rem; }
+    .brand h1 {
+      font-size: 2rem; font-weight: 600; letter-spacing: -.03em;
+      margin: 0; line-height: 1;
+    }
+    .brand .mark { font-size: 1.5rem; line-height: 1; transform: translateY(1px); }
+    a.back { color: var(--muted); text-decoration: none; font-size: .9rem; }
+    a.back:hover { color: var(--accent-ink); }
+    main { padding-bottom: 5rem; }
+    h2 {
+      font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: .74rem; font-weight: 500; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--faint); margin: 1.6rem 0 .8rem;
+    }
+    .cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .8rem;
+    }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: .8rem; padding: 1rem 1.1rem; box-shadow: var(--shadow);
+    }
+    .card .n {
+      font-size: 1.6rem; font-weight: 600; letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+    }
+    .card .label {
+      font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: .72rem; font-weight: 500; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--faint); margin-top: .2rem;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    table td { padding: .4rem 0; border-bottom: 1px solid var(--border); }
+    table td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <span class="mark" aria-hidden="true">🌾</span>
+        <h1>glane</h1>
+      </div>
+      <a class="back" href="/">← Recherche</a>
+    </header>
+
+    <main>
+      <div class="cards">
+        <div class="card"><div class="n">{{.Total}}</div><div class="label">Total</div></div>
+        <div class="card"><div class="n">{{.Enriched}}</div><div class="label">Enrichis</div></div>
+        <div class="card"><div class="n">{{.Summarized}}</div><div class="label">Résumés</div></div>
+        <div class="card"><div class="n">{{.Embedded}}</div><div class="label">Embeddings</div></div>
+        <div class="card"><div class="n">{{.DistinctTags}}</div><div class="label">Tags</div></div>
+      </div>
+
+      <h2>Par source</h2>
+      <table>
+        {{range .BySource}}<tr><td>{{.Source}}</td><td>{{.Count}}</td></tr>{{end}}
+      </table>
+
+      {{if .LastSyncBySource}}
+      <h2>Dernier sync</h2>
+      <table>
+        {{range .LastSyncBySource}}<tr><td>{{.Source}}</td><td>{{reltime .UpdatedAt}}</td></tr>{{end}}
+      </table>
+      {{end}}
+    </main>
+  </div>
+</body>
+</html>
