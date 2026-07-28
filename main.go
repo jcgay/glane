@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -36,7 +37,7 @@ func dbPath() string {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|summarize|update|tags|serve|version> ...")
+		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|summarize|update|tags|stats|serve|version> ...")
 		os.Exit(2)
 	}
 	if a := os.Args[1]; a == "version" || a == "--version" || a == "-v" {
@@ -66,6 +67,8 @@ func main() {
 		cmdUpdate(s)
 	case "tags":
 		cmdTags(s)
+	case "stats":
+		cmdStats(s, os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n", os.Args[1])
 		os.Exit(2)
@@ -442,6 +445,70 @@ func cmdTags(s *store.Store) {
 	}
 	for _, tc := range tags {
 		fmt.Printf("%-24s %d\n", tc.Tag, tc.Count)
+	}
+}
+
+func cmdStats(s *store.Store, args []string) {
+	fs := flag.NewFlagSet("stats", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "output as JSON")
+	fs.Parse(args)
+
+	st, err := s.Stats()
+	if err != nil {
+		fatal(err)
+	}
+	if *asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(st); err != nil {
+			fatal(err)
+		}
+		return
+	}
+	fmt.Print(renderStats(st))
+}
+
+// renderStats formats a Stats snapshot as aligned, English-language text —
+// CLI output stays English even though the web UI is French.
+func renderStats(st store.Stats) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Total          %d items\n", st.Total)
+	for _, sc := range st.BySource {
+		fmt.Fprintf(&b, "  %-12s %d\n", sc.Source, sc.Count)
+	}
+	fmt.Fprintf(&b, "Enriched        %d / %d\n", st.Enriched, st.Total)
+	fmt.Fprintf(&b, "Summarized      %d / %d\n", st.Summarized, st.Total)
+	fmt.Fprintf(&b, "Embeddings      %d\n", st.Embedded)
+	fmt.Fprintf(&b, "Tags            %d distinct\n", st.DistinctTags)
+	if len(st.LastSyncBySource) > 0 {
+		b.WriteString("Last sync\n")
+		for _, ss := range st.LastSyncBySource {
+			fmt.Fprintf(&b, "  %-12s %s\n", ss.Source, relTime(ss.UpdatedAt))
+		}
+	}
+	return b.String()
+}
+
+// relTime renders a unix timestamp as a short English relative age, or
+// "never" for a zero/absent timestamp. This mirrors internal/web's French
+// reltime template func in logic only — it is a separate implementation
+// because CLI output stays English-only while the web UI stays French.
+func relTime(ts int64) string {
+	if ts <= 0 {
+		return "never"
+	}
+	d := time.Since(time.Unix(ts, 0))
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	case d < 30*24*time.Hour:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	default:
+		return time.Unix(ts, 0).Format("2006-01-02")
 	}
 }
 

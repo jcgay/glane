@@ -228,6 +228,17 @@ is actually about, and a way to spot drift (`k8s` vs `kubernetes`).
 ./glane tags
 ```
 
+### `glane stats [-json]`
+Prints a point-in-time snapshot of what's indexed: total items and the breakdown
+per source, how many are enriched (article extracted) and summarized, how many
+have embeddings, the distinct tag count, and the last sync time per live source.
+Add `-json` for machine-readable output (same fields, JSON-encoded).
+
+```sh
+./glane stats
+./glane stats -json
+```
+
 ### `glane serve [--port N]`
 Serves the local web UI (default `http://127.0.0.1:8080`) — a single page with
 search-as-you-type, a source filter, and **clickable tags** (click a tag on any
