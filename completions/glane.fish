@@ -1,7 +1,7 @@
 # fish completions for glane. Install: cp to ~/.config/fish/completions/
 complete -c glane -f
 
-set -l cmds import sync search serve enrich summarize update tags version
+set -l cmds import sync search serve enrich summarize update tags stats version
 
 # top-level subcommands (only when none typed yet)
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a import    -d "import a Twitter archive"
@@ -12,6 +12,7 @@ complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a enrich    -d "fe
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a summarize -d "summarize + tag articles"
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a update    -d "sync all configured sources + enrich"
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a tags      -d "list tags"
+complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a stats     -d "show indexing stats"
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a version   -d "print version"
 
 # import twitter
@@ -29,3 +30,4 @@ complete -c glane -n "__fish_seen_subcommand_from serve"     -l port  -d "listen
 complete -c glane -n "__fish_seen_subcommand_from enrich"    -l limit -d "max items this run"
 complete -c glane -n "__fish_seen_subcommand_from enrich"    -l force -d "re-enrich already-fetched items"
 complete -c glane -n "__fish_seen_subcommand_from summarize" -l limit -d "max items this run"
+complete -c glane -n "__fish_seen_subcommand_from stats"     -l json  -d "output as JSON"
