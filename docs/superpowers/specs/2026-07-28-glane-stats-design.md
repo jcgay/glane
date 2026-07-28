@@ -65,7 +65,9 @@ Notes d'implémentation :
 - `cmdStats` parse un petit `flag.FlagSet` avec un seul flag : `-json` (bool, défaut false).
 - Sortie texte par défaut — alignée, pas de séparation stdout/stderr applicable ici
   puisqu'il s'agit d'un résumé ponctuel et non d'une commande à progression ; tout
-  part sur stdout :
+  part sur stdout. **Les libellés de la sortie CLI sont en anglais**, cohérent avec
+  les autres commandes (`cmdImport` : `"imported %d likes, %d tweets"`, `cmdTags`,
+  etc.) — seule l'UI web est en français :
 
 ```
 Total          1234 items
@@ -73,38 +75,39 @@ Total          1234 items
   github        300
   mastodon      100
   bluesky        34
-Enrichis        950 / 1234
-Résumés         600 / 1234
+Enriched        950 / 1234
+Summarized      600 / 1234
 Embeddings      950
-Tags            42 distincts
-Dernier sync
-  github        il y a 2h
-  mastodon      il y a 1j
-  bluesky       jamais
+Tags            42 distinct
+Last sync
+  github        2h ago
+  mastodon      1d ago
+  bluesky       never
 ```
   - Les sources sans ligne `sync_state` (jamais synchronisées, ex. `twitter` qui est
-    import-only) sont omises de la section "Dernier sync" — seules les sources
+    import-only) sont omises de la section "Last sync" — seules les sources
     réellement présentes dans `sync_state` sont listées (`twitter` n'y apparaît
     jamais, car c'est un import d'archive ponctuel, pas un connecteur de sync live).
-  - Le formatage du temps relatif reprend la même logique que la fonction de template
-    web `reltime` (implémentation partagée sous forme de petite fonction Go dupliquée,
-    voir ci-dessous).
+  - Le formatage du temps relatif pour la CLI utilise un texte en anglais
+    (`2h ago`, `1d ago`, `never`) — logique similaire à `reltime` côté web mais pas
+    la même fonction, puisque `reltime` produit du français (`"il y a 2h"`). Ce sont
+    deux implémentations distinctes avec des sorties dans des langues différentes
+    (voir ci-dessous).
 
 - Sortie `-json` : `json.MarshalIndent` de la struct `store.Stats` directement (noms
   de champs par défaut via les tags JSON de Go — pas besoin de tags personnalisés
   puisqu'il s'agit d'une struct de reporting en lecture seule, pas d'un contrat d'API).
 
-### Aide au temps relatif partagée
+### Aide au temps relatif (CLI, en anglais)
 
-`reltime` vit actuellement sous forme de closure non-exportée dans le
-`template.FuncMap` de `internal/web/web.go`. Plutôt que d'introduire une dépendance de
-`main` vers `internal/web` (ou un nouveau package partagé pour un seul helper),
-`main.go` reçoit sa propre petite fonction privée `relTime(ts int64) string` — une
-copie directe des mêmes quelques lignes déjà présentes dans `internal/web/web.go`.
-Cette duplication d'une dizaine de lignes est cohérente avec la préférence du code
-pour des packages petits et isolés plutôt qu'un partage prématuré. Si un troisième
-consommateur en a besoin plus tard, ce sera le déclencheur pour extraire un helper
-commun.
+`reltime` (dans `internal/web/web.go`) produit du français et reste dédiée à l'UI
+web — elle n'est pas réutilisée telle quelle. `main.go` reçoit sa propre petite
+fonction privée `relTime(ts int64) string` qui reprend la même logique de seuils
+(minute/heure/jour/date absolue) mais avec une sortie en anglais (`"2h ago"`,
+`"1d ago"`, `"never"` pour `ts <= 0`), cohérente avec le reste de la sortie CLI.
+C'est une implémentation séparée plutôt qu'un helper partagé paramétré par langue —
+ni `store` ni `internal/web` n'ont besoin de connaître l'existence de l'autre
+consommateur, et ~15 lignes dupliquées ne justifient pas un package partagé.
 
 ## Interface web
 
