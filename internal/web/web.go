@@ -57,7 +57,7 @@ var funcs = template.FuncMap{
 		case d < 30*24*time.Hour:
 			return fmt.Sprintf(t["agoDay"], int(d.Hours()/24))
 		default:
-			return time.Unix(ts, 0).Format("2 Jan 2006")
+			return time.Unix(ts, 0).Format(t["dateFmt"])
 		}
 	},
 }

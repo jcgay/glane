@@ -2,7 +2,9 @@ package web
 
 import (
 	"html/template"
+	"io/fs"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -24,6 +26,28 @@ func TestCatalogsMatch(t *testing.T) {
 	}
 }
 
+// Key parity is not enough: {{.T.tagilne}} renders empty just as silently, and
+// a typo added to both catalogs passes TestCatalogsMatch. So read the templates
+// back and check every key they ask for actually exists.
+func TestTemplateKeysExist(t *testing.T) {
+	files, err := fs.Glob(assets, "templates/*.html")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no templates found: %v", err)
+	}
+	ref := regexp.MustCompile(`\.T\.(\w+)`)
+	for _, f := range files {
+		b, err := fs.ReadFile(assets, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range ref.FindAllStringSubmatch(string(b), -1) {
+			if _, ok := en[m[1]]; !ok {
+				t.Errorf("%s references unknown key %q", f, m[1])
+			}
+		}
+	}
+}
+
 // Every page and fragment must follow Accept-Language, English by default.
 func TestPagesFollowAcceptLanguage(t *testing.T) {
 	s, _ := store.Open(t.TempDir() + "/t.db")
@@ -37,6 +61,9 @@ func TestPagesFollowAcceptLanguage(t *testing.T) {
 		{"fr-FR,fr;q=0.9,en;q=0.8", "/", fr["tagline"]},
 		{"en-US,en;q=0.9", "/", en["tagline"]},
 		{"de-DE,de;q=0.9,fr;q=0.7", "/", fr["tagline"]}, // first supported wins
+		{"EN-US", "/", en["tagline"]},                   // tags are case-insensitive
+		{"frr", "/", en["tagline"]},                     // Northern Frisian is not French
+		{"fr;q=0, en", "/", en["tagline"]},              // q=0 means "not acceptable"
 		{"fr", "/stats", fr["bySource"]},
 		{"", "/stats", en["bySource"]},
 		{"fr", "/search?q=nope", fr["noResults"]},

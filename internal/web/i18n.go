@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -49,6 +50,9 @@ var en = catalog{
 	"agoMin":  "%dmin ago",
 	"agoHour": "%dh ago",
 	"agoDay":  "%dd ago",
+	// past a month reltime shows the date itself: Go's month names are English
+	// only, so French gets the numeric form rather than a month table.
+	"dateFmt": "2 Jan 2006",
 }
 
 var fr = catalog{
@@ -90,20 +94,32 @@ var fr = catalog{
 	"agoMin":  "il y a %dmin",
 	"agoHour": "il y a %dh",
 	"agoDay":  "il y a %dj",
+	"dateFmt": "02/01/2006",
 }
 
 // pick reads the browser's Accept-Language. Header-only means the htmx
 // fragments follow the page with no cookie, no ?lang, no state to carry.
 //
-// ponytail: takes the first fr/en tag in header order rather than sorting by
-// q-value — browsers already send them in preference order. Pull in
+// Tags are case-insensitive and matched on the primary subtag, so "EN-US" is
+// English and "frr" (Northern Frisian) is not French. q=0 means "not
+// acceptable" and skips the tag.
+//
+// ponytail: takes the first acceptable fr/en tag in header order rather than
+// sorting by q-value — browsers already send them in preference order. Pull in
 // golang.org/x/text/language if a hand-written header ever needs to win.
 func pick(r *http.Request) catalog {
 	for _, tag := range strings.Split(r.Header.Get("Accept-Language"), ",") {
-		switch {
-		case strings.HasPrefix(strings.TrimSpace(tag), "fr"):
+		name, params, _ := strings.Cut(strings.ToLower(strings.TrimSpace(tag)), ";")
+		if q, ok := strings.CutPrefix(strings.TrimSpace(params), "q="); ok {
+			if v, err := strconv.ParseFloat(q, 64); err == nil && v == 0 {
+				continue
+			}
+		}
+		primary, _, _ := strings.Cut(name, "-")
+		switch primary {
+		case "fr":
 			return fr
-		case strings.HasPrefix(strings.TrimSpace(tag), "en"):
+		case "en":
 			return en
 		}
 	}
