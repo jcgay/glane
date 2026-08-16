@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="fr">
+<html lang="{{.T.lang}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>glane · statistiques</title>
-  <meta name="description" content="Statistiques sur votre veille technologique glanée : items importés, enrichis, résumés et vectorisés.">
+  <title>{{.T.statsTitle}}</title>
+  <meta name="description" content="{{.T.statsDescription}}">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
   <style>
     :root {
@@ -99,27 +99,27 @@
         <span class="mark" aria-hidden="true">🌾</span>
         <h1>glane</h1>
       </div>
-      <a class="back" href="/">← Recherche</a>
+      <a class="back" href="/">{{.T.backToSearch}}</a>
     </header>
 
     <main>
       <div class="cards">
-        <div class="card"><div class="n">{{.Total}}</div><div class="label">Total</div></div>
-        <div class="card"><div class="n">{{.Enriched}}</div><div class="label">Enrichis</div></div>
-        <div class="card"><div class="n">{{.Summarized}}</div><div class="label">Résumés</div></div>
-        <div class="card"><div class="n">{{.Embedded}}</div><div class="label">Embeddings</div></div>
-        <div class="card"><div class="n">{{.DistinctTags}}</div><div class="label">Tags</div></div>
+        <div class="card"><div class="n">{{.D.Total}}</div><div class="label">{{.T.total}}</div></div>
+        <div class="card"><div class="n">{{.D.Enriched}}</div><div class="label">{{.T.enriched}}</div></div>
+        <div class="card"><div class="n">{{.D.Summarized}}</div><div class="label">{{.T.summarized}}</div></div>
+        <div class="card"><div class="n">{{.D.Embedded}}</div><div class="label">{{.T.embeddings}}</div></div>
+        <div class="card"><div class="n">{{.D.DistinctTags}}</div><div class="label">{{.T.tagsLabel}}</div></div>
       </div>
 
-      <h2>Par source</h2>
+      <h2>{{.T.bySource}}</h2>
       <table>
-        {{range .BySource}}<tr><td>{{.Source}}</td><td>{{.Count}}</td></tr>{{end}}
+        {{range .D.BySource}}<tr><td>{{.Source}}</td><td>{{.Count}}</td></tr>{{end}}
       </table>
 
-      {{if .LastSyncBySource}}
-      <h2>Dernier sync</h2>
+      {{if .D.LastSyncBySource}}
+      <h2>{{.T.lastSync}}</h2>
       <table>
-        {{range .LastSyncBySource}}<tr><td>{{.Source}}</td><td>{{reltime .UpdatedAt}}</td></tr>{{end}}
+        {{range .D.LastSyncBySource}}<tr><td>{{.Source}}</td><td>{{reltime .UpdatedAt $.T}}</td></tr>{{end}}
       </table>
       {{end}}
     </main>

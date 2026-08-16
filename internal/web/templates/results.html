@@ -80,21 +80,21 @@
   }
   .count .more { color: var(--accent-ink); }
 </style>
-{{if .Hits}}
+{{if .D.Hits}}
 <p class="count">
-  {{len .Hits}} résultat{{if gt (len .Hits) 1}}s{{end}}
-  {{if .Truncated}}<span class="more">— les plus récents seulement, affinez la date ou la source pour voir au-delà</span>{{end}}
+  {{len .D.Hits}} {{.T.result}}{{if gt (len .D.Hits) 1}}s{{end}}
+  {{if .D.Truncated}}<span class="more">{{.T.truncated}}</span>{{end}}
 </p>
 <ul class="hits">
-  {{range .Hits}}
+  {{range .D.Hits}}
   <li class="hit">
     <div class="meta">
       <span class="src"><span class="dot {{.Source}}"></span>{{.Source}}</span>
       {{if .Kind}}<span class="kind">{{.Kind}}</span>{{end}}
       {{if .Author}}<span class="who">{{.Author}}</span>{{end}}
-      {{if .FromFTS}}<span class="prov fts" title="Trouvé par la recherche plein texte">texte</span>{{end}}
-      {{if .FromSemantic}}<span class="prov sem" title="Trouvé par la recherche sémantique">sémantique</span>{{end}}
-      {{if .CreatedAt}}<time>{{reltime .CreatedAt}}</time>{{end}}
+      {{if .FromFTS}}<span class="prov fts" title="{{$.T.ftsTitle}}">{{$.T.fts}}</span>{{end}}
+      {{if .FromSemantic}}<span class="prov sem" title="{{$.T.semTitle}}">{{$.T.sem}}</span>{{end}}
+      {{if .CreatedAt}}<time>{{reltime .CreatedAt $.T}}</time>{{end}}
     </div>
     {{if .ArticleTitle}}<h3>{{mark .TitleMarked}}</h3>{{end}}
     <p class="text">{{mark .BodyMarked}}</p>
@@ -109,7 +109,7 @@
       <a class="visit" href="{{.LinkURL}}" target="_blank" rel="noreferrer">
         {{host .LinkURL}}<span class="arrow" aria-hidden="true">↗</span>
       </a>
-      {{if ne .LinkURL .URL}}<a class="visit-src" href="{{.URL}}" target="_blank" rel="noreferrer">sur {{.Source}}</a>{{end}}
+      {{if ne .LinkURL .URL}}<a class="visit-src" href="{{.URL}}" target="_blank" rel="noreferrer">{{$.T.on}} {{.Source}}</a>{{end}}
     </div>
     {{else if .URL}}
     <a class="visit" href="{{.URL}}" target="_blank" rel="noreferrer">
@@ -120,5 +120,5 @@
   {{end}}
 </ul>
 {{else}}
-<p class="empty">Aucun résultat. Essayez d'autres mots-clés, changez de source ou élargissez la date.</p>
+<p class="empty">{{.T.noResults}}</p>
 {{end}}

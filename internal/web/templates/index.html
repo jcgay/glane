@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="fr">
+<html lang="{{.T.lang}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>glane · veille techno</title>
-  <meta name="description" content="Recherche dans votre veille technologique : dépôts, articles et posts glanés au fil de l'eau.">
+  <title>{{.T.title}}</title>
+  <meta name="description" content="{{.T.description}}">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
   <script src="/static/htmx.min.js"></script>
   <style>
@@ -213,9 +213,9 @@
       <div class="brand">
         <span class="mark" aria-hidden="true">🌾</span>
         <h1>glane</h1>
-        <p>votre veille, retrouvée d'un mot</p>
+        <p>{{.T.tagline}}</p>
       </div>
-      <a class="stats-link" href="/stats">Stats</a>
+      <a class="stats-link" href="/stats">{{.T.stats}}</a>
     </header>
 
     <div class="toolbar">
@@ -234,18 +234,18 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path>
           </svg>
-          <input type="search" name="q" placeholder="Rechercher un dépôt, un article, un post…" autofocus
-                 aria-label="Rechercher dans la veille"
+          <input type="search" name="q" placeholder="{{.T.searchPlaceholder}}" autofocus
+                 aria-label="{{.T.searchAria}}"
                  hx-get="/search" hx-trigger="input changed delay:300ms, search"
                  hx-target="#results" hx-indicator=".bar" hx-include="closest form">
         </div>
         <div class="bar" aria-hidden="true"></div>
 
         <div class="filters">
-        <div class="sources" role="radiogroup" aria-label="Filtrer par source">
+        <div class="sources" role="radiogroup" aria-label="{{.T.sourceAria}}">
           <label><input type="radio" name="source" value="" checked
                         hx-get="/search" hx-trigger="change" hx-target="#results"
-                        hx-indicator=".bar" hx-include="closest form">toutes</label>
+                        hx-indicator=".bar" hx-include="closest form">{{.T.allSources}}</label>
           <label><span class="dot twitter"></span><input type="radio" name="source" value="twitter"
                         hx-get="/search" hx-trigger="change" hx-target="#results"
                         hx-indicator=".bar" hx-include="closest form">twitter</label>
@@ -260,23 +260,23 @@
                         hx-indicator=".bar" hx-include="closest form">github</label>
         </div>
 
-        <label class="since">depuis
-          <input type="date" name="since" aria-label="N'afficher que les items à partir de cette date"
+        <label class="since">{{.T.since}}
+          <input type="date" name="since" aria-label="{{.T.sinceAria}}"
                  hx-get="/search" hx-trigger="change" hx-target="#results"
                  hx-indicator=".bar" hx-include="closest form">
         </label>
 
-        {{if .}}
+        {{if .D}}
         <details class="tags-filter">
-          <summary>tags</summary>
+          <summary>{{.T.tags}}</summary>
           <div class="tagcloud">
-            {{range .}}<a class="tag" href="#" hx-get="/search?tag={{.Tag | urlquery}}" hx-target="#results" hx-indicator=".bar" hx-include=".search-form">{{.Tag}}<span class="n">{{.Count}}</span></a>{{end}}
+            {{range .D}}<a class="tag" href="#" hx-get="/search?tag={{.Tag | urlquery}}" hx-target="#results" hx-indicator=".bar" hx-include=".search-form">{{.Tag}}<span class="n">{{.Count}}</span></a>{{end}}
           </div>
         </details>
         {{end}}
 
         <button type="button" class="active-tag" hidden
-                aria-label="Retirer le filtre par tag"
+                aria-label="{{.T.clearTagAria}}"
                 hx-get="/search" hx-target="#results"
                 hx-indicator=".bar" hx-include=".search-form"><span></span></button>
         </div>

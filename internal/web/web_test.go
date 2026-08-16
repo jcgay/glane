@@ -135,17 +135,17 @@ func TestListingAnnouncesTruncation(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
 	body := rec.Body.String()
-	if !strings.Contains(body, fmt.Sprintf("%d résultats", pageLimit)) {
+	if !strings.Contains(body, fmt.Sprintf("%d results", pageLimit)) {
 		t.Fatalf("listing must show how many it returned: %s", body)
 	}
-	if !strings.Contains(body, "les plus récents seulement") {
+	if !strings.Contains(body, en["truncated"]) {
 		t.Fatalf("a capped listing must say it is capped: %s", body)
 	}
 
 	// Under the cap, no warning — otherwise it cries wolf on every search.
 	rec2 := httptest.NewRecorder()
 	handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?source=twitter&q=item", nil))
-	if strings.Contains(rec2.Body.String(), "les plus récents seulement") {
+	if strings.Contains(rec2.Body.String(), en["truncated"]) {
 		t.Fatalf("empty result set must not claim truncation: %s", rec2.Body.String())
 	}
 }
