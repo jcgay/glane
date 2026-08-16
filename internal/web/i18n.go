@@ -107,7 +107,10 @@ var fr = catalog{
 // ponytail: takes the first acceptable fr/en tag in header order rather than
 // sorting by q-value — browsers already send them in preference order. Pull in
 // golang.org/x/text/language if a hand-written header ever needs to win.
-func pick(r *http.Request) catalog {
+func pick(w http.ResponseWriter, r *http.Request) catalog {
+	// the response depends on the header: say so, or a cache is free to replay
+	// one language at a reader who asked for the other
+	w.Header().Set("Vary", "Accept-Language")
 	for _, tag := range strings.Split(r.Header.Get("Accept-Language"), ",") {
 		name, params, _ := strings.Cut(strings.ToLower(strings.TrimSpace(tag)), ";")
 		if q, ok := strings.CutPrefix(strings.TrimSpace(params), "q="); ok {
@@ -115,7 +118,8 @@ func pick(r *http.Request) catalog {
 				continue
 			}
 		}
-		primary, _, _ := strings.Cut(name, "-")
+		// re-trim: "fr ;q=0.9" is legal, the space stays on the name
+		primary, _, _ := strings.Cut(strings.TrimSpace(name), "-")
 		switch primary {
 		case "fr":
 			return fr

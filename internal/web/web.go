@@ -88,7 +88,7 @@ func handler(s *store.Store) http.Handler {
 		if err != nil {
 			log.Printf("glane: tag counts: %v", err)
 		}
-		if err := tmpl.ExecuteTemplate(w, "index.html", view{pick(r), tags}); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "index.html", view{pick(w, r), tags}); err != nil {
 			log.Printf("glane: render index.html: %v", err)
 		}
 	})
@@ -98,7 +98,7 @@ func handler(s *store.Store) http.Handler {
 		if err != nil {
 			log.Printf("glane: stats: %v", err)
 		}
-		if err := tmpl.ExecuteTemplate(w, "stats.html", view{pick(r), st}); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "stats.html", view{pick(w, r), st}); err != nil {
 			log.Printf("glane: render stats.html: %v", err)
 		}
 	})
@@ -133,7 +133,7 @@ func handler(s *store.Store) http.Handler {
 			return
 		}
 		p := page{Hits: res, Truncated: len(res) == pageLimit}
-		if err := tmpl.ExecuteTemplate(w, "results.html", view{pick(r), p}); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "results.html", view{pick(w, r), p}); err != nil {
 			log.Printf("glane: render results.html: %v", err)
 		}
 	})

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jcgay/glane/internal/store"
 )
@@ -52,7 +53,10 @@ func TestTemplateKeysExist(t *testing.T) {
 func TestPagesFollowAcceptLanguage(t *testing.T) {
 	s, _ := store.Open(t.TempDir() + "/t.db")
 	defer s.Close()
-	s.Upsert([]store.Item{{Source: "github", SourceID: "1", Kind: "star", Text: "x", URL: "http://x/1"}})
+	// dated a year back so reltime falls past its 30-day window and renders the
+	// date itself — the layout is the one label that lives outside the templates
+	old := time.Now().AddDate(-1, 0, 0)
+	s.Upsert([]store.Item{{Source: "github", SourceID: "1", Kind: "star", Text: "x", URL: "http://x/1", CreatedAt: old.Unix()}})
 
 	for _, tc := range []struct {
 		header, path, want string
@@ -64,10 +68,14 @@ func TestPagesFollowAcceptLanguage(t *testing.T) {
 		{"EN-US", "/", en["tagline"]},                   // tags are case-insensitive
 		{"frr", "/", en["tagline"]},                     // Northern Frisian is not French
 		{"fr;q=0, en", "/", en["tagline"]},              // q=0 means "not acceptable"
+		{"de, fr ;q=0.9", "/", fr["tagline"]},           // space before the weight is legal
 		{"fr", "/stats", fr["bySource"]},
 		{"", "/stats", en["bySource"]},
 		{"fr", "/search?q=nope", fr["noResults"]},
 		{"", "/search?q=nope", en["noResults"]},
+		// dates are labels too: Go's month names are English only
+		{"fr", "/search", old.Format("02/01/2006")},
+		{"", "/search", old.Format("2 Jan 2006")},
 	} {
 		req := httptest.NewRequest("GET", tc.path, nil)
 		if tc.header != "" {
@@ -78,6 +86,10 @@ func TestPagesFollowAcceptLanguage(t *testing.T) {
 		// the labels go through html/template, so compare what it emits
 		if !strings.Contains(rec.Body.String(), template.HTMLEscapeString(tc.want)) {
 			t.Errorf("Accept-Language %q on %s: want %q in body, got: %s", tc.header, tc.path, tc.want, rec.Body.String())
+		}
+		// negotiated on a header, so it must not be cached across languages
+		if got := rec.Header().Get("Vary"); got != "Accept-Language" {
+			t.Errorf("%s: Vary = %q, want Accept-Language", tc.path, got)
 		}
 	}
 }
