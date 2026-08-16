@@ -31,24 +31,18 @@ archives:
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
 
-homebrew_casks:
+# `brews` is deprecated in favor of `homebrew_casks`, but still supported: a cask
+# would land in Casks/ and be shadowed by the root formula the tap already ships.
+brews:
   - repository:
       owner: jcgay
       name: homebrew-jcgay
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    # no `directory`: Homebrew only discovers casks in Casks/ (cask_dir is
-    # hardcoded), unlike formulae which could live at the repo root.
+    directory: . # formulae live at the repo root, not in Formula/
     homepage: "https://github.com/jcgay/glane"
     description: "Full-text and semantic search over your saved tech-watch posts"
-    completions:
-      fish: completions/glane.fish
-    hooks:
-      post:
-        # binary is unsigned: strip the Gatekeeper quarantine flag on macOS
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/glane"]
-          end
+    extra_install: |
+      fish_completion.install "completions/glane.fish"
     caveats: |
       To let Claude Code search your tech-watch, register the plugin:
         claude plugin marketplace add jcgay/glane
