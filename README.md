@@ -162,7 +162,7 @@ everything that landed while you were away.
 |------|---------|---------|
 | `--source` | all | Restrict to one source (`twitter`, `bluesky`, `mastodon`, `github`) |
 | `--tag` | — | Restrict to a tag (see `glane summarize`); with no query, browses that tag |
-| `--since` | — | Only items on/after a date: `YYYY` or `YYYY-MM-DD` |
+| `--since` | — | Only items on/after a date: `YYYY` or `YYYY-MM-DD`, read as your local midnight |
 | `--limit` | 20 | Max results |
 
 `--since` filters on the item's own date, which is when *you* starred it for

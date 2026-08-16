@@ -283,15 +283,12 @@ func cmdSearch(s *store.Store, args []string) {
 	}
 	filter := store.Filter{Source: *source, Limit: *limit, Since: sinceTs, Tag: *tag}
 
-	// No query at all is a listing, not an error: --tag browses that tag, and
-	// nothing at all lists the newest items (`--since` = review what landed).
+	// No query at all is a listing, not an error: Recent lists the newest items
+	// (`--since` = review what landed), narrowed by --tag when there is one.
 	var res []store.Result
-	switch {
-	case query != "":
+	if query != "" {
 		res, err = search.Hybrid(s, embed.FromEnv(), query, filter)
-	case *tag != "":
-		res, err = s.ByTag(*tag, filter)
-	default:
+	} else {
 		res, err = s.Recent(filter)
 	}
 	if err != nil {

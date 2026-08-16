@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -117,6 +118,38 @@ func TestTagBrowseHonorsSince(t *testing.T) {
 	}
 }
 
+// A review listing that stops at the cap without saying so reads as "that is
+// everything that piled up".
+func TestListingAnnouncesTruncation(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	items := make([]store.Item, pageLimit+1)
+	for i := range items {
+		items[i] = store.Item{Source: "github", SourceID: fmt.Sprint(i), Kind: "star",
+			Text: "item", URL: fmt.Sprintf("http://x/%d", i), CreatedAt: int64(i + 1)}
+	}
+	if _, err := s.Upsert(items); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, fmt.Sprintf("%d résultats", pageLimit)) {
+		t.Fatalf("listing must show how many it returned: %s", body)
+	}
+	if !strings.Contains(body, "les plus récents seulement") {
+		t.Fatalf("a capped listing must say it is capped: %s", body)
+	}
+
+	// Under the cap, no warning — otherwise it cries wolf on every search.
+	rec2 := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?source=twitter&q=item", nil))
+	if strings.Contains(rec2.Body.String(), "les plus récents seulement") {
+		t.Fatalf("empty result set must not claim truncation: %s", rec2.Body.String())
+	}
+}
+
 // Copilot review: the page opened on a blank #results and tag links dropped the
 // other filters. Guard both wires.
 func TestIndexAutoListsAndCarriesTag(t *testing.T) {
@@ -133,8 +166,12 @@ func TestIndexAutoListsAndCarriesTag(t *testing.T) {
 	if !strings.Contains(body, `<input type="hidden" name="tag">`) {
 		t.Fatalf("index must keep the browsed tag as form state: %s", body)
 	}
-	if !strings.Contains(body, `hx-get="/search?tag=rust" hx-target="#results" hx-indicator=".bar" hx-include=".search-form"`) {
-		t.Fatalf("index tag link must carry the other filters: %s", body)
+	// attribute by attribute: reordering them in the template is a no-op and
+	// must not fail the test.
+	for _, attr := range []string{`hx-get="/search?tag=rust"`, `hx-target="#results"`, `hx-include=".search-form"`} {
+		if !strings.Contains(body, attr) {
+			t.Fatalf("index tag link must carry the other filters, missing %s: %s", attr, body)
+		}
 	}
 	// The cloud used to sit in the idle screen, which auto-listing made
 	// unreachable; it now hangs off a filter pill, next to the clearable

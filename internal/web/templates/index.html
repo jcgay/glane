@@ -220,9 +220,13 @@
 
     <div class="toolbar">
       <!-- hx-trigger="load" opens the page on the newest items rather than a blank
-           #results; "submit" keeps Enter from navigating away and losing the query. -->
+           #results; "submit" keeps Enter from navigating away and losing the query.
+           hx-sync is inherited by every control below: they all write #results, so
+           without it a slow debounced query can land after a later source change
+           and win. It also collapses the two requests Enter fires (form submit +
+           the search input's own "search" event, which Firefox needs). -->
       <form class="search-form" hx-get="/search" hx-trigger="load, submit"
-            hx-target="#results" hx-indicator=".bar">
+            hx-target="#results" hx-indicator=".bar" hx-sync=".search-form:replace">
         <!-- the tag being browsed, set by the tag links (see the script below) so a
              date or source change keeps it instead of silently dropping it -->
         <input type="hidden" name="tag">

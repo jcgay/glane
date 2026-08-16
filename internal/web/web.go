@@ -62,6 +62,17 @@ var funcs = template.FuncMap{
 
 var tmpl = template.Must(template.New("").Funcs(funcs).ParseFS(assets, "templates/*.html"))
 
+// pageLimit caps one /search response. There is no pagination, so the fragment
+// says when it hit the cap: a review listing that silently stops reads as
+// "that is everything that piled up", which is a wrong answer, not a short one.
+const pageLimit = 50
+
+// page is what results.html renders.
+type page struct {
+	Hits      []store.Result
+	Truncated bool
+}
+
 func handler(s *store.Store) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.FileServer(http.FS(assets)))
@@ -92,26 +103,23 @@ func handler(s *store.Store) http.Handler {
 
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("q")
-		tag := r.URL.Query().Get("tag")
-		// A malformed date just means no date filter — a review screen should
-		// still render rather than 500 on a half-typed year.
+		// A malformed date just means no date filter — hand-crafted URLs aside,
+		// the picker itself reports "" until the date is complete, and a review
+		// screen should keep rendering rather than 500.
 		since, _ := store.ParseSince(r.URL.Query().Get("since"))
 		f := store.Filter{
 			Source: r.URL.Query().Get("source"),
-			Tag:    tag,
+			Tag:    r.URL.Query().Get("tag"),
 			Since:  since,
-			Limit:  50,
+			Limit:  pageLimit,
 		}
-		// No query and no tag is the review listing (newest first), not an
-		// empty screen — the source and date filters still apply to it.
+		// No query is the review listing (newest first), not an empty screen —
+		// source, date and tag all narrow it.
 		var res []store.Result
 		var err error
-		switch {
-		case q != "":
+		if q != "" {
 			res, err = search.Hybrid(s, gembed.FromEnv(), q, f)
-		case tag != "":
-			res, err = s.ByTag(tag, f)
-		default:
+		} else {
 			res, err = s.Recent(f)
 		}
 		if err != nil {
@@ -122,7 +130,8 @@ func handler(s *store.Store) http.Handler {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		if err := tmpl.ExecuteTemplate(w, "results.html", res); err != nil {
+		p := page{Hits: res, Truncated: len(res) == pageLimit}
+		if err := tmpl.ExecuteTemplate(w, "results.html", p); err != nil {
 			log.Printf("glane: render results.html: %v", err)
 		}
 	})

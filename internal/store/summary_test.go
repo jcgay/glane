@@ -73,10 +73,10 @@ func TestTagFilterConstrainsFTS(t *testing.T) {
 		t.Fatalf("tag filter failed: %+v", res)
 	}
 
-	// ByTag browse (no query)
-	bt, _ := s.ByTag("go", Filter{})
+	// tag browse (no query)
+	bt, _ := s.Recent(Filter{Tag: "go"})
 	if len(bt) != 1 || bt[0].ID != id2 {
-		t.Fatalf("ByTag failed: %+v", bt)
+		t.Fatalf("tag browse failed: %+v", bt)
 	}
 }
 

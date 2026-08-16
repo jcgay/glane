@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -16,15 +15,17 @@ type Filter struct {
 
 // ParseSince converts "YYYY" or "YYYY-MM-DD" (what an <input type="date">
 // emits) to a Unix timestamp for Filter.Since — the start of that day/year.
-// Empty input means "no date filter", not an error.
+// Empty input means "no date filter", not an error. The date is read in the
+// local zone: both the picker and someone typing --since mean their own
+// midnight, and parsing as UTC would silently drop items east of Greenwich.
 func ParseSince(v string) (int64, error) {
 	if v == "" {
 		return 0, nil
 	}
-	if t, err := time.Parse("2006-01-02", v); err == nil {
+	if t, err := time.ParseInLocation("2006-01-02", v, time.Local); err == nil {
 		return t.Unix(), nil
 	}
-	if t, err := time.Parse("2006", v); err == nil {
+	if t, err := time.ParseInLocation("2006", v, time.Local); err == nil {
 		return t.Unix(), nil
 	}
 	return 0, fmt.Errorf("invalid --since %q (want YYYY or YYYY-MM-DD)", v)
@@ -127,7 +128,7 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 	if f.Limit <= 0 {
 		f.Limit = 20
 	}
-	sql := `
+	stmt := `
 		SELECT i.id, i.source, i.source_id, i.kind, i.author, i.text, i.url,
 		       i.created_at, i.link_url, i.article_title, i.article_summary,
 		       bm25(items_fts) AS score,
@@ -139,21 +140,21 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 		WHERE items_fts MATCH ?`
 	args := []any{match}
 	if f.Source != "" {
-		sql += " AND i.source = ?"
+		stmt += " AND i.source = ?"
 		args = append(args, f.Source)
 	}
 	if f.Since > 0 {
-		sql += " AND i.created_at >= ?"
+		stmt += " AND i.created_at >= ?"
 		args = append(args, f.Since)
 	}
 	if f.Tag != "" {
-		sql += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
+		stmt += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
 		args = append(args, f.Tag)
 	}
-	sql += " ORDER BY score LIMIT ?" // bm25: lower is better
+	stmt += " ORDER BY score LIMIT ?" // bm25: lower is better
 	args = append(args, f.Limit)
 
-	rows, err := s.db.Query(sql, args...)
+	rows, err := s.db.Query(stmt, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -173,71 +174,44 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 	return out, rows.Err()
 }
 
-// ByTag lists items carrying a tag, newest first — for `search --tag X` with no
-// text query (no FTS MATCH involved).
-func (s *Store) ByTag(tag string, f Filter) ([]Result, error) {
-	if f.Limit <= 0 {
-		f.Limit = 20
-	}
-	sql := `
-		SELECT i.id, i.source, i.source_id, i.kind, i.author, i.text, i.url,
-		       i.created_at, i.link_url, i.article_title, i.article_summary
-		FROM item_tags t JOIN items i ON i.id = t.item_id
-		WHERE t.tag = ?`
-	args := []any{tag}
-	if f.Source != "" {
-		sql += " AND i.source = ?"
-		args = append(args, f.Source)
-	}
-	if f.Since > 0 {
-		sql += " AND i.created_at >= ?"
-		args = append(args, f.Since)
-	}
-	sql += " ORDER BY i.created_at DESC LIMIT ?"
-	args = append(args, f.Limit)
-
-	rows, err := s.db.Query(sql, args...)
-	if err != nil {
-		return nil, err
-	}
-	return scanResults(rows)
-}
-
-// Recent lists items newest first with no query at all — the "what did I save
-// while I was away" review. Filter.Since reads created_at, which is the star
-// date for github but the *publication* date for twitter/mastodon/bluesky: an
-// old article favourited yesterday sorts by its own age, not by when you saved it.
+// Recent lists items newest first with no text query — both the "what did I
+// save while I was away" review and the `--tag X` browse, which is that same
+// listing narrowed by Filter.Tag (the tag means here exactly what it means in
+// SearchFTS). No MATCH is involved, so there is no score and no highlight.
+//
+// Filter.Since reads created_at, which is the star date for github but the
+// *publication* date for twitter/mastodon/bluesky: an old article favourited
+// yesterday sorts by its own age, not by when you saved it.
 func (s *Store) Recent(f Filter) ([]Result, error) {
 	if f.Limit <= 0 {
 		f.Limit = 20
 	}
-	sql := `
+	stmt := `
 		SELECT i.id, i.source, i.source_id, i.kind, i.author, i.text, i.url,
 		       i.created_at, i.link_url, i.article_title, i.article_summary
 		FROM items i WHERE 1=1`
 	var args []any
 	if f.Source != "" {
-		sql += " AND i.source = ?"
+		stmt += " AND i.source = ?"
 		args = append(args, f.Source)
 	}
 	if f.Since > 0 {
-		sql += " AND i.created_at >= ?"
+		stmt += " AND i.created_at >= ?"
 		args = append(args, f.Since)
 	}
-	sql += " ORDER BY i.created_at DESC LIMIT ?"
+	if f.Tag != "" {
+		stmt += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
+		args = append(args, f.Tag)
+	}
+	stmt += " ORDER BY i.created_at DESC LIMIT ?"
 	args = append(args, f.Limit)
 
-	rows, err := s.db.Query(sql, args...)
+	rows, err := s.db.Query(stmt, args...)
 	if err != nil {
 		return nil, err
 	}
-	return scanResults(rows)
-}
-
-// scanResults reads the plain (non-FTS) column list shared by ByTag and Recent —
-// no score, no highlights, since neither runs a MATCH.
-func scanResults(rows *sql.Rows) ([]Result, error) {
 	defer rows.Close()
+
 	var out []Result
 	for rows.Next() {
 		var r Result
