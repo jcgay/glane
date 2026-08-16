@@ -93,20 +93,26 @@ func handler(s *store.Store) http.Handler {
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("q")
 		tag := r.URL.Query().Get("tag")
-		if q == "" && tag == "" {
-			w.Write([]byte(""))
-			return
+		// A malformed date just means no date filter — a review screen should
+		// still render rather than 500 on a half-typed year.
+		since, _ := store.ParseSince(r.URL.Query().Get("since"))
+		f := store.Filter{
+			Source: r.URL.Query().Get("source"),
+			Tag:    tag,
+			Since:  since,
+			Limit:  50,
 		}
+		// No query and no tag is the review listing (newest first), not an
+		// empty screen — the source and date filters still apply to it.
 		var res []store.Result
 		var err error
-		if q == "" {
-			res, err = s.ByTag(tag, store.Filter{Limit: 50})
-		} else {
-			res, err = search.Hybrid(s, gembed.FromEnv(), q, store.Filter{
-				Source: r.URL.Query().Get("source"),
-				Tag:    tag,
-				Limit:  50,
-			})
+		switch {
+		case q != "":
+			res, err = search.Hybrid(s, gembed.FromEnv(), q, f)
+		case tag != "":
+			res, err = s.ByTag(tag, f)
+		default:
+			res, err = s.Recent(f)
 		}
 		if err != nil {
 			http.Error(w, err.Error(), 500)

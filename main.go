@@ -277,20 +277,22 @@ func cmdSearch(s *store.Store, args []string) {
 	since := fs.String("since", "", "only items on/after this date (YYYY or YYYY-MM-DD)")
 	tag := fs.String("tag", "", "filter by tag")
 	fs.Parse(flagArgs)
-	sinceTs, err := parseSince(*since)
+	sinceTs, err := store.ParseSince(*since)
 	if err != nil {
 		fatal(err)
 	}
 	filter := store.Filter{Source: *source, Limit: *limit, Since: sinceTs, Tag: *tag}
 
+	// No query at all is a listing, not an error: --tag browses that tag, and
+	// nothing at all lists the newest items (`--since` = review what landed).
 	var res []store.Result
-	if query == "" {
-		if *tag == "" {
-			fatal(fmt.Errorf("usage: glane search <query> [--source X] [--tag T] [--since Y] [--limit N]"))
-		}
-		res, err = s.ByTag(*tag, filter)
-	} else {
+	switch {
+	case query != "":
 		res, err = search.Hybrid(s, embed.FromEnv(), query, filter)
+	case *tag != "":
+		res, err = s.ByTag(*tag, filter)
+	default:
+		res, err = s.Recent(filter)
 	}
 	if err != nil {
 		fatal(err)
@@ -344,20 +346,6 @@ func termHighlight(s string) string {
 		return strings.NewReplacer(store.MarkStart, "\033[1m", store.MarkEnd, "\033[0m").Replace(s)
 	}
 	return strings.NewReplacer(store.MarkStart, "", store.MarkEnd, "").Replace(s)
-}
-
-// parseSince converts "YYYY" or "YYYY-MM-DD" to a Unix timestamp (start of that day/year).
-func parseSince(v string) (int64, error) {
-	if v == "" {
-		return 0, nil
-	}
-	if t, err := time.Parse("2006-01-02", v); err == nil {
-		return t.Unix(), nil
-	}
-	if t, err := time.Parse("2006", v); err == nil {
-		return t.Unix(), nil
-	}
-	return 0, fmt.Errorf("invalid --since %q (want YYYY or YYYY-MM-DD)", v)
 }
 
 func cmdServe(s *store.Store, args []string) {

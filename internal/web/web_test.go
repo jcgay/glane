@@ -66,6 +66,39 @@ func TestSearchTextAndTagFilter(t *testing.T) {
 	}
 }
 
+func TestEmptyQueryListsRecentSinceDate(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	jan, jul := int64(1672531200), int64(1688169600) // 2023-01-01, 2023-07-01
+	s.Upsert([]store.Item{
+		{Source: "twitter", SourceID: "1", Kind: "like", Text: "old", URL: "http://x/1", CreatedAt: jan},
+		{Source: "github", SourceID: "2", Kind: "star", Text: "fresh", URL: "http://x/2", CreatedAt: jul},
+	})
+
+	// No query, no tag: the review listing, not a blank screen.
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, "http://x/1") || !strings.Contains(body, "http://x/2") {
+		t.Fatalf("empty query should list every item: %s", body)
+	}
+
+	// The date picker narrows it down.
+	rec2 := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?since=2023-05-01", nil))
+	body2 := rec2.Body.String()
+	if strings.Contains(body2, "http://x/1") || !strings.Contains(body2, "http://x/2") {
+		t.Fatalf("since=2023-05-01 should keep only the july item: %s", body2)
+	}
+
+	// A half-typed date degrades to no filter instead of erroring out.
+	rec3 := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec3, httptest.NewRequest("GET", "/search?since=20", nil))
+	if rec3.Code != 200 || !strings.Contains(rec3.Body.String(), "http://x/1") {
+		t.Fatalf("malformed date should fall back to no filter, got %d: %s", rec3.Code, rec3.Body.String())
+	}
+}
+
 func TestTagRenderedAsClickableLink(t *testing.T) {
 	s, _ := store.Open(t.TempDir() + "/t.db")
 	defer s.Close()

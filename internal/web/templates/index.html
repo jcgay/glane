@@ -49,6 +49,9 @@
       }
     }
 
+    /* let native widgets (date picker, scrollbars) follow the page theme */
+    :root { color-scheme: light dark; }
+
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
@@ -121,8 +124,9 @@
     }
     @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }
 
-    /* --- source filter (segmented) --- */
-    .sources { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; }
+    /* --- source + date filters (segmented) --- */
+    .filters { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .7rem; }
+    .sources { display: flex; flex-wrap: wrap; gap: .4rem; }
     .sources label {
       display: inline-flex; align-items: center; gap: .4rem;
       font-size: .82rem; color: var(--muted); cursor: pointer;
@@ -143,6 +147,21 @@
     .dot.bluesky { background: var(--src-bluesky); }
     .dot.mastodon { background: var(--src-mastodon); }
     .dot.github { background: var(--src-github); }
+
+    /* date filter: same pill as a source, wrapped around a native date input */
+    .since {
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-size: .82rem; color: var(--muted);
+      padding: .3rem .7rem; border-radius: 2rem;
+      border: 1px solid var(--border); background: var(--surface);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .since:hover { border-color: var(--border-strong); }
+    .since:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+    .since input {
+      font: inherit; color: var(--ink); background: none;
+      border: 0; padding: 0; outline: none;
+    }
 
     /* --- results / states --- */
     main { padding-bottom: 5rem; }
@@ -202,6 +221,7 @@
         </div>
         <div class="bar" aria-hidden="true"></div>
 
+        <div class="filters">
         <div class="sources" role="radiogroup" aria-label="Filtrer par source">
           <label><input type="radio" name="source" value="" checked
                         hx-get="/search" hx-trigger="change" hx-target="#results"
@@ -219,13 +239,21 @@
                         hx-get="/search" hx-trigger="change" hx-target="#results"
                         hx-indicator=".bar" hx-include="closest form">github</label>
         </div>
+
+        <label class="since">depuis
+          <input type="date" name="since" aria-label="N'afficher que les items à partir de cette date"
+                 hx-get="/search" hx-trigger="change" hx-target="#results"
+                 hx-indicator=".bar" hx-include="closest form">
+        </label>
+        </div>
       </form>
     </div>
 
     <main>
       <div id="results"></div>
       <div class="idle">
-        <p class="prompt">Tapez pour chercher. La recherche combine mots-clés et sens — essayez <kbd>rust async</kbd> ou <kbd>observabilité</kbd>.</p>
+        <p class="prompt">Tapez pour chercher — la recherche combine mots-clés et sens, essayez <kbd>rust async</kbd> ou <kbd>observabilité</kbd>.<br>
+          Ou posez une date dans <kbd>depuis</kbd> pour repasser en revue tout ce qui est arrivé depuis.</p>
         {{if .}}
         <div class="browse">
           <h2>Parcourir par tag</h2>

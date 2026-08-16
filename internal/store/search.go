@@ -1,12 +1,33 @@
 package store
 
-import "strings"
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+)
 
 type Filter struct {
 	Source string
 	Since  int64
 	Limit  int
 	Tag    string
+}
+
+// ParseSince converts "YYYY" or "YYYY-MM-DD" (what an <input type="date">
+// emits) to a Unix timestamp for Filter.Since — the start of that day/year.
+// Empty input means "no date filter", not an error.
+func ParseSince(v string) (int64, error) {
+	if v == "" {
+		return 0, nil
+	}
+	if t, err := time.Parse("2006-01-02", v); err == nil {
+		return t.Unix(), nil
+	}
+	if t, err := time.Parse("2006", v); err == nil {
+		return t.Unix(), nil
+	}
+	return 0, fmt.Errorf("invalid --since %q (want YYYY or YYYY-MM-DD)", v)
 }
 
 type Result struct {
@@ -179,6 +200,43 @@ func (s *Store) ByTag(tag string, f Filter) ([]Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	return scanResults(rows)
+}
+
+// Recent lists items newest first with no query at all — the "what did I save
+// while I was away" review. Filter.Since reads created_at, which is the star
+// date for github but the *publication* date for twitter/mastodon/bluesky: an
+// old article favourited yesterday sorts by its own age, not by when you saved it.
+func (s *Store) Recent(f Filter) ([]Result, error) {
+	if f.Limit <= 0 {
+		f.Limit = 20
+	}
+	sql := `
+		SELECT i.id, i.source, i.source_id, i.kind, i.author, i.text, i.url,
+		       i.created_at, i.link_url, i.article_title, i.article_summary
+		FROM items i WHERE 1=1`
+	var args []any
+	if f.Source != "" {
+		sql += " AND i.source = ?"
+		args = append(args, f.Source)
+	}
+	if f.Since > 0 {
+		sql += " AND i.created_at >= ?"
+		args = append(args, f.Since)
+	}
+	sql += " ORDER BY i.created_at DESC LIMIT ?"
+	args = append(args, f.Limit)
+
+	rows, err := s.db.Query(sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	return scanResults(rows)
+}
+
+// scanResults reads the plain (non-FTS) column list shared by ByTag and Recent —
+// no score, no highlights, since neither runs a MATCH.
+func scanResults(rows *sql.Rows) ([]Result, error) {
 	defer rows.Close()
 	var out []Result
 	for rows.Next() {

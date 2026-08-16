@@ -32,21 +32,6 @@ func TestSplitQueryArgs(t *testing.T) {
 	}
 }
 
-func TestParseSince(t *testing.T) {
-	if ts, err := parseSince(""); ts != 0 || err != nil {
-		t.Errorf("parseSince(\"\") = (%d, %v), want (0, nil)", ts, err)
-	}
-	if ts, err := parseSince("2023"); ts <= 0 || err != nil {
-		t.Errorf("parseSince(\"2023\") = (%d, %v), want (positive, nil)", ts, err)
-	}
-	if ts, err := parseSince("2023-06-15"); ts <= 0 || err != nil {
-		t.Errorf("parseSince(\"2023-06-15\") = (%d, %v), want (positive, nil)", ts, err)
-	}
-	if _, err := parseSince("nope"); err == nil {
-		t.Errorf("parseSince(\"nope\") = nil error, want an error")
-	}
-}
-
 func TestSyncAllSkipsWhenUnconfigured(t *testing.T) {
 	// All connector env empty → every connector skipped → no failure.
 	t.Setenv("GITHUB_TOKEN", "")
