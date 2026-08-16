@@ -90,7 +90,7 @@
     {{with .Excerpt}}<p class="excerpt">{{mark .}}</p>{{end}}
     {{if .Tags}}
     <div class="tags">
-      {{range .Tags}}<a class="tag" href="#" hx-get="/search?tag={{. | urlquery}}" hx-target="#results" hx-indicator=".bar">{{.}}</a>{{end}}
+      {{range .Tags}}<a class="tag" href="#" hx-get="/search?tag={{. | urlquery}}" hx-target="#results" hx-indicator=".bar" hx-include=".search-form">{{.}}</a>{{end}}
     </div>
     {{end}}
     {{if .LinkURL}}
@@ -109,5 +109,5 @@
   {{end}}
 </ul>
 {{else}}
-<p class="empty">Aucun résultat. Essayez d'autres mots-clés ou changez de source.</p>
+<p class="empty">Aucun résultat. Essayez d'autres mots-clés, changez de source ou élargissez la date.</p>
 {{end}}

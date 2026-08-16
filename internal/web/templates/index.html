@@ -148,43 +148,53 @@
     .dot.mastodon { background: var(--src-mastodon); }
     .dot.github { background: var(--src-github); }
 
-    /* date filter: same pill as a source, wrapped around a native date input */
-    .since {
+    /* date filter, tag menu and active tag: one pill shape, three contents */
+    .since, .tags-filter > summary, .active-tag {
       display: inline-flex; align-items: center; gap: .4rem;
-      font-size: .82rem; color: var(--muted);
+      font: inherit; font-size: .82rem; color: var(--muted);
       padding: .3rem .7rem; border-radius: 2rem;
       border: 1px solid var(--border); background: var(--surface);
-      transition: border-color .15s, box-shadow .15s;
+      transition: color .15s, border-color .15s, background .15s, box-shadow .15s;
     }
-    .since:hover { border-color: var(--border-strong); }
-    .since:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+    .since:hover, .tags-filter > summary:hover, .active-tag:hover { border-color: var(--border-strong); }
+    .since:focus-within, .tags-filter > summary:focus-visible, .active-tag:focus-visible {
+      border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); outline: none;
+    }
     .since input {
       font: inherit; color: var(--ink); background: none;
       border: 0; padding: 0; outline: none;
     }
 
-    /* --- results / states --- */
-    main { padding-bottom: 5rem; }
-    .idle {
-      color: var(--faint); text-align: center; padding: 3.5rem 1rem;
-      font-size: .95rem;
+    /* tag menu: the cloud used to live in the idle screen, which the page no
+       longer lands on — so it hangs off a pill in the filter row instead */
+    .tags-filter { position: relative; }
+    .tags-filter > summary { cursor: pointer; list-style: none; user-select: none; }
+    .tags-filter > summary::-webkit-details-marker { display: none; }
+    .tags-filter > summary::after { content: "▾"; color: var(--faint); font-size: .9em; }
+    .tags-filter[open] > summary { border-color: var(--border-strong); color: var(--ink); }
+    .tags-filter .tagcloud {
+      position: absolute; z-index: 20; top: calc(100% + .4rem); left: 0;
+      width: max-content; max-width: min(85vw, 30rem); max-height: 15rem; overflow-y: auto;
+      justify-content: flex-start; padding: .6rem;
+      background: var(--surface); border: 1px solid var(--border-strong);
+      border-radius: .7rem; box-shadow: var(--shadow);
     }
-    .idle kbd {
-      font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: .8em; background: var(--surface-2); color: var(--muted);
-      border: 1px solid var(--border); border-radius: .35rem; padding: .1rem .4rem;
-    }
-    #results:empty + .idle { display: block; }
-    #results:not(:empty) + .idle { display: none; }
 
-    /* --- tag browse --- */
-    .idle .prompt { margin: 0 0 2.5rem; }
-    .browse h2 {
-      font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: .74rem; font-weight: 500; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--faint); margin: 0 0 .8rem;
+    /* the tag being browsed — it now survives date/source changes, so it needs
+       to be visible and clearable */
+    .active-tag {
+      cursor: pointer; color: var(--accent-ink);
+      border-color: var(--accent); background: var(--accent-soft); font-weight: 500;
     }
-    .tagcloud { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; }
+    .active-tag[hidden] { display: none; }
+    .active-tag::after { content: "✕"; opacity: .55; font-size: .9em; }
+    .active-tag:hover::after { opacity: 1; }
+
+    /* --- results --- */
+    main { padding-bottom: 5rem; }
+
+    /* --- tag cloud --- */
+    .tagcloud { display: flex; flex-wrap: wrap; gap: .4rem; }
     .tagcloud .tag {
       font-size: .82rem; color: var(--muted); text-decoration: none;
       background: var(--surface-2); border: 1px solid var(--border);
@@ -209,7 +219,13 @@
     </header>
 
     <div class="toolbar">
-      <form class="search-form">
+      <!-- hx-trigger="load" opens the page on the newest items rather than a blank
+           #results; "submit" keeps Enter from navigating away and losing the query. -->
+      <form class="search-form" hx-get="/search" hx-trigger="load, submit"
+            hx-target="#results" hx-indicator=".bar">
+        <!-- the tag being browsed, set by the tag links (see the script below) so a
+             date or source change keeps it instead of silently dropping it -->
+        <input type="hidden" name="tag">
         <div class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path>
@@ -245,25 +261,55 @@
                  hx-get="/search" hx-trigger="change" hx-target="#results"
                  hx-indicator=".bar" hx-include="closest form">
         </label>
+
+        {{if .}}
+        <details class="tags-filter">
+          <summary>tags</summary>
+          <div class="tagcloud">
+            {{range .}}<a class="tag" href="#" hx-get="/search?tag={{.Tag | urlquery}}" hx-target="#results" hx-indicator=".bar" hx-include=".search-form">{{.Tag}}<span class="n">{{.Count}}</span></a>{{end}}
+          </div>
+        </details>
+        {{end}}
+
+        <button type="button" class="active-tag" hidden
+                aria-label="Retirer le filtre par tag"
+                hx-get="/search" hx-target="#results"
+                hx-indicator=".bar" hx-include=".search-form"><span></span></button>
         </div>
       </form>
     </div>
 
     <main>
       <div id="results"></div>
-      <div class="idle">
-        <p class="prompt">Tapez pour chercher — la recherche combine mots-clés et sens, essayez <kbd>rust async</kbd> ou <kbd>observabilité</kbd>.<br>
-          Ou posez une date dans <kbd>depuis</kbd> pour repasser en revue tout ce qui est arrivé depuis.</p>
-        {{if .}}
-        <div class="browse">
-          <h2>Parcourir par tag</h2>
-          <div class="tagcloud">
-            {{range .}}<a class="tag" href="#" hx-get="/search?tag={{.Tag | urlquery}}" hx-target="#results" hx-indicator=".bar">{{.Tag}}<span class="n">{{.Count}}</span></a>{{end}}
-          </div>
-        </div>
-        {{end}}
-      </div>
     </main>
   </div>
+  <script>
+    // The browsed tag is form state (so a date or source change keeps it) and a
+    // visible pill (so it can be seen and cleared). Both move together.
+    const form = document.querySelector('.search-form');
+    const activeTag = document.querySelector('.active-tag');
+    const tagsMenu = document.querySelector('.tags-filter');
+
+    function setTag(tag) {
+      form.tag.value = tag;
+      activeTag.firstElementChild.textContent = tag ? '#' + tag : '';
+      activeTag.hidden = !tag;
+    }
+
+    // Capture phase: the field must be current before htmx, bound on the link or
+    // the pill itself, builds the request that includes the form.
+    document.addEventListener('click', e => {
+      const link = e.target.closest('a.tag');
+      if (link) {
+        setTag(new URL(link.getAttribute('hx-get'), location).searchParams.get('tag') || '');
+        if (tagsMenu) tagsMenu.open = false;
+      } else if (e.target.closest('.active-tag')) {
+        setTag('');
+      }
+    }, true);
+
+    // Typing a query is a fresh intent, so it drops the tag.
+    form.q.addEventListener('input', () => setTag(''));
+  </script>
 </body>
 </html>

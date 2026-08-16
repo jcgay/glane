@@ -99,6 +99,54 @@ func TestEmptyQueryListsRecentSinceDate(t *testing.T) {
 	}
 }
 
+// The UI now sends both at once (tag links include the form, the date input
+// carries the hidden tag), so the handler must narrow on the pair.
+func TestTagBrowseHonorsSince(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	seedTagged(t, s, "1", "alpha", []string{"rust"})
+	seedTagged(t, s, "2", "beta", []string{"rust"})
+	// seedTagged leaves created_at at 0; date only the second one.
+	s.Upsert([]store.Item{{Source: "bluesky", SourceID: "2", Kind: "like", Text: "beta", URL: "http://x/2", CreatedAt: 1688169600}})
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?tag=rust&since=2023-05-01", nil))
+	body := rec.Body.String()
+	if strings.Contains(body, "http://x/1") || !strings.Contains(body, "http://x/2") {
+		t.Fatalf("tag browse should still honor since: %s", body)
+	}
+}
+
+// Copilot review: the page opened on a blank #results and tag links dropped the
+// other filters. Guard both wires.
+func TestIndexAutoListsAndCarriesTag(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	seedTagged(t, s, "1", "alpha", []string{"rust"})
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, `hx-trigger="load, submit"`) {
+		t.Fatalf("index must request the newest items on load: %s", body)
+	}
+	if !strings.Contains(body, `<input type="hidden" name="tag">`) {
+		t.Fatalf("index must keep the browsed tag as form state: %s", body)
+	}
+	if !strings.Contains(body, `hx-get="/search?tag=rust" hx-target="#results" hx-indicator=".bar" hx-include=".search-form"`) {
+		t.Fatalf("index tag link must carry the other filters: %s", body)
+	}
+	// The cloud used to sit in the idle screen, which auto-listing made
+	// unreachable; it now hangs off a filter pill, next to the clearable
+	// indicator for whichever tag is active.
+	if !strings.Contains(body, `<details class="tags-filter">`) {
+		t.Fatalf("tag cloud must be reachable from the filter row: %s", body)
+	}
+	if !strings.Contains(body, `class="active-tag"`) {
+		t.Fatalf("index must show the browsed tag so it can be cleared: %s", body)
+	}
+}
+
 func TestTagRenderedAsClickableLink(t *testing.T) {
 	s, _ := store.Open(t.TempDir() + "/t.db")
 	defer s.Close()

@@ -252,9 +252,10 @@ Add `-json` for machine-readable output (same fields, JSON-encoded).
 ### `glane serve [--port N]`
 Serves the local web UI (default `http://127.0.0.1:8080`) — a single page with
 search-as-you-type, a source filter, a **date filter** (`depuis`), and
-**clickable tags** (click a tag on any result to browse everything with it).
-With the search box empty, the page lists your newest items, so a date plus a
-source is a back-from-holiday review. Local-only; no auth.
+**clickable tags** — click a tag on any result, or pick one from the `tags`
+filter, to browse everything carrying it. The page opens on your newest items,
+so a date plus a source is a back-from-holiday review; filters combine, and the
+tag you are browsing stays pinned as a pill until you clear it. Local-only; no auth.
 
 ## Semantic search
 

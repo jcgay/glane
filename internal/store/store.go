@@ -86,6 +86,10 @@ CREATE TABLE IF NOT EXISTS item_tags (
   PRIMARY KEY (item_id, tag)
 );
 CREATE INDEX IF NOT EXISTS item_tags_tag ON item_tags(tag);
+
+-- newest-first browsing (Recent/ByTag) reads this in reverse; without it every
+-- query-less listing sorts the whole table before LIMIT.
+CREATE INDEX IF NOT EXISTS items_created_at ON items(created_at);
 `
 
 func Open(path string) (*Store, error) {
