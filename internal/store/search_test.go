@@ -142,6 +142,56 @@ func TestSearchFTSEmptyQuery(t *testing.T) {
 	}
 }
 
+func TestParseSince(t *testing.T) {
+	if ts, err := ParseSince(""); ts != 0 || err != nil {
+		t.Errorf("ParseSince(\"\") = (%d, %v), want (0, nil)", ts, err)
+	}
+	if ts, err := ParseSince("2023"); ts <= 0 || err != nil {
+		t.Errorf("ParseSince(\"2023\") = (%d, %v), want (positive, nil)", ts, err)
+	}
+	if ts, err := ParseSince("2023-06-15"); ts <= 0 || err != nil {
+		t.Errorf("ParseSince(\"2023-06-15\") = (%d, %v), want (positive, nil)", ts, err)
+	}
+	if _, err := ParseSince("nope"); err == nil {
+		t.Errorf("ParseSince(\"nope\") = nil error, want an error")
+	}
+}
+
+func TestRecentNewestFirstAndFilters(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	jan, jun, jul := int64(1672531200), int64(1685577600), int64(1688169600) // 2023-01-01, 2023-06-01, 2023-07-01
+	s.Upsert([]Item{
+		{Source: "twitter", SourceID: "1", Kind: "like", Text: "old post", CreatedAt: jan},
+		{Source: "twitter", SourceID: "2", Kind: "like", Text: "summer post", CreatedAt: jun},
+		{Source: "github", SourceID: "3", Kind: "star", Text: "a repo", CreatedAt: jul},
+	})
+
+	res, err := s.Recent(Filter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != 3 {
+		t.Fatalf("want all 3 items, got %d", len(res))
+	}
+	if res[0].SourceID != "3" || res[2].SourceID != "1" {
+		t.Fatalf("want newest first, got %s…%s", res[0].SourceID, res[2].SourceID)
+	}
+
+	since, _ := ParseSince("2023-05-01")
+	res, _ = s.Recent(Filter{Since: since})
+	if len(res) != 2 {
+		t.Fatalf("since 2023-05-01: want 2 items, got %d", len(res))
+	}
+	res, _ = s.Recent(Filter{Since: since, Source: "github"})
+	if len(res) != 1 || res[0].Source != "github" {
+		t.Fatalf("since + source filter failed: %+v", res)
+	}
+	if res, _ = s.Recent(Filter{Limit: 1}); len(res) != 1 {
+		t.Fatalf("limit ignored: got %d items", len(res))
+	}
+}
+
 func TestSearchFTSHandlesSpecialChars(t *testing.T) {
 	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()

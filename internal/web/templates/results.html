@@ -72,10 +72,21 @@
   .visit-src:hover { color: var(--muted); text-decoration: underline; }
 
   .empty { color: var(--faint); text-align: center; padding: 3rem 1rem; font-size: .95rem; }
+
+  .count {
+    margin: 0 0 .6rem; font-size: .78rem; color: var(--faint);
+    font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .count .more { color: var(--accent-ink); }
 </style>
-{{if .}}
+{{if .Hits}}
+<p class="count">
+  {{len .Hits}} résultat{{if gt (len .Hits) 1}}s{{end}}
+  {{if .Truncated}}<span class="more">— les plus récents seulement, affinez la date ou la source pour voir au-delà</span>{{end}}
+</p>
 <ul class="hits">
-  {{range .}}
+  {{range .Hits}}
   <li class="hit">
     <div class="meta">
       <span class="src"><span class="dot {{.Source}}"></span>{{.Source}}</span>
@@ -90,7 +101,7 @@
     {{with .Excerpt}}<p class="excerpt">{{mark .}}</p>{{end}}
     {{if .Tags}}
     <div class="tags">
-      {{range .Tags}}<a class="tag" href="#" hx-get="/search?tag={{. | urlquery}}" hx-target="#results" hx-indicator=".bar">{{.}}</a>{{end}}
+      {{range .Tags}}<a class="tag" href="#" hx-get="/search?tag={{. | urlquery}}" hx-target="#results" hx-indicator=".bar" hx-include=".search-form" hx-sync=".search-form:replace">{{.}}</a>{{end}}
     </div>
     {{end}}
     {{if .LinkURL}}
@@ -109,5 +120,5 @@
   {{end}}
 </ul>
 {{else}}
-<p class="empty">Aucun résultat. Essayez d'autres mots-clés ou changez de source.</p>
+<p class="empty">Aucun résultat. Essayez d'autres mots-clés, changez de source ou élargissez la date.</p>
 {{end}}

@@ -86,6 +86,14 @@ CREATE TABLE IF NOT EXISTS item_tags (
   PRIMARY KEY (item_id, tag)
 );
 CREATE INDEX IF NOT EXISTS item_tags_tag ON item_tags(tag);
+
+-- Recent reads this in reverse and stops at LIMIT instead of sorting the whole
+-- table. Measured on 50k rows: the plain and --since browses scan it as a
+-- covering index, and --tag probes item_tags per row rather than sorting. Only
+-- --source still sorts (it prefers the source index, then an ORDER BY); an
+-- items(source, created_at) composite would fix that, not worth the write cost
+-- at one person's archive.
+CREATE INDEX IF NOT EXISTS items_created_at ON items(created_at);
 `
 
 func Open(path string) (*Store, error) {

@@ -6,7 +6,7 @@ set -l cmds import sync search serve enrich summarize update tags stats version
 # top-level subcommands (only when none typed yet)
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a import    -d "import a Twitter archive"
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a sync      -d "sync a live source"
-complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a search    -d "full-text + semantic search"
+complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a search    -d "search, or list newest items with no query"
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a serve     -d "start the web UI"
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a enrich    -d "fetch article bodies / embeddings"
 complete -c glane -n "not __fish_seen_subcommand_from $cmds" -a summarize -d "summarize + tag articles"

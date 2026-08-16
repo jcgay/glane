@@ -149,17 +149,25 @@ fails. This is the command to schedule.
 ./glane update
 ```
 
-### `glane search <query> [flags]`
+### `glane search [query] [flags]`
 Searches the index. **The query comes first** (multiple words are fine unquoted);
 flags come after. Words match whole tokens, except the last word, which matches
 as a prefix (type-ahead): `useTa` finds `useTabs`.
+
+With **no query**, it lists instead of searching: `--tag` browses that tag, and
+no query at all lists your newest items — pair it with `--since` to review
+everything that landed while you were away.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `--source` | all | Restrict to one source (`twitter`, `bluesky`, `mastodon`, `github`) |
 | `--tag` | — | Restrict to a tag (see `glane summarize`); with no query, browses that tag |
-| `--since` | — | Only items on/after a date: `YYYY` or `YYYY-MM-DD` |
+| `--since` | — | Only items on/after a date: `YYYY` or `YYYY-MM-DD`, read as your local midnight |
 | `--limit` | 20 | Max results |
+
+`--since` filters on the item's own date, which is when *you* starred it for
+GitHub but when the post was *published* for twitter/mastodon/bluesky — a
+five-year-old article you liked yesterday sorts by its own age, not by yours.
 
 Results lead with the LLM summary (when present) and show the item's tags.
 Matched terms are highlighted wherever they appear — title, summary, or text —
@@ -170,6 +178,8 @@ an extra highlighted excerpt so you can see why the result came up.
 ./glane search cold start lambda --source twitter --limit 10
 ./glane search "provisioned concurrency" --since 2022
 ./glane search --tag rust           # browse everything tagged rust, newest first
+./glane search --since 2026-07-20 --limit 100   # review everything since a date
+./glane search --since 2026-07-20 --source github --limit 100   # …just the repos
 ```
 
 If an embeddings endpoint is configured (see [Semantic search](#semantic-search)),
@@ -241,8 +251,11 @@ Add `-json` for machine-readable output (same fields, JSON-encoded).
 
 ### `glane serve [--port N]`
 Serves the local web UI (default `http://127.0.0.1:8080`) — a single page with
-search-as-you-type, a source filter, and **clickable tags** (click a tag on any
-result to browse everything with it). Local-only; no auth.
+search-as-you-type, a source filter, a **date filter** (`depuis`), and
+**clickable tags** — click a tag on any result, or pick one from the `tags`
+filter, to browse everything carrying it. The page opens on your newest items,
+so a date plus a source is a back-from-holiday review; filters combine, and the
+tag you are browsing stays pinned as a pill until you clear it. Local-only; no auth.
 
 ## Semantic search
 
