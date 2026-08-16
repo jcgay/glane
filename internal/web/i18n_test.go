@@ -1,0 +1,56 @@
+package web
+
+import (
+	"html/template"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/jcgay/glane/internal/store"
+)
+
+// A key present in one catalog and not the other renders as an empty label,
+// silently — the templates have no way to complain. This is the complaint.
+func TestCatalogsMatch(t *testing.T) {
+	for k := range en {
+		if _, ok := fr[k]; !ok {
+			t.Errorf("key %q missing from fr", k)
+		}
+	}
+	for k := range fr {
+		if _, ok := en[k]; !ok {
+			t.Errorf("key %q missing from en", k)
+		}
+	}
+}
+
+// Every page and fragment must follow Accept-Language, English by default.
+func TestPagesFollowAcceptLanguage(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	s.Upsert([]store.Item{{Source: "github", SourceID: "1", Kind: "star", Text: "x", URL: "http://x/1"}})
+
+	for _, tc := range []struct {
+		header, path, want string
+	}{
+		{"", "/", en["tagline"]},
+		{"fr-FR,fr;q=0.9,en;q=0.8", "/", fr["tagline"]},
+		{"en-US,en;q=0.9", "/", en["tagline"]},
+		{"de-DE,de;q=0.9,fr;q=0.7", "/", fr["tagline"]}, // first supported wins
+		{"fr", "/stats", fr["bySource"]},
+		{"", "/stats", en["bySource"]},
+		{"fr", "/search?q=nope", fr["noResults"]},
+		{"", "/search?q=nope", en["noResults"]},
+	} {
+		req := httptest.NewRequest("GET", tc.path, nil)
+		if tc.header != "" {
+			req.Header.Set("Accept-Language", tc.header)
+		}
+		rec := httptest.NewRecorder()
+		handler(s).ServeHTTP(rec, req)
+		// the labels go through html/template, so compare what it emits
+		if !strings.Contains(rec.Body.String(), template.HTMLEscapeString(tc.want)) {
+			t.Errorf("Accept-Language %q on %s: want %q in body, got: %s", tc.header, tc.path, tc.want, rec.Body.String())
+		}
+	}
+}

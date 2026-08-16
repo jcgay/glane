@@ -39,21 +39,23 @@ var funcs = template.FuncMap{
 		}
 		return h
 	},
-	// reltime renders a unix timestamp as a short, human relative age.
-	"reltime": func(ts int64) string {
+	// reltime renders a unix timestamp as a short, human relative age. It takes
+	// the catalog because template funcs can't see the view: call it as
+	// {{reltime .CreatedAt $.T}}.
+	"reltime": func(ts int64, t catalog) string {
 		if ts <= 0 {
 			return ""
 		}
 		d := time.Since(time.Unix(ts, 0))
 		switch {
 		case d < time.Minute:
-			return "à l'instant"
+			return t["justNow"]
 		case d < time.Hour:
-			return fmt.Sprintf("il y a %dmin", int(d.Minutes()))
+			return fmt.Sprintf(t["agoMin"], int(d.Minutes()))
 		case d < 24*time.Hour:
-			return fmt.Sprintf("il y a %dh", int(d.Hours()))
+			return fmt.Sprintf(t["agoHour"], int(d.Hours()))
 		case d < 30*24*time.Hour:
-			return fmt.Sprintf("il y a %dj", int(d.Hours()/24))
+			return fmt.Sprintf(t["agoDay"], int(d.Hours()/24))
 		default:
 			return time.Unix(ts, 0).Format("2 Jan 2006")
 		}
@@ -86,7 +88,7 @@ func handler(s *store.Store) http.Handler {
 		if err != nil {
 			log.Printf("glane: tag counts: %v", err)
 		}
-		if err := tmpl.ExecuteTemplate(w, "index.html", tags); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "index.html", view{pick(r), tags}); err != nil {
 			log.Printf("glane: render index.html: %v", err)
 		}
 	})
@@ -96,7 +98,7 @@ func handler(s *store.Store) http.Handler {
 		if err != nil {
 			log.Printf("glane: stats: %v", err)
 		}
-		if err := tmpl.ExecuteTemplate(w, "stats.html", st); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "stats.html", view{pick(r), st}); err != nil {
 			log.Printf("glane: render stats.html: %v", err)
 		}
 	})
@@ -131,7 +133,7 @@ func handler(s *store.Store) http.Handler {
 			return
 		}
 		p := page{Hits: res, Truncated: len(res) == pageLimit}
-		if err := tmpl.ExecuteTemplate(w, "results.html", p); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "results.html", view{pick(r), p}); err != nil {
 			log.Printf("glane: render results.html: %v", err)
 		}
 	})
