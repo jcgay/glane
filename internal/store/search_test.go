@@ -29,6 +29,33 @@ func TestSearchFTSMatchesAndFilters(t *testing.T) {
 	}
 }
 
+// The top-N cut must happen after filtering, and equal scores must come back
+// in a stable order.
+func TestSearchFTSFiltersBeforeLimit(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	s.Upsert([]Item{
+		{Source: "twitter", SourceID: "1", Kind: "like", Text: "lambda lambda lambda"},
+		{Source: "github", SourceID: "2", Kind: "star", Text: "lambda calculus notes and a long tail of other words"},
+		{Source: "twitter", SourceID: "3", Kind: "like", Text: "lambda lambda lambda"},
+	})
+
+	res, err := s.SearchFTS("lambda", Filter{Limit: 1})
+	if err != nil || len(res) != 1 || res[0].Source != "twitter" {
+		t.Fatalf("setup: want a twitter item on top, got %+v, %v", res, err)
+	}
+
+	res, _ = s.SearchFTS("lambda", Filter{Source: "github", Limit: 1})
+	if len(res) != 1 || res[0].Source != "github" {
+		t.Fatalf("filter applied after the limit: %+v", res)
+	}
+
+	res, _ = s.SearchFTS("lambda", Filter{Source: "twitter"})
+	if len(res) != 2 || res[0].SourceID != "1" || res[1].SourceID != "3" {
+		t.Fatalf("ties not ordered by id: %+v", res)
+	}
+}
+
 func TestSearchFTSPrefixOnLastToken(t *testing.T) {
 	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()
