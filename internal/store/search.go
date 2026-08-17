@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -128,31 +129,38 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 	if f.Limit <= 0 {
 		f.Limit = 20
 	}
-	stmt := `
+
+	topStmt := "SELECT items_fts.rowid AS id, bm25(items_fts) AS score FROM items_fts JOIN items i ON i.id = items_fts.rowid WHERE items_fts MATCH ?"
+	args := []any{match}
+	if f.Source != "" {
+		topStmt += " AND i.source = ?"
+		args = append(args, f.Source)
+	}
+	if f.Since > 0 {
+		topStmt += " AND i.created_at >= ?"
+		args = append(args, f.Since)
+	}
+	if f.Tag != "" {
+		topStmt += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
+		args = append(args, f.Tag)
+	}
+	topStmt += " ORDER BY score LIMIT ?"
+	args = append(args, f.Limit)
+
+	stmt := `WITH top AS (` + topStmt + `)
 		SELECT i.id, i.source, i.source_id, i.kind, i.author, i.text, i.url,
 		       i.created_at, i.link_url, i.article_title, i.article_summary,
-		       bm25(items_fts) AS score,
+		       top.score,
 		       snippet(items_fts, -1, char(2), char(3), '…', 15) AS snip,
 		       highlight(items_fts, 1, char(2), char(3)) AS title_hl,
 		       highlight(items_fts, 3, char(2), char(3)) AS summary_hl,
 		       highlight(items_fts, 0, char(2), char(3)) AS text_hl
-		FROM items_fts JOIN items i ON i.id = items_fts.rowid
-		WHERE items_fts MATCH ?`
-	args := []any{match}
-	if f.Source != "" {
-		stmt += " AND i.source = ?"
-		args = append(args, f.Source)
-	}
-	if f.Since > 0 {
-		stmt += " AND i.created_at >= ?"
-		args = append(args, f.Since)
-	}
-	if f.Tag != "" {
-		stmt += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
-		args = append(args, f.Tag)
-	}
-	stmt += " ORDER BY score LIMIT ?" // bm25: lower is better
-	args = append(args, f.Limit)
+		FROM top
+		JOIN items_fts ON items_fts.rowid = top.id
+		JOIN items i ON i.id = top.id
+		WHERE items_fts MATCH ?
+		ORDER BY top.score`
+	args = append(args, match)
 
 	rows, err := s.db.Query(stmt, args...)
 	if err != nil {
@@ -163,11 +171,23 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 	var out []Result
 	for rows.Next() {
 		var r Result
+		var snip, th, sh, tx sql.NullString
 		if err := rows.Scan(&r.ID, &r.Source, &r.SourceID, &r.Kind, &r.Author,
 			&r.Text, &r.URL, &r.CreatedAt, &r.LinkURL, &r.ArticleTitle,
-			&r.ArticleSummary, &r.Score, &r.Snippet,
-			&r.TitleHL, &r.SummaryHL, &r.TextHL); err != nil {
+			&r.ArticleSummary, &r.Score, &snip, &th, &sh, &tx); err != nil {
 			return nil, err
+		}
+		if snip.Valid {
+			r.Snippet = snip.String
+		}
+		if th.Valid {
+			r.TitleHL = th.String
+		}
+		if sh.Valid {
+			r.SummaryHL = sh.String
+		}
+		if tx.Valid {
+			r.TextHL = tx.String
 		}
 		out = append(out, r)
 	}
