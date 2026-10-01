@@ -81,7 +81,7 @@ func Sync(s *store.Store, token string, hc *http.Client, progress ...func(string
 		}
 		if resp.StatusCode == http.StatusUnauthorized {
 			resp.Body.Close()
-			return 0, fmt.Errorf("GitHub: 401 — GITHUB_TOKEN is invalid or expired")
+			return 0, fmt.Errorf("GitHub: 401 — the GitHub token is invalid or expired")
 		}
 		if resp.StatusCode != http.StatusOK {
 			remaining := resp.Header.Get("X-RateLimit-Remaining")
@@ -90,7 +90,7 @@ func Sync(s *store.Store, token string, hc *http.Client, progress ...func(string
 			if resp.StatusCode == http.StatusForbidden && remaining == "0" {
 				return 0, fmt.Errorf("GitHub: 403 — rate limit exceeded (resets at unix %s); wait and re-run", reset)
 			}
-			return 0, fmt.Errorf("GitHub: API status %d — check GITHUB_TOKEN is valid and has read access", resp.StatusCode)
+			return 0, fmt.Errorf("GitHub: API status %d — check the GitHub token is valid and has read access", resp.StatusCode)
 		}
 		var entries []starEntry
 		derr := json.NewDecoder(resp.Body).Decode(&entries)

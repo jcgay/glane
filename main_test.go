@@ -34,6 +34,7 @@ func TestSplitQueryArgs(t *testing.T) {
 
 func TestSyncAllSkipsWhenUnconfigured(t *testing.T) {
 	// All connector env empty → every connector skipped → no failure.
+	t.Setenv("GLANE_GITHUB_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("MASTODON_INSTANCE_URL", "")
 	t.Setenv("MASTODON_ACCESS_TOKEN", "")
