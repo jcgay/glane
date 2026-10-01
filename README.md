@@ -56,7 +56,7 @@ Full-text search works immediately — no network, no model.
 To pull in your live sources too:
 
 ```sh
-export GITHUB_TOKEN=…              # GitHub stars
+export GLANE_GITHUB_TOKEN=…        # GitHub stars
 export MASTODON_INSTANCE_URL=https://mastodon.social MASTODON_ACCESS_TOKEN=…
 export BLUESKY_HANDLE=you.bsky.social BLUESKY_APP_PASSWORD=…
 ./glane sync all                   # syncs every configured source (incremental)
@@ -81,13 +81,14 @@ reposts are all indexed. Re-running is safe — items are deduplicated on their
 source id.
 
 ### `glane sync github`
-Syncs your GitHub stars into the index. Requires a token in the `GITHUB_TOKEN`
-environment variable (a read-only classic token is enough for public stars; the
-conventional name means an already-exported token from the `gh` CLI or CI just
-works).
+Syncs your GitHub stars into the index. Requires a token in the
+`GLANE_GITHUB_TOKEN` environment variable (a read-only classic token is enough
+for public stars). `GITHUB_TOKEN` is used as a fallback, so a token already
+exported in CI just works; prefer the prefixed name on your machine, because
+the `gh` CLI uses an exported `GITHUB_TOKEN` in place of its own login.
 
 ```sh
-export GITHUB_TOKEN=…
+export GLANE_GITHUB_TOKEN=…
 ./glane sync github
 ```
 
@@ -366,7 +367,7 @@ Three rules keep the shared file consistent:
 | Variable | Used by | Meaning |
 |----------|---------|---------|
 | `GLANE_DB` | all | SQLite file path (default `~/.local/share/glane/glane.db`) |
-| `GITHUB_TOKEN` | `sync github` | GitHub token (read-only is enough) |
+| `GLANE_GITHUB_TOKEN` | `sync github` | GitHub token (read-only is enough); falls back to `GITHUB_TOKEN` |
 | `MASTODON_INSTANCE_URL` | `sync mastodon` | Instance base URL, e.g. `https://mastodon.social` |
 | `MASTODON_ACCESS_TOKEN` | `sync mastodon` | Access token (`read:favourites` + `read:bookmarks`) |
 | `BLUESKY_HANDLE` | `sync bluesky` | Your handle, e.g. `you.bsky.social` |
