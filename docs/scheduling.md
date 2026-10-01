@@ -31,7 +31,7 @@ and the hour):
   <key>EnvironmentVariables</key>
   <dict>
     <key>GLANE_DB</key><string>/Users/you/.local/share/glane/glane.db</string>
-    <key>GITHUB_TOKEN</key><string>ghp_…</string>
+    <key>GLANE_GITHUB_TOKEN</key><string>ghp_…</string>
     <key>MASTODON_INSTANCE_URL</key><string>https://mastodon.social</string>
     <key>MASTODON_ACCESS_TOKEN</key><string>…</string>
     <key>BLUESKY_HANDLE</key><string>you.bsky.social</string>
@@ -65,7 +65,7 @@ Set the vars in the crontab (cron has no shell profile either), then one line:
 
 ```cron
 GLANE_DB=/home/you/.local/share/glane/glane.db
-GITHUB_TOKEN=ghp_…
+GLANE_GITHUB_TOKEN=ghp_…
 MASTODON_INSTANCE_URL=https://mastodon.social
 MASTODON_ACCESS_TOKEN=…
 BLUESKY_HANDLE=you.bsky.social

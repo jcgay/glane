@@ -32,8 +32,25 @@ func TestSplitQueryArgs(t *testing.T) {
 	}
 }
 
+func TestGithubTokenPrefersGlaneVariable(t *testing.T) {
+	cases := []struct{ glane, legacy, want string }{
+		{"glane", "", "glane"},
+		{"", "legacy", "legacy"},
+		{"glane", "legacy", "glane"},
+	}
+	for _, c := range cases {
+		t.Setenv("GLANE_GITHUB_TOKEN", c.glane)
+		t.Setenv("GITHUB_TOKEN", c.legacy)
+		if got := githubToken(); got != c.want {
+			t.Errorf("githubToken() with GLANE_GITHUB_TOKEN=%q GITHUB_TOKEN=%q = %q, want %q",
+				c.glane, c.legacy, got, c.want)
+		}
+	}
+}
+
 func TestSyncAllSkipsWhenUnconfigured(t *testing.T) {
 	// All connector env empty → every connector skipped → no failure.
+	t.Setenv("GLANE_GITHUB_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("MASTODON_INSTANCE_URL", "")
 	t.Setenv("MASTODON_ACCESS_TOKEN", "")

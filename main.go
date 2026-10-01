@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"flag"
@@ -77,6 +78,13 @@ func main() {
 
 func syncClient() *http.Client { return &http.Client{Timeout: 30 * time.Second} }
 
+// githubToken prefers GLANE_GITHUB_TOKEN: the gh CLI gives an exported
+// GITHUB_TOKEN precedence over its own login, so a read-only token set for
+// glane would break gh. GITHUB_TOKEN stays as a fallback (CI, older setups).
+func githubToken() string {
+	return cmp.Or(os.Getenv("GLANE_GITHUB_TOKEN"), os.Getenv("GITHUB_TOKEN"))
+}
+
 func stderrProgress(msg string) { fmt.Fprintln(os.Stderr, msg) }
 
 func cmdImport(s *store.Store, args []string) {
@@ -96,9 +104,9 @@ func cmdSync(s *store.Store, args []string) {
 	}
 	switch args[0] {
 	case "github":
-		token := os.Getenv("GITHUB_TOKEN")
+		token := githubToken()
 		if token == "" {
-			fatal(fmt.Errorf("set GITHUB_TOKEN to sync GitHub stars"))
+			fatal(fmt.Errorf("set GLANE_GITHUB_TOKEN to sync GitHub stars"))
 		}
 		n, err := github.Sync(s, token, syncClient(), stderrProgress)
 		if err != nil {
@@ -162,7 +170,7 @@ func syncAll(s *store.Store) bool {
 		}
 	}
 
-	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
+	if tok := githubToken(); tok != "" {
 		n, err := github.Sync(s, tok, hc, stderrProgress)
 		record("github", n, err)
 	} else {
