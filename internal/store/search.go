@@ -14,6 +14,26 @@ type Filter struct {
 	Tag    string
 }
 
+// where is the filter as SQL conditions on items aliased i, each starting with
+// " AND ", so it appends to any WHERE clause.
+func (f Filter) where() (string, []any) {
+	var sql string
+	var args []any
+	if f.Source != "" {
+		sql += " AND i.source = ?"
+		args = append(args, f.Source)
+	}
+	if f.Since > 0 {
+		sql += " AND i.created_at >= ?"
+		args = append(args, f.Since)
+	}
+	if f.Tag != "" {
+		sql += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
+		args = append(args, f.Tag)
+	}
+	return sql, args
+}
+
 // ParseSince converts "YYYY", "YYYY-MM-DD" or a relative window ("7d", "2w",
 // "3m", "1y") to a Unix timestamp for Filter.Since — the start of that day/year.
 // Empty input means "no date filter", not an error. The date is read in the
@@ -146,20 +166,9 @@ func (s *Store) SearchFTS(query string, f Filter) ([]Result, error) {
 		f.Limit = 20
 	}
 
-	topStmt := "SELECT items_fts.rowid AS id, bm25(items_fts) AS score FROM items_fts JOIN items i ON i.id = items_fts.rowid WHERE items_fts MATCH ?"
-	args := []any{match}
-	if f.Source != "" {
-		topStmt += " AND i.source = ?"
-		args = append(args, f.Source)
-	}
-	if f.Since > 0 {
-		topStmt += " AND i.created_at >= ?"
-		args = append(args, f.Since)
-	}
-	if f.Tag != "" {
-		topStmt += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
-		args = append(args, f.Tag)
-	}
+	where, args := f.where()
+	topStmt := "SELECT items_fts.rowid AS id, bm25(items_fts) AS score FROM items_fts JOIN items i ON i.id = items_fts.rowid WHERE items_fts MATCH ?" + where
+	args = append([]any{match}, args...)
 	topStmt += " ORDER BY score, id LIMIT ?"
 	args = append(args, f.Limit)
 
@@ -216,20 +225,8 @@ func (s *Store) Recent(f Filter) ([]Result, error) {
 		SELECT i.id, i.source, i.source_id, i.kind, i.author, i.text, i.url,
 		       i.created_at, i.link_url, i.article_title, i.article_summary
 		FROM items i WHERE 1=1`
-	var args []any
-	if f.Source != "" {
-		stmt += " AND i.source = ?"
-		args = append(args, f.Source)
-	}
-	if f.Since > 0 {
-		stmt += " AND i.created_at >= ?"
-		args = append(args, f.Since)
-	}
-	if f.Tag != "" {
-		stmt += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
-		args = append(args, f.Tag)
-	}
-	stmt += " ORDER BY i.created_at DESC LIMIT ?"
+	where, args := f.where()
+	stmt += where + " ORDER BY i.created_at DESC LIMIT ?"
 	args = append(args, f.Limit)
 
 	rows, err := s.db.Query(stmt, args...)

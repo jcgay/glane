@@ -1,0 +1,26 @@
+{{/* The rail's source and tag facets. index.html renders them in place; every
+     /search fragment sends them again out-of-band (Rail.OOB), so their counts
+     follow the query. Both take the whole view and read .D.Rail. A source is
+     disabled at 0 only without words: with them the count is full-text only,
+     and semantic search may still find items there. */}}
+{{define "rail-sources"}}{{with .D.Rail}}
+<section id="rail-sources"{{if .OOB}} hx-swap-oob="true"{{end}}>
+  <h2>source</h2>
+  {{if .Query.Words}}<p class="note">{{$.T.countsFTS}}</p>{{end}}
+  <div class="facet" role="group" aria-label="{{$.T.sourceAria}}">
+    <button type="button" data-op="source" data-v="" data-key="0" aria-pressed="{{eq .Query.Source ""}}"><span class="dot"></span>{{$.T.allSources}}<span class="n">{{.Total}}</span><kbd>0</kbd></button>
+    {{range .Sources}}<button type="button" data-op="source" data-v="{{.Source}}" data-key="{{.Key}}" aria-pressed="{{.Active}}"{{if not (or .Count .Active $.D.Rail.Query.Words)}} disabled{{end}}><span class="dot {{.Source}}"></span>{{.Source}}<span class="n">{{.Count}}</span><kbd>{{.Key}}</kbd></button>
+    {{end}}
+  </div>
+</section>
+{{end}}{{end}}
+
+{{define "rail-tags"}}{{with .D.Rail}}
+<section class="tagsec" id="rail-tags"{{if .OOB}} hx-swap-oob="true"{{end}}{{if not .Tags}} hidden{{end}}>
+  <h2>{{$.T.tags}}</h2>
+  <div class="tagrail">
+    {{range .Tags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="{{eq .Tag $.D.Rail.Query.Tag}}">{{.Tag}}<span class="n">{{.Count}}</span></button>
+    {{end}}
+  </div>
+</section>
+{{end}}{{end}}

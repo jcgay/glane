@@ -323,3 +323,42 @@ func TestIndexHasStatsLink(t *testing.T) {
 		t.Fatalf("index missing nav link to /stats: %s", rec.Body.String())
 	}
 }
+
+// The rail's counts follow the search: every fragment carries fresh source and
+// tag facets for htmx to swap in by id.
+func TestSearchSendsFacetsOutOfBand(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	seedTagged(t, s, "1", "alpha", []string{"rust"})
+	seedTagged(t, s, "2", "beta", []string{"go"})
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=alpha", nil))
+	body := rec.Body.String()
+	for _, want := range []string{
+		`id="rail-sources" hx-swap-oob="true"`,
+		`id="rail-tags" hx-swap-oob="true"`,
+		`data-v="bluesky" data-key="2" aria-pressed="false"><span class="dot bluesky"></span>bluesky<span class="n">1</span>`,
+		`data-v="rust" aria-pressed="false">rust<span class="n">1</span>`,
+		en["countsFTS"],
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("fragment missing %s: %s", want, body)
+		}
+	}
+	// beta doesn't match, so its tag drops out of the rail
+	if strings.Contains(body, `data-v="go"`) {
+		t.Fatalf("tag of a non-matching item still in the rail: %s", body)
+	}
+	// twitter has no full-text match, but semantic search may still find
+	// items there: a query never disables a source
+	if strings.Contains(body, " disabled>") {
+		t.Fatalf("source disabled under a query: %s", body)
+	}
+
+	rec = httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
+	if !strings.Contains(rec.Body.String(), `data-v="twitter" data-key="1" aria-pressed="false" disabled>`) {
+		t.Fatalf("empty source not disabled without a query: %s", rec.Body.String())
+	}
+}

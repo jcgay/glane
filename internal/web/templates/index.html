@@ -75,6 +75,7 @@
       margin: 0 0 8px; font: 500 11px var(--mono); color: var(--faint);
       text-transform: uppercase; letter-spacing: .08em;
     }
+    .rail .note { margin: -4px 0 8px; font: 11px var(--mono); color: var(--faint); }
     .facet { display: flex; flex-direction: column; gap: 1px; }
     .facet button {
       display: flex; align-items: center; gap: 8px; margin: 0 -8px; padding: 4px 8px;
@@ -254,29 +255,14 @@
 
   <div class="shell" id="shell">
     <aside class="rail" id="rail" aria-label="{{.T.filtersAria}}">
-      <section>
-        <h2>source</h2>
-        <div class="facet" role="group" aria-label="{{.T.sourceAria}}">
-          <button type="button" data-op="source" data-v="" data-key="0" aria-pressed="false"><span class="dot"></span>{{.T.allSources}}<span class="n">{{.D.Stats.Total}}</span><kbd>0</kbd></button>
-          {{range .D.Sources}}<button type="button" data-op="source" data-v="{{.Source}}" data-key="{{.Key}}" aria-pressed="false"{{if not .Count}} disabled{{end}}><span class="dot {{.Source}}"></span>{{.Source}}<span class="n">{{.Count}}</span><kbd>{{.Key}}</kbd></button>
-          {{end}}
-        </div>
-      </section>
+      {{template "rail-sources" .}}
       <section>
         <h2>{{.T.since}}</h2>
         <div class="seg" role="group" aria-label="{{.T.sinceAria}}">
           <button type="button" data-op="since" data-v="7d" aria-pressed="false">7d</button><button type="button" data-op="since" data-v="30d" aria-pressed="false">30d</button><button type="button" data-op="since" data-v="1y" aria-pressed="false">1y</button><button type="button" data-op="since" data-v="" aria-pressed="false">{{.T.allTime}}</button>
         </div>
       </section>
-      {{if .D.Tags}}
-      <section class="tagsec">
-        <h2>{{.T.tags}}</h2>
-        <div class="tagrail">
-          {{range .D.Tags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="false">{{.Tag}}<span class="n">{{.Count}}</span></button>
-          {{end}}
-        </div>
-      </section>
-      {{end}}
+      {{template "rail-tags" .}}
       {{with .D.Stats}}{{if .Total}}
       <section class="healthsec">
         <h2>index</h2>
@@ -382,7 +368,9 @@
       const h = e.target.closest('.hit');
       if (h) { sel = [...rows()].indexOf(h); rows().forEach(el => el.setAttribute('aria-current', el === h)); }
     });
-    document.body.addEventListener('htmx:afterSwap', e => { if (e.target === results) { sel = -1; paint(); } });
+    document.body.addEventListener('htmx:afterSwap', e => { if (e.target === results) sel = -1; });
+    // the rail comes back out-of-band with every result list
+    document.body.addEventListener('htmx:afterSettle', paint);
 
     function fold(force) {
       const folded = shell.classList.toggle('folded', force);

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -88,6 +89,7 @@ type page struct {
 	Hits      []store.Result
 	Truncated bool
 	Query     query
+	Rail      rail
 }
 
 // sources are the facets of the filter rail, in the order the 1–4 keys pick
@@ -98,14 +100,42 @@ type facet struct {
 	Source string
 	Count  int
 	Key    int
+	Active bool
+}
+
+// rail is what the source and tag facets render (facets.html).
+type rail struct {
+	Total   int
+	Sources []facet
+	Tags    []store.TagCount
+	Query   query
+	OOB     bool // sent along a /search fragment, swapped in by id
+}
+
+func newRail(fc store.Facets, q query) rail {
+	r := rail{Total: fc.Total, Tags: fc.Tags, Query: q}
+	for i, src := range sources {
+		f := facet{Source: src, Key: i + 1, Active: src == q.Source}
+		for _, sc := range fc.BySource {
+			if sc.Source == src {
+				f.Count = sc.Count
+			}
+		}
+		r.Sources = append(r.Sources, f)
+	}
+	// the tag being browsed stays listed, so it can be cleared from the rail
+	// even when nothing matches it any more
+	if q.Tag != "" && !slices.ContainsFunc(r.Tags, func(t store.TagCount) bool { return t.Tag == q.Tag }) {
+		r.Tags = append(r.Tags, store.TagCount{Tag: q.Tag})
+	}
+	return r
 }
 
 // home is what index.html renders: the filter rail, the index health and the
 // status bar all read from it.
 type home struct {
-	Tags       []store.TagCount
+	Rail       rail
 	Stats      store.Stats
-	Sources    []facet
 	EmbedModel string // "" when semantic search is off
 	Embed      bool
 	Summary    bool // a summary endpoint is set, so `glane summarize` would do something
@@ -120,25 +150,16 @@ func handler(s *store.Store) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		// degrade silently: no tags or stats just mean an emptier rail
-		tags, err := s.TagCounts()
+		// degrade silently: no facets or stats just mean an emptier rail
+		fc, err := s.Facets("", store.Filter{})
 		if err != nil {
-			log.Printf("glane: tag counts: %v", err)
+			log.Printf("glane: facets: %v", err)
 		}
 		st, err := s.Stats()
 		if err != nil {
 			log.Printf("glane: stats: %v", err)
 		}
-		h := home{Tags: tags, Stats: st}
-		for i, src := range sources {
-			f := facet{Source: src, Key: i + 1}
-			for _, sc := range st.BySource {
-				if sc.Source == src {
-					f.Count = sc.Count
-				}
-			}
-			h.Sources = append(h.Sources, f)
-		}
+		h := home{Rail: newRail(fc, query{}), Stats: st}
 		if c := gembed.FromEnv(); c != nil {
 			h.Embed, h.EmbedModel = true, c.Model
 		}
@@ -191,7 +212,15 @@ func handler(s *store.Store) http.Handler {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		pg := page{Hits: res, Truncated: len(res) == pageLimit, Query: qr}
+		// counted on the same filters, minus the result limit; a failure only
+		// leaves the rail showing zeros
+		fc, err := s.Facets(q, store.Filter{Source: f.Source, Tag: f.Tag, Since: f.Since})
+		if err != nil {
+			log.Printf("glane: facets: %v", err)
+		}
+		rl := newRail(fc, qr)
+		rl.OOB = true
+		pg := page{Hits: res, Truncated: len(res) == pageLimit, Query: qr, Rail: rl}
 		if err := tmpl.ExecuteTemplate(w, "results.html", view{pick(w, r), pg}); err != nil {
 			log.Printf("glane: render results.html: %v", err)
 		}
