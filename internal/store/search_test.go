@@ -262,3 +262,36 @@ func TestSearchFTSHandlesSpecialChars(t *testing.T) {
 		t.Fatalf("unbalanced quote query should not error: %v", err)
 	}
 }
+
+// A NUL byte ends the string inside SQLite's FTS5 parser, which then reports
+// "unterminated string": the query must be cleaned before it reaches MATCH.
+func TestSearchFTSIgnoresControlBytes(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	s.Upsert([]Item{{Source: "twitter", SourceID: "1", Kind: "like", Text: "go java"}})
+
+	for _, q := range []string{"\x00", "go\x00java", "go\x01"} {
+		if _, err := s.SearchFTS(q, Filter{}); err != nil {
+			t.Errorf("SearchFTS(%q): %v", q, err)
+		}
+		if _, err := s.Facets(q, Filter{}); err != nil {
+			t.Errorf("Facets(%q): %v", q, err)
+		}
+	}
+	if res, _ := s.SearchFTS("go\x00java", Filter{}); len(res) != 1 {
+		t.Fatalf("NUL must separate words like a space, got %d hits", len(res))
+	}
+}
+
+// Text quotes a link without its scheme as often as with it ("see
+// github.com/x/y"), so a pasted URL must not require "https" to sit next to it.
+func TestSearchFTSFindsPastedURL(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
+	defer s.Close()
+	s.Upsert([]Item{{Source: "github", SourceID: "1", Kind: "star", Text: "clone github.com/tools/godep first"}})
+
+	res, err := s.SearchFTS("https://github.com/tools/godep", Filter{})
+	if err != nil || len(res) != 1 {
+		t.Fatalf("pasted URL: got %d hits, err %v", len(res), err)
+	}
+}

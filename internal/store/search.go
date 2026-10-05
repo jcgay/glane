@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type Filter struct {
@@ -144,10 +145,22 @@ func (r Result) Excerpt() string {
 // tokens are ANDed. The last token also gets a trailing "*" for type-ahead
 // prefix matching ("useTa" matches "useTabs"); earlier tokens stay exact.
 // Empty input yields "" (caller should treat as no query).
+//
+// Control bytes split words like a space: a NUL would end the string inside
+// FTS5's C parser and fail the query with "unterminated string". A pasted URL
+// loses its scheme, since text often quotes the link without one.
 func sanitizeFTS(query string) string {
-	fields := strings.Fields(query)
+	fields := strings.Fields(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, query))
 	quoted := make([]string, 0, len(fields))
 	for i, f := range fields {
+		if _, rest, ok := strings.Cut(f, "://"); ok && rest != "" {
+			f = rest
+		}
 		q := `"` + strings.ReplaceAll(f, `"`, `""`) + `"`
 		if i == len(fields)-1 {
 			q += "*"
