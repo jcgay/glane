@@ -310,7 +310,7 @@ func TestStatsPageShowsCounts(t *testing.T) {
 	if !strings.Contains(body, `<div class="n">1</div>`) {
 		t.Fatalf("expected a stat card showing 1: %s", body)
 	}
-	if !strings.Contains(body, "<td>bluesky</td>") {
+	if !strings.Contains(body, `<span class="dot bluesky"></span>bluesky</span></td>`) {
 		t.Fatalf("expected bluesky row in per-source table: %s", body)
 	}
 }

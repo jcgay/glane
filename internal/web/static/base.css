@@ -1,0 +1,99 @@
+/* Shared by every page: fonts, tokens, base. Page-specific rules stay inline. */
+
+/* Geist ships embedded (SIL OFL, see Geist-OFL.txt) so the UI looks the same
+   offline instead of silently falling back to system-ui. */
+@font-face {
+  font-family: "Geist"; font-weight: 100 900; font-display: swap;
+  src: url("/static/Geist-Variable.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Geist Mono"; font-weight: 100 900; font-display: swap;
+  src: url("/static/GeistMono-Variable.woff2") format("woff2");
+}
+
+:root {
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --surface-2: #f3f1ec;
+  --border: #e7e2da;
+  --border-strong: #d8d2c7;
+  --ink: #1c1b18;
+  --muted: #645e55;
+  --faint: #7f786d;
+  --accent: #b45309;
+  --accent-ink: #8a3f07;
+  --accent-soft: #fbeddd;
+  --ring: rgba(180, 83, 9, .32);
+  --shadow: 0 1px 2px rgba(60, 50, 30, .05), 0 8px 24px -12px rgba(60, 50, 30, .16);
+  --src-twitter: #4a86c6;
+  --src-bluesky: #0a7ea4;
+  --src-mastodon: #7a5bc0;
+  --src-github: #5b6470;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* let native widgets (date picker, scrollbars) follow the page theme */
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141310;
+    --surface: #1c1b16;
+    --surface-2: #24221b;
+    --border: #2d2b23;
+    --border-strong: #3a372d;
+    --ink: #ece9e2;
+    --muted: #aaa398;
+    --faint: #8a8377;
+    --accent: #e79f56;
+    --accent-ink: #efb277;
+    --accent-soft: #2a2015;
+    --ring: rgba(231, 159, 86, .3);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .6);
+    --src-twitter: #6ba3dd;
+    --src-bluesky: #45a7c9;
+    --src-mastodon: #a281e0;
+    --src-github: #9aa2ad;
+  }
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.wrap { max-width: 780px; margin: 0 auto; padding: 0 1.25rem; }
+
+/* one focus ring for every link and control that doesn't draw its own */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: .3rem; }
+
+header {
+  padding: 3.25rem 0 1.5rem;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+}
+.brand { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.brand h1 {
+  font-size: 2.1rem; font-weight: 650; letter-spacing: -.035em;
+  margin: 0; line-height: 1;
+}
+.brand .mark { font-size: 1.5rem; line-height: 1; transform: translateY(1px); }
+.brand p { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: -.01em; }
+a.nav { color: var(--muted); text-decoration: none; font-size: .9rem; white-space: nowrap; transition: color .15s; }
+a.nav:hover { color: var(--accent-ink); }
+main { padding-bottom: 5rem; }
+
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+.dot.twitter { background: var(--src-twitter); }
+.dot.bluesky { background: var(--src-bluesky); }
+.dot.mastodon { background: var(--src-mastodon); }
+.dot.github { background: var(--src-github); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+}

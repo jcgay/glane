@@ -6,69 +6,11 @@
   <title>{{.T.statsTitle}}</title>
   <meta name="description" content="{{.T.statsDescription}}">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
+  <link rel="stylesheet" href="/static/base.css">
   <style>
-    :root {
-      --bg: #faf9f7;
-      --surface: #ffffff;
-      --surface-2: #f3f1ec;
-      --border: #e7e2da;
-      --border-strong: #d8d2c7;
-      --ink: #1c1b18;
-      --muted: #6c665d;
-      --faint: #9a9389;
-      --accent: #b45309;
-      --accent-ink: #8a3f07;
-      --accent-soft: #fbeddd;
-      --ring: rgba(180, 83, 9, .32);
-      --shadow: 0 1px 2px rgba(60, 50, 30, .05), 0 8px 24px -12px rgba(60, 50, 30, .16);
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #141310;
-        --surface: #1c1b16;
-        --surface-2: #24221b;
-        --border: #2d2b23;
-        --border-strong: #3a372d;
-        --ink: #ece9e2;
-        --muted: #a49d92;
-        --faint: #736d62;
-        --accent: #e79f56;
-        --accent-ink: #efb277;
-        --accent-soft: #2a2015;
-        --ring: rgba(231, 159, 86, .3);
-        --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .6);
-      }
-    }
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      font-size: 15px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-    }
-    .wrap { max-width: 780px; margin: 0 auto; padding: 0 1.25rem; }
-    header {
-      padding: 3.25rem 0 1.5rem;
-      display: flex; align-items: baseline; justify-content: space-between;
-    }
-    .brand { display: flex; align-items: baseline; gap: .6rem; }
-    .brand h1 {
-      font-size: 2rem; font-weight: 600; letter-spacing: -.03em;
-      margin: 0; line-height: 1;
-    }
-    .brand .mark { font-size: 1.5rem; line-height: 1; transform: translateY(1px); }
-    a.back { color: var(--muted); text-decoration: none; font-size: .9rem; }
-    a.back:hover { color: var(--accent-ink); }
-    main { padding-bottom: 5rem; }
     h2 {
-      font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: .74rem; font-weight: 500; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--faint); margin: 1.6rem 0 .8rem;
+      font-size: .95rem; font-weight: 600; letter-spacing: -.01em;
+      color: var(--ink); margin: 2.4rem 0 .9rem;
     }
     .cards {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -76,20 +18,34 @@
     }
     .card {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: .8rem; padding: 1rem 1.1rem; box-shadow: var(--shadow);
+      border-radius: .8rem; padding: 1rem 1.1rem 1.1rem;
     }
+    /* the corpus size leads; everything else is read against it */
+    .card.total { grid-column: 1 / -1; background: none; border: 0; padding: 0 0 .4rem; }
+    .card.total .n { font-size: 3.2rem; letter-spacing: -.045em; line-height: 1; }
     .card .n {
       font-size: 1.6rem; font-weight: 600; letter-spacing: -.02em;
       font-variant-numeric: tabular-nums;
     }
-    .card .label {
-      font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: .72rem; font-weight: 500; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--faint); margin-top: .2rem;
+    .card .label { font-size: .84rem; color: var(--muted); margin-top: .2rem; }
+    .meter {
+      height: 4px; margin-top: .8rem; border-radius: 2px;
+      background: var(--surface-2); overflow: hidden;
+    }
+    .meter > span {
+      display: block; height: 100%; width: var(--w); border-radius: inherit;
+      background: var(--accent);
     }
     table { width: 100%; border-collapse: collapse; }
-    table td { padding: .4rem 0; border-bottom: 1px solid var(--border); }
-    table td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+    table td { padding: .55rem 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    table td:first-child { width: 8rem; }
+    table td:last-child {
+      width: 6rem; text-align: right; color: var(--muted);
+      font-family: var(--mono); font-size: .85rem; font-variant-numeric: tabular-nums;
+    }
+    .src { display: inline-flex; align-items: center; gap: .45rem; }
+    td .meter { margin: 0 1rem; }
+    td .meter > span { background: var(--muted); opacity: .45; }
   </style>
 </head>
 <body>
@@ -99,27 +55,34 @@
         <span class="mark" aria-hidden="true">🌾</span>
         <h1>glane</h1>
       </div>
-      <a class="back" href="/">{{.T.backToSearch}}</a>
+      <a class="nav" href="/">{{.T.backToSearch}}</a>
     </header>
 
     <main>
-      <div class="cards">
-        <div class="card"><div class="n">{{.D.Total}}</div><div class="label">{{.T.total}}</div></div>
-        <div class="card"><div class="n">{{.D.Enriched}}</div><div class="label">{{.T.enriched}}</div></div>
-        <div class="card"><div class="n">{{.D.Summarized}}</div><div class="label">{{.T.summarized}}</div></div>
-        <div class="card"><div class="n">{{.D.Embedded}}</div><div class="label">{{.T.embeddings}}</div></div>
+      <section class="cards">
+        <div class="card total"><div class="n">{{.D.Total}}</div><div class="label">{{.T.total}}</div></div>
+        <div class="card"><div class="n">{{.D.Enriched}}</div><div class="label">{{.T.enriched}}</div>
+          <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Enriched .D.Total}}%"></span></div></div>
+        <div class="card"><div class="n">{{.D.Summarized}}</div><div class="label">{{.T.summarized}}</div>
+          <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Summarized .D.Total}}%"></span></div></div>
+        <div class="card"><div class="n">{{.D.Embedded}}</div><div class="label">{{.T.embeddings}}</div>
+          <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Embedded .D.Total}}%"></span></div></div>
         <div class="card"><div class="n">{{.D.DistinctTags}}</div><div class="label">{{.T.tagsLabel}}</div></div>
-      </div>
+      </section>
 
       <h2>{{.T.bySource}}</h2>
       <table>
-        {{range .D.BySource}}<tr><td>{{.Source}}</td><td>{{.Count}}</td></tr>{{end}}
+        {{range .D.BySource}}<tr>
+          <td><span class="src"><span class="dot {{.Source}}"></span>{{.Source}}</span></td>
+          <td><div class="meter" aria-hidden="true"><span style="--w: {{pct .Count $.D.Total}}%"></span></div></td>
+          <td>{{.Count}}</td>
+        </tr>{{end}}
       </table>
 
       {{if .D.LastSyncBySource}}
       <h2>{{.T.lastSync}}</h2>
       <table>
-        {{range .D.LastSyncBySource}}<tr><td>{{.Source}}</td><td>{{reltime .UpdatedAt $.T}}</td></tr>{{end}}
+        {{range .D.LastSyncBySource}}<tr><td>{{.Source}}</td><td></td><td>{{reltime .UpdatedAt $.T}}</td></tr>{{end}}
       </table>
       {{end}}
     </main>

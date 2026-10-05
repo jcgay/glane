@@ -39,6 +39,13 @@ var funcs = template.FuncMap{
 		}
 		return h
 	},
+	// pct is n as a whole percentage of total, for the stats meters.
+	"pct": func(n, total int) int {
+		if total <= 0 {
+			return 0
+		}
+		return n * 100 / total
+	},
 	// reltime renders a unix timestamp as a short, human relative age. It takes
 	// the catalog because template funcs can't see the view: call it as
 	// {{reltime .CreatedAt $.T}}.

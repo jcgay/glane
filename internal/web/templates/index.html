@@ -7,82 +7,8 @@
   <meta name="description" content="{{.T.description}}">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
   <script src="/static/htmx.min.js"></script>
+  <link rel="stylesheet" href="/static/base.css">
   <style>
-    :root {
-      --bg: #faf9f7;
-      --surface: #ffffff;
-      --surface-2: #f3f1ec;
-      --border: #e7e2da;
-      --border-strong: #d8d2c7;
-      --ink: #1c1b18;
-      --muted: #6c665d;
-      --faint: #9a9389;
-      --accent: #b45309;
-      --accent-ink: #8a3f07;
-      --accent-soft: #fbeddd;
-      --ring: rgba(180, 83, 9, .32);
-      --shadow: 0 1px 2px rgba(60, 50, 30, .05), 0 8px 24px -12px rgba(60, 50, 30, .16);
-      --src-twitter: #4a86c6;
-      --src-bluesky: #0a7ea4;
-      --src-mastodon: #7a5bc0;
-      --src-github: #5b6470;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #141310;
-        --surface: #1c1b16;
-        --surface-2: #24221b;
-        --border: #2d2b23;
-        --border-strong: #3a372d;
-        --ink: #ece9e2;
-        --muted: #a49d92;
-        --faint: #736d62;
-        --accent: #e79f56;
-        --accent-ink: #efb277;
-        --accent-soft: #2a2015;
-        --ring: rgba(231, 159, 86, .3);
-        --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .6);
-        --src-twitter: #6ba3dd;
-        --src-bluesky: #45a7c9;
-        --src-mastodon: #a281e0;
-        --src-github: #9aa2ad;
-      }
-    }
-
-    /* let native widgets (date picker, scrollbars) follow the page theme */
-    :root { color-scheme: light dark; }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      font-size: 15px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-    }
-    .wrap { max-width: 780px; margin: 0 auto; padding: 0 1.25rem; }
-
-    /* --- header / hero --- */
-    header {
-      padding: 3.25rem 0 1.5rem;
-      display: flex; align-items: baseline; justify-content: space-between;
-    }
-    a.stats-link { color: var(--muted); text-decoration: none; font-size: .9rem; }
-    a.stats-link:hover { color: var(--accent-ink); }
-    .brand { display: flex; align-items: baseline; gap: .6rem; }
-    .brand h1 {
-      font-size: 2rem; font-weight: 600; letter-spacing: -.03em;
-      margin: 0; line-height: 1;
-    }
-    .brand .mark { font-size: 1.5rem; line-height: 1; transform: translateY(1px); }
-    .brand p {
-      margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: -.01em;
-    }
-
     /* --- search toolbar (sticky) --- */
     .toolbar {
       position: sticky; top: 0; z-index: 10;
@@ -132,7 +58,7 @@
       font-size: .82rem; color: var(--muted); cursor: pointer;
       padding: .3rem .7rem; border-radius: 2rem;
       border: 1px solid var(--border); background: var(--surface);
-      transition: color .15s, border-color .15s, background .15s;
+      transition: color .15s, border-color .15s, background .15s, transform .15s;
       user-select: none;
     }
     .sources label:hover { border-color: var(--border-strong); color: var(--ink); }
@@ -142,11 +68,6 @@
       background: var(--accent-soft); font-weight: 500;
     }
     .sources label:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--ring); }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
-    .dot.twitter { background: var(--src-twitter); }
-    .dot.bluesky { background: var(--src-bluesky); }
-    .dot.mastodon { background: var(--src-mastodon); }
-    .dot.github { background: var(--src-github); }
 
     /* date filter, tag menu and active tag: one pill shape, three contents */
     .since, .tags-filter > summary, .active-tag {
@@ -154,7 +75,7 @@
       font: inherit; font-size: .82rem; color: var(--muted);
       padding: .3rem .7rem; border-radius: 2rem;
       border: 1px solid var(--border); background: var(--surface);
-      transition: color .15s, border-color .15s, background .15s, box-shadow .15s;
+      transition: color .15s, border-color .15s, background .15s, box-shadow .15s, transform .15s;
     }
     .since:hover, .tags-filter > summary:hover, .active-tag:hover { border-color: var(--border-strong); }
     .since:focus-within, .tags-filter > summary:focus-visible, .active-tag:focus-visible {
@@ -190,8 +111,18 @@
     .active-tag::after { content: "✕"; opacity: .55; font-size: .9em; }
     .active-tag:hover::after { opacity: 1; }
 
+    /* physical press on every pill-shaped control */
+    .sources label:active, .tags-filter > summary:active, .active-tag:active, .tag:active {
+      transform: scale(.97);
+    }
+
     /* --- results --- */
-    main { padding-bottom: 5rem; }
+    /* the previous results stay readable but visibly stale while a request runs */
+    #results { transition: opacity .2s; }
+    body:has(.bar.htmx-request) #results { opacity: .55; }
+    @media (prefers-reduced-motion: reduce) {
+      .bar.htmx-request::after { width: 100%; animation: none; opacity: .5; }
+    }
 
     /* --- tag cloud --- */
     .tagcloud { display: flex; flex-wrap: wrap; gap: .4rem; }
@@ -199,7 +130,7 @@
       font-size: .82rem; color: var(--muted); text-decoration: none;
       background: var(--surface-2); border: 1px solid var(--border);
       border-radius: .5rem; padding: .2rem .6rem;
-      transition: color .15s, border-color .15s, background .15s;
+      transition: color .15s, border-color .15s, background .15s, transform .15s;
     }
     .tagcloud .tag::before { content: "#"; color: var(--faint); }
     .tagcloud .tag .n { color: var(--faint); margin-left: .3rem; font-variant-numeric: tabular-nums; }
@@ -215,7 +146,7 @@
         <h1>glane</h1>
         <p>{{.T.tagline}}</p>
       </div>
-      <a class="stats-link" href="/stats">{{.T.stats}}</a>
+      <a class="nav" href="/stats">{{.T.stats}}</a>
     </header>
 
     <div class="toolbar">
