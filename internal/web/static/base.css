@@ -1,4 +1,4 @@
-/* Shared by every page: fonts, tokens, base. Page-specific rules stay inline. */
+/* Shared by every page: fonts, tokens, base, top bar. Page-specific rules stay inline. */
 
 /* Geist ships embedded (SIL OFL, see Geist-OFL.txt) so the UI looks the same
    offline instead of silently falling back to system-ui. */
@@ -11,89 +11,104 @@
   src: url("/static/GeistMono-Variable.woff2") format("woff2");
 }
 
+/* Dark first: a console that sits next to a terminal and an editor. Graphite
+   with a faint amber bias; amber stays the one accent. --faint is the darkest
+   grey that still reads at 4.5:1 on every surface, selected rows included. */
 :root {
-  --bg: #faf9f7;
-  --surface: #ffffff;
-  --surface-2: #f3f1ec;
-  --border: #e7e2da;
-  --border-strong: #d8d2c7;
-  --ink: #1c1b18;
-  --muted: #645e55;
-  --faint: #7f786d;
-  --accent: #b45309;
-  --accent-ink: #8a3f07;
-  --accent-soft: #fbeddd;
-  --ring: rgba(180, 83, 9, .32);
-  --shadow: 0 1px 2px rgba(60, 50, 30, .05), 0 8px 24px -12px rgba(60, 50, 30, .16);
-  --src-twitter: #4a86c6;
-  --src-bluesky: #0a7ea4;
-  --src-mastodon: #7a5bc0;
-  --src-github: #5b6470;
+  --bg: #121210;
+  --surface: #18171a;
+  --surface-2: #1f1e1c;
+  --border: #2a2926;
+  --border-strong: #3a3833;
+  --ink: #e9e6df;
+  --muted: #a29c91;
+  --faint: #959086;
+  --accent: #f0a050;
+  --accent-ink: #f6b877;
+  --accent-soft: rgba(240, 160, 80, .12);
+  --sel: rgba(240, 160, 80, .07);
+  --ok: #7cc48b;
+  --shadow: 0 24px 48px -16px rgba(0, 0, 0, .5);
+  --src-twitter: #6ba3dd;
+  --src-bluesky: #45a7c9;
+  --src-mastodon: #a281e0;
+  --src-github: #9aa2ad;
+  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  /* let native widgets (date picker, scrollbars) follow the page theme */
-  color-scheme: light dark;
+  /* let native widgets (scrollbars, dialog) follow the page theme */
+  color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    --bg: #141310;
-    --surface: #1c1b16;
-    --surface-2: #24221b;
-    --border: #2d2b23;
-    --border-strong: #3a372d;
-    --ink: #ece9e2;
-    --muted: #aaa398;
-    --faint: #8a8377;
-    --accent: #e79f56;
-    --accent-ink: #efb277;
-    --accent-soft: #2a2015;
-    --ring: rgba(231, 159, 86, .3);
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 30px -14px rgba(0, 0, 0, .6);
-    --src-twitter: #6ba3dd;
-    --src-bluesky: #45a7c9;
-    --src-mastodon: #a281e0;
-    --src-github: #9aa2ad;
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface-2: #f0eee9;
+    --border: #e4e0d8;
+    --border-strong: #d3cdc2;
+    --ink: #1c1b18;
+    --muted: #5f594f;
+    --faint: #655f55;
+    --accent: #b45309;
+    --accent-ink: #8a3f07;
+    --accent-soft: #fbeddd;
+    --sel: #fdf4ea;
+    --ok: #2f7d3e;
+    --shadow: 0 1px 2px rgba(60, 50, 30, .05), 0 16px 40px -16px rgba(60, 50, 30, .25);
+    --src-twitter: #4a86c6;
+    --src-bluesky: #0a7ea4;
+    --src-mastodon: #7a5bc0;
+    --src-github: #5b6470;
+    color-scheme: light;
   }
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scrollbar-color: var(--border-strong) transparent; }
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 15px;
-  line-height: 1.5;
+  caret-color: var(--accent);
+  font: 14px/1.45 var(--sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-.wrap { max-width: 780px; margin: 0 auto; padding: 0 1.25rem; }
-
+::selection { background: var(--accent-soft); color: var(--accent-ink); }
 /* one focus ring for every link and control that doesn't draw its own */
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: .3rem; }
-
-header {
-  padding: 3.25rem 0 1.5rem;
-  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+kbd {
+  font: 500 11px var(--mono); color: var(--muted); background: var(--surface-2);
+  border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 .35em;
 }
-.brand { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
-.brand h1 {
-  font-size: 2.1rem; font-weight: 650; letter-spacing: -.035em;
-  margin: 0; line-height: 1;
+svg.i {
+  width: 12px; height: 12px; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
-.brand .mark { font-size: 1.5rem; line-height: 1; transform: translateY(1px); }
-.brand p { margin: 0; color: var(--muted); font-size: .9rem; letter-spacing: -.01em; }
-a.nav { color: var(--muted); text-decoration: none; font-size: .9rem; white-space: nowrap; transition: color .15s; }
-a.nav:hover { color: var(--accent-ink); }
-main { padding-bottom: 5rem; }
 
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+/* --- top bar, shared by every page --- */
+.top {
+  position: relative; display: flex; align-items: center; gap: 14px;
+  padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.brand {
+  display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  font: 600 15px var(--mono); letter-spacing: -.02em; color: var(--ink); text-decoration: none;
+}
+.brand i { display: block; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); }
+.navlinks { display: flex; gap: 14px; margin-left: auto; font: 13px var(--mono); text-transform: lowercase; }
+.navlinks a { color: var(--muted); text-decoration: none; }
+.navlinks a:hover, .navlinks a[aria-current] { color: var(--ink); }
+
+.wrap { max-width: 780px; margin: 0 auto; padding: 0 1.25rem; }
+main.wrap { padding-block: 2rem 5rem; }
+
+.dot { width: 8px; height: 8px; border-radius: 2px; background: var(--faint); flex: none; }
 .dot.twitter { background: var(--src-twitter); }
 .dot.bluesky { background: var(--src-bluesky); }
 .dot.mastodon { background: var(--src-mastodon); }
 .dot.github { background: var(--src-github); }
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
 }

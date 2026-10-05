@@ -9,242 +9,425 @@
   <script src="/static/htmx.min.js"></script>
   <link rel="stylesheet" href="/static/base.css">
   <style>
-    /* --- search toolbar (sticky) --- */
-    .toolbar {
-      position: sticky; top: 0; z-index: 10;
-      background: color-mix(in srgb, var(--bg) 82%, transparent);
-      backdrop-filter: saturate(1.4) blur(10px);
-      -webkit-backdrop-filter: saturate(1.4) blur(10px);
-      padding: .9rem 0 .75rem;
-      margin-bottom: .5rem;
-    }
-    .search {
-      position: relative; display: flex; align-items: center;
-    }
-    .search svg {
-      position: absolute; left: .95rem; width: 18px; height: 18px;
-      color: var(--faint); pointer-events: none;
-    }
-    .search input {
-      width: 100%; font: inherit; font-size: 1.05rem; color: var(--ink);
-      background: var(--surface); border: 1px solid var(--border-strong);
-      border-radius: .8rem; padding: .8rem 1rem .8rem 2.85rem;
-      box-shadow: var(--shadow); transition: border-color .18s, box-shadow .18s;
-    }
-    .search input::placeholder { color: var(--faint); }
-    .search input:focus {
-      outline: none; border-color: var(--accent);
-      box-shadow: 0 0 0 4px var(--ring), var(--shadow);
-    }
+    /* One screen: top bar, filter rail + result list side by side, status bar.
+       Only the list and the rail scroll. */
+    html, body { height: 100%; }
+    body { display: flex; flex-direction: column; }
 
-    /* thin loading bar under the search field */
-    .bar {
-      height: 2px; margin-top: .55rem; border-radius: 2px; overflow: hidden;
-      background: transparent;
+    .skip {
+      position: absolute; left: 16px; top: -40px; z-index: 40;
+      font: 500 13px var(--mono); color: var(--bg); background: var(--accent);
+      padding: 6px 10px; border-radius: 6px; text-decoration: none;
     }
-    .bar.htmx-request { background: var(--border); }
-    .bar.htmx-request::after {
-      content: ""; display: block; height: 100%; width: 40%;
-      background: var(--accent); border-radius: 2px;
-      animation: slide 1s ease-in-out infinite;
-    }
-    @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }
+    .skip:focus { top: 8px; }
 
-    /* --- source + date filters (segmented) --- */
-    .filters { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .7rem; }
-    .sources { display: flex; flex-wrap: wrap; gap: .4rem; }
-    .sources label {
-      display: inline-flex; align-items: center; gap: .4rem;
-      font-size: .82rem; color: var(--muted); cursor: pointer;
-      padding: .3rem .7rem; border-radius: 2rem;
-      border: 1px solid var(--border); background: var(--surface);
-      transition: color .15s, border-color .15s, background .15s, transform .15s;
-      user-select: none;
+    /* --- command bar --- */
+    .cmd {
+      flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; margin: 0;
+      background: var(--bg); border: 1px solid var(--faint); border-radius: 8px; padding: 0 10px;
     }
-    .sources label:hover { border-color: var(--border-strong); color: var(--ink); }
-    .sources input { position: absolute; opacity: 0; width: 0; height: 0; }
-    .sources label:has(input:checked) {
-      color: var(--accent-ink); border-color: var(--accent);
-      background: var(--accent-soft); font-weight: 500;
+    .cmd:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .cmd > .i { width: 14px; height: 14px; color: var(--accent); }
+    .field { position: relative; flex: 1; min-width: 0; }
+    /* the typed text is drawn by .hl underneath, so filters can be coloured;
+       the input on top keeps the caret, selection and every native behaviour */
+    .field input, .field .hl {
+      width: 100%; padding: 9px 0; font: 14px var(--mono); letter-spacing: 0; white-space: pre;
     }
-    .sources label:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--ring); }
+    .field input { position: relative; background: transparent; border: 0; outline: 0; color: transparent; }
+    .field input::placeholder { color: var(--faint); }
+    .field .hl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--ink); }
+    .hl .op { color: var(--accent-ink); }
+    .hl .op b { color: var(--faint); font-weight: 400; }
+    @media (forced-colors: active) { .field input { color: CanvasText; } .field .hl { display: none; } }
 
-    /* date filter, tag menu and active tag: one pill shape, three contents */
-    .since, .tags-filter > summary, .active-tag {
-      display: inline-flex; align-items: center; gap: .4rem;
-      font: inherit; font-size: .82rem; color: var(--muted);
-      padding: .3rem .7rem; border-radius: 2rem;
-      border: 1px solid var(--border); background: var(--surface);
-      transition: color .15s, border-color .15s, background .15s, box-shadow .15s, transform .15s;
+    .fold {
+      display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 5px;
+      color: var(--faint); font: 12px var(--mono);
     }
-    .since:hover, .tags-filter > summary:hover, .active-tag:hover { border-color: var(--border-strong); }
-    .since:focus-within, .tags-filter > summary:focus-visible, .active-tag:focus-visible {
-      border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); outline: none;
-    }
-    .since input {
-      font: inherit; color: var(--ink); background: none;
-      border: 0; padding: 0; outline: none;
-    }
+    .fold:hover { color: var(--ink); background: var(--surface-2); }
+    .fold .i { width: 16px; height: 16px; }
 
-    /* tag menu: the cloud used to live in the idle screen, which the page no
-       longer lands on — so it hangs off a pill in the filter row instead */
-    .tags-filter { position: relative; }
-    .tags-filter > summary { cursor: pointer; list-style: none; user-select: none; }
-    .tags-filter > summary::-webkit-details-marker { display: none; }
-    .tags-filter > summary::after { content: "▾"; color: var(--faint); font-size: .9em; }
-    .tags-filter[open] > summary { border-color: var(--border-strong); color: var(--ink); }
-    .tags-filter .tagcloud {
-      position: absolute; z-index: 20; top: calc(100% + .4rem); left: 0;
-      width: max-content; max-width: min(85vw, 30rem); max-height: 15rem; overflow-y: auto;
-      justify-content: flex-start; padding: .6rem;
-      background: var(--surface); border: 1px solid var(--border-strong);
-      border-radius: .7rem; box-shadow: var(--shadow);
+    /* thin bar on the bottom edge of the top bar while a request runs */
+    .load { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; overflow: hidden; visibility: hidden; }
+    .load.htmx-request { visibility: visible; }
+    .load::after {
+      content: ""; display: block; width: 30%; height: 100%; background: var(--accent);
+      animation: slide .9s cubic-bezier(.22, 1, .36, 1) infinite;
     }
-
-    /* the tag being browsed — it now survives date/source changes, so it needs
-       to be visible and clearable */
-    .active-tag {
-      cursor: pointer; color: var(--accent-ink);
-      border-color: var(--accent); background: var(--accent-soft); font-weight: 500;
-    }
-    .active-tag[hidden] { display: none; }
-    .active-tag::after { content: "✕"; opacity: .55; font-size: .9em; }
-    .active-tag:hover::after { opacity: 1; }
-
-    /* physical press on every pill-shaped control */
-    .sources label:active, .tags-filter > summary:active, .active-tag:active, .tag:active {
-      transform: scale(.97);
-    }
-
-    /* --- results --- */
-    /* the previous results stay readable but visibly stale while a request runs */
+    @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+    /* the previous results stay readable but visibly stale meanwhile */
     #results { transition: opacity .2s; }
-    body:has(.bar.htmx-request) #results { opacity: .55; }
-    @media (prefers-reduced-motion: reduce) {
-      .bar.htmx-request::after { width: 100%; animation: none; opacity: .5; }
+    body:has(.load.htmx-request) #results { opacity: .55; }
+
+    /* --- shell --- */
+    .shell { flex: 1; min-height: 0; display: grid; grid-template-columns: 224px minmax(0, 1fr); }
+    .shell.folded { grid-template-columns: minmax(0, 1fr); }
+    .shell.folded .rail { display: none; }
+    .list { min-width: 0; overflow-y: auto; }
+
+    /* --- filter rail --- */
+    .rail {
+      display: flex; flex-direction: column; gap: 22px; overflow-y: auto;
+      padding: 16px; border-right: 1px solid var(--border);
+    }
+    .rail h2 {
+      margin: 0 0 8px; font: 500 11px var(--mono); color: var(--faint);
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+    .facet { display: flex; flex-direction: column; gap: 1px; }
+    .facet button {
+      display: flex; align-items: center; gap: 8px; margin: 0 -8px; padding: 4px 8px;
+      border-radius: 5px; color: var(--muted); text-align: left; font-size: 13px;
+    }
+    .facet button:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+    .facet button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); }
+    .facet button:disabled { opacity: .5; cursor: default; }
+    .facet .n { margin-left: auto; font: 12px var(--mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+    .facet kbd { font-size: 10px; }
+    .seg {
+      display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden;
+      border: 1px solid var(--border-strong); border-radius: 6px;
+    }
+    .seg button { padding: 5px 0; font: 12px var(--mono); color: var(--muted); }
+    .seg button + button { border-left: 1px solid var(--border-strong); }
+    .seg button:hover { color: var(--ink); }
+    .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); }
+    .tagrail { display: flex; flex-wrap: wrap; gap: 4px; }
+    .tagrail .n { color: var(--faint); font-variant-numeric: tabular-nums; }
+    .health { display: grid; gap: 10px; font: 12px var(--mono); color: var(--muted); }
+    .health > div { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; align-items: center; }
+    .health .name { text-transform: lowercase; }
+    .health .bar { grid-column: 1 / -1; height: 3px; overflow: hidden; border-radius: 2px; background: var(--border); }
+    .health .bar span { display: block; height: 100%; width: var(--w); background: var(--accent); }
+    .health .run { grid-column: 1 / -1; justify-self: start; font: 11px var(--mono); color: var(--faint); }
+    .health .run:hover { color: var(--accent-ink); }
+
+    /* a tag pill, in the rail and on every result */
+    .tag {
+      display: inline-flex; gap: 4px; padding: 1px 6px; font: 12px var(--mono); color: var(--muted);
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px;
+    }
+    .tag::before { content: "#"; color: var(--faint); }
+    .tag:hover { color: var(--accent-ink); border-color: var(--accent); }
+    .tag[aria-pressed="true"] { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-soft); }
+
+    /* --- results (the fragment comes from results.html) --- */
+    .head {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 20px;
+      border-bottom: 1px solid var(--border); font: 12px var(--mono); color: var(--faint);
+    }
+    .head .more { color: var(--accent-ink); }
+    .cli {
+      display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; margin-left: auto;
+      padding: 3px 4px 3px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    }
+    .cli code { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); }
+    .cli code::before { content: "$ "; color: var(--faint); }
+    .btn {
+      padding: 1px 6px; font: 11px var(--mono); color: var(--muted);
+      border: 1px solid var(--border-strong); border-radius: 4px;
+    }
+    .btn:hover { color: var(--accent-ink); border-color: var(--accent); }
+
+    .hits { margin: 0; padding: 0; list-style: none; }
+    .hit {
+      display: grid; grid-template-columns: 3ch minmax(0, 1fr) 11ch; gap: 4px 12px;
+      padding: 12px 20px; border-bottom: 1px solid var(--border); scroll-margin-block: 48px;
+    }
+    .hit:hover { background: var(--surface-2); }
+    .hit[aria-current="true"] { background: var(--sel); }
+    .hit:has(h3 a:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .hit .g {
+      grid-row: 1 / span 4; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-top: 2px;
+      font: 12px var(--mono); color: var(--faint); font-variant-numeric: tabular-nums;
+    }
+    .hit[aria-current="true"] .g { color: var(--accent); }
+    .hit .g .dot { width: 10px; height: 10px; }
+    .hit h3 {
+      margin: 0; min-width: 0; font-size: 14.5px; font-weight: 560; letter-spacing: -.01em; line-height: 1.35;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .hit h3 a { color: inherit; text-decoration: none; }
+    .hit h3 a:focus-visible { outline: none; }
+    .hit h3 a:hover { text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+    .hit time {
+      text-align: right; white-space: nowrap; font: 12px var(--mono); color: var(--faint);
+      font-variant-numeric: tabular-nums;
+    }
+    .hit p {
+      grid-column: 2 / -1; max-width: 78ch; margin: 0; font-size: 13.5px; color: var(--muted); text-wrap: pretty;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    /* the passage of the fetched article that matched, when nothing shown did */
+    .hit p.x { -webkit-line-clamp: 1; padding-left: 8px; border-left: 1px solid var(--border-strong); font-size: 13px; color: var(--faint); }
+    .hit mark { padding: 0 1px; border-radius: 2px; background: var(--accent-soft); color: var(--accent-ink); }
+    .hit .m {
+      grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+      font: 12px var(--mono); color: var(--faint);
+    }
+    .hit .m a { display: inline-flex; align-items: center; gap: 3px; color: var(--accent-ink); text-decoration: none; }
+    .hit .m a.orig { color: var(--muted); }
+    .hit .m a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .prov { padding: 0 4px; font-size: 11px; border: 1px solid var(--border-strong); border-radius: 3px; }
+    .prov.vec { color: var(--accent-ink); border-color: var(--accent); }
+    .tags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .tags .plus { font-size: 11px; }
+    .empty {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+      padding: 48px 20px; font: 13px var(--mono); color: var(--muted);
     }
 
-    /* --- tag cloud --- */
-    .tagcloud { display: flex; flex-wrap: wrap; gap: .4rem; }
-    .tagcloud .tag {
-      font-size: .82rem; color: var(--muted); text-decoration: none;
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: .5rem; padding: .2rem .6rem;
-      transition: color .15s, border-color .15s, background .15s, transform .15s;
+    /* --- status bar --- */
+    .status {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 6px 16px;
+      background: var(--surface); border-top: 1px solid var(--border); font: 12px var(--mono); color: var(--faint);
     }
-    .tagcloud .tag::before { content: "#"; color: var(--faint); }
-    .tagcloud .tag .n { color: var(--faint); margin-left: .3rem; font-variant-numeric: tabular-nums; }
-    .tagcloud .tag .n::before { content: "·"; margin-right: .15rem; }
-    .tagcloud .tag:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-soft); }
+    .status .on { color: var(--ok); }
+    .status .keys { display: flex; flex-wrap: wrap; gap: 12px; margin-left: auto; }
+
+    /* --- keyboard help --- */
+    dialog.help {
+      width: min(460px, calc(100% - 32px)); padding: 20px 24px; color: var(--ink);
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: var(--shadow);
+    }
+    dialog.help::backdrop { background: rgba(0, 0, 0, .45); }
+    .help h2 { margin: 0 0 12px; font: 600 14px var(--mono); }
+    .help dl + h2 { margin-top: 18px; }
+    .help dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; font-size: 13px; }
+    .help dt { text-align: right; white-space: nowrap; }
+    .help dd { margin: 0; color: var(--muted); }
+    .help form { margin: 18px 0 0; text-align: right; }
+    .toast {
+      position: fixed; bottom: 48px; left: 50%; z-index: 30; transform: translateX(-50%);
+      padding: 6px 12px; border-radius: 6px; font: 12px var(--mono); color: var(--bg); background: var(--ink);
+    }
+
+    /* phones: the document scrolls (URL bar collapses, pull-to-refresh works),
+       the rail lays out as a strip of the essential filters */
+    @media (max-width: 760px) {
+      html, body { height: auto; }
+      body { display: block; }
+      .top { position: sticky; top: 0; z-index: 5; }
+      .shell, .shell.folded { display: block; }
+      .shell.folded .rail { display: flex; }
+      .list { overflow: visible; }
+      .rail { flex-direction: row; flex-wrap: wrap; gap: 14px; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .rail > section { flex: 1 1 150px; }
+      .rail .tagsec, .rail .healthsec, .facet kbd, .fold, .navlinks, .cmd kbd, .status .keys { display: none; }
+      .cli { width: 100%; margin-left: 0; }
+      .head, .hit { padding-inline: 16px; }
+      .hit { grid-template-columns: 2ch minmax(0, 1fr) auto; gap: 4px 10px; }
+    }
   </style>
 </head>
-<body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <span class="mark" aria-hidden="true">🌾</span>
-        <h1>glane</h1>
-        <p>{{.T.tagline}}</p>
-      </div>
-      <a class="nav" href="/stats">{{.T.stats}}</a>
-    </header>
+<body data-copied="{{.T.copied}}" data-copy-failed="{{.T.copyFailed}}">
+  <a class="skip" href="#results">{{.T.skipToResults}}</a>
 
-    <div class="toolbar">
-      <!-- hx-trigger="load" opens the page on the newest items rather than a blank
-           #results; "submit" keeps Enter from navigating away and losing the query.
-           hx-sync is inherited by every control below: they all write #results, so
-           without it a slow debounced query can land after a later source change
-           and win. It also collapses the two requests Enter fires (form submit +
-           the search input's own "search" event, which Firefox needs). -->
-      <form class="search-form" hx-get="/search" hx-trigger="load, submit"
-            hx-target="#results" hx-indicator=".bar" hx-sync=".search-form:replace">
-        <!-- the tag being browsed, set by the tag links (see the script below) so a
-             date or source change keeps it instead of silently dropping it -->
-        <input type="hidden" name="tag">
-        <div class="search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path>
-          </svg>
-          <input type="search" name="q" placeholder="{{.T.searchPlaceholder}}" autofocus
-                 aria-label="{{.T.searchAria}}"
-                 hx-get="/search" hx-trigger="input changed delay:300ms, search"
-                 hx-target="#results" hx-indicator=".bar" hx-include="closest form">
+  <header class="top">
+    <a class="brand" href="/" title="{{.T.tagline}}"><i></i>glane</a>
+    <button class="fold" id="fold" type="button" aria-controls="rail" aria-expanded="true" title="{{.T.toggleFilters}}">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg><kbd>[</kbd>
+    </button>
+    <!-- hx-trigger="load" opens the page on the newest items rather than a blank
+         #results; "submit" is how Enter and the filter buttons (via the script
+         below) fire a search. hx-sync is inherited by the input: both write
+         #results, so without it a slow debounced query can land after a later
+         filter change and win. Filters live in q as source:/tag:/since:. -->
+    <form class="cmd search-form" role="search" hx-get="/search" hx-trigger="load, submit"
+          hx-target="#results" hx-indicator="#load" hx-sync=".search-form:replace">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      <span class="field">
+        <span class="hl" id="hl" aria-hidden="true"></span>
+        <input id="q" type="text" role="searchbox" name="q" autocomplete="off" spellcheck="false" autofocus
+               placeholder="{{.T.searchPlaceholder}}" aria-label="{{.T.searchAria}}" aria-describedby="syntax"
+               hx-get="/search" hx-trigger="input changed delay:300ms" hx-target="#results"
+               hx-indicator="#load" hx-include="closest form">
+      </span>
+      <kbd>/</kbd>
+    </form>
+    <nav class="navlinks" aria-label="{{.T.pagesAria}}">
+      <a href="/" aria-current="page">{{.T.search}}</a><a href="/stats">{{.T.stats}}</a>
+    </nav>
+    <div class="load" id="load" aria-hidden="true"></div>
+  </header>
+
+  <div class="shell" id="shell">
+    <aside class="rail" id="rail" aria-label="{{.T.filtersAria}}">
+      <section>
+        <h2>source</h2>
+        <div class="facet" role="group" aria-label="{{.T.sourceAria}}">
+          <button type="button" data-op="source" data-v="" data-key="0" aria-pressed="false"><span class="dot"></span>{{.T.allSources}}<span class="n">{{.D.Stats.Total}}</span><kbd>0</kbd></button>
+          {{range .D.Sources}}<button type="button" data-op="source" data-v="{{.Source}}" data-key="{{.Key}}" aria-pressed="false"{{if not .Count}} disabled{{end}}><span class="dot {{.Source}}"></span>{{.Source}}<span class="n">{{.Count}}</span><kbd>{{.Key}}</kbd></button>
+          {{end}}
         </div>
-        <div class="bar" aria-hidden="true"></div>
-
-        <div class="filters">
-        <div class="sources" role="radiogroup" aria-label="{{.T.sourceAria}}">
-          <label><input type="radio" name="source" value="" checked
-                        hx-get="/search" hx-trigger="change" hx-target="#results"
-                        hx-indicator=".bar" hx-include="closest form">{{.T.allSources}}</label>
-          <label><span class="dot twitter"></span><input type="radio" name="source" value="twitter"
-                        hx-get="/search" hx-trigger="change" hx-target="#results"
-                        hx-indicator=".bar" hx-include="closest form">twitter</label>
-          <label><span class="dot bluesky"></span><input type="radio" name="source" value="bluesky"
-                        hx-get="/search" hx-trigger="change" hx-target="#results"
-                        hx-indicator=".bar" hx-include="closest form">bluesky</label>
-          <label><span class="dot mastodon"></span><input type="radio" name="source" value="mastodon"
-                        hx-get="/search" hx-trigger="change" hx-target="#results"
-                        hx-indicator=".bar" hx-include="closest form">mastodon</label>
-          <label><span class="dot github"></span><input type="radio" name="source" value="github"
-                        hx-get="/search" hx-trigger="change" hx-target="#results"
-                        hx-indicator=".bar" hx-include="closest form">github</label>
+      </section>
+      <section>
+        <h2>{{.T.since}}</h2>
+        <div class="seg" role="group" aria-label="{{.T.sinceAria}}">
+          <button type="button" data-op="since" data-v="7d" aria-pressed="false">7d</button><button type="button" data-op="since" data-v="30d" aria-pressed="false">30d</button><button type="button" data-op="since" data-v="1y" aria-pressed="false">1y</button><button type="button" data-op="since" data-v="" aria-pressed="false">{{.T.allTime}}</button>
         </div>
-
-        <label class="since">{{.T.since}}
-          <input type="date" name="since" aria-label="{{.T.sinceAria}}"
-                 hx-get="/search" hx-trigger="change" hx-target="#results"
-                 hx-indicator=".bar" hx-include="closest form">
-        </label>
-
-        {{if .D}}
-        <details class="tags-filter">
-          <summary>{{.T.tags}}</summary>
-          <div class="tagcloud">
-            {{range .D}}<a class="tag" href="#" hx-get="/search?tag={{.Tag | urlquery}}" hx-target="#results" hx-indicator=".bar" hx-include=".search-form">{{.Tag}}<span class="n">{{.Count}}</span></a>{{end}}
-          </div>
-        </details>
-        {{end}}
-
-        <button type="button" class="active-tag" hidden
-                aria-label="{{.T.clearTagAria}}"
-                hx-get="/search" hx-target="#results"
-                hx-indicator=".bar" hx-include=".search-form"><span></span></button>
+      </section>
+      {{if .D.Tags}}
+      <section class="tagsec">
+        <h2>{{.T.tags}}</h2>
+        <div class="tagrail">
+          {{range .D.Tags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="false">{{.Tag}}<span class="n">{{.Count}}</span></button>
+          {{end}}
         </div>
-      </form>
-    </div>
+      </section>
+      {{end}}
+      {{with .D.Stats}}{{if .Total}}
+      <section class="healthsec">
+        <h2>index</h2>
+        <div class="health">
+          <div><span class="name">{{$.T.enriched}}</span><span>{{pct .Enriched .Total}}%</span><span class="bar"><span style="--w: {{pct .Enriched .Total}}%"></span></span>
+            {{if lt .Enriched .Total}}<button type="button" class="run" data-copy="glane enrich" title="{{$.T.copyFix}}">$ glane enrich</button>{{end}}</div>
+          <div><span class="name">{{$.T.summarized}}</span><span>{{pct .Summarized .Total}}%</span><span class="bar"><span style="--w: {{pct .Summarized .Total}}%"></span></span>
+            {{if and $.D.Summary (lt .Summarized .Total)}}<button type="button" class="run" data-copy="glane summarize" title="{{$.T.copyFix}}">$ glane summarize</button>{{end}}</div>
+          {{if $.D.Embed}}<div><span class="name">{{$.T.embeddings}}</span><span>{{pct .Embedded .Total}}%</span><span class="bar"><span style="--w: {{pct .Embedded .Total}}%"></span></span>
+            {{if lt .Embedded .Total}}<button type="button" class="run" data-copy="glane enrich" title="{{$.T.copyFix}}">$ glane enrich</button>{{end}}</div>{{end}}
+        </div>
+      </section>
+      {{end}}{{end}}
+    </aside>
 
-    <main>
-      <div id="results"></div>
+    <main class="list">
+      <div id="results" tabindex="-1"></div>
     </main>
   </div>
-  <script>
-    // The browsed tag is form state (so a date or source change keeps it) and a
-    // visible pill (so it can be seen and cleared). Both move together.
-    const form = document.querySelector('.search-form');
-    const activeTag = document.querySelector('.active-tag');
-    const tagsMenu = document.querySelector('.tags-filter');
 
-    function setTag(tag) {
-      form.tag.value = tag;
-      activeTag.firstElementChild.textContent = tag ? '#' + tag : '';
-      activeTag.hidden = !tag;
+  <footer class="status">
+    <span>{{.D.Stats.Total}} {{.T.items}}</span>
+    <span>fts5 <span class="on">●</span></span>
+    <span>vec {{if .D.Embed}}<span class="on">●</span> {{.D.EmbedModel}}{{else}}○ {{.T.off}}{{end}}</span>
+    {{if .D.Stats.LastSyncBySource}}<span>sync {{range $i, $s := .D.Stats.LastSyncBySource}}{{if $i}} · {{end}}{{$s.Source}} {{reltime $s.UpdatedAt $.T}}{{end}}</span>{{end}}
+    <span class="keys">
+      <span><kbd>j</kbd> <kbd>k</kbd> {{.T.keyMove}}</span><span><kbd>o</kbd> {{.T.keyOpen}}</span>
+      <span><kbd>y</kbd> {{.T.keyCopy}}</span><span><kbd>[</kbd> {{.T.filters}}</span><span><kbd>?</kbd> {{.T.keyHelp}}</span>
+    </span>
+  </footer>
+
+  <dialog class="help" id="help" aria-labelledby="help-title">
+    <h2 id="help-title">{{.T.helpKeys}}</h2>
+    <dl>
+      <dt><kbd>/</kbd></dt><dd>{{.T.helpFocus}}</dd>
+      <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>{{.T.helpMove}}</dd>
+      <dt><kbd>o</kbd> <kbd>O</kbd></dt><dd>{{.T.helpOpen}}</dd>
+      <dt><kbd>y</kbd> <kbd>Y</kbd></dt><dd>{{.T.helpCopy}}</dd>
+      <dt><kbd>1</kbd>–<kbd>4</kbd> <kbd>0</kbd></dt><dd>{{.T.helpSources}}</dd>
+      <dt><kbd>[</kbd></dt><dd>{{.T.toggleFilters}}</dd>
+    </dl>
+    <h2>{{.T.helpQuery}}</h2>
+    <dl id="syntax">
+      <dt><code>{{.T.helpWordsKey}}</code></dt><dd>{{.T.helpWords}}</dd>
+      <dt><code>source:</code></dt><dd>twitter, bluesky, mastodon, github</dd>
+      <dt><code>tag:</code></dt><dd>{{.T.helpTag}}</dd>
+      <dt><code>since:</code></dt><dd>7d, 2w, 3m, 1y, 2026, 2026-07-20</dd>
+    </dl>
+    <form method="dialog"><button class="btn">{{.T.close}} <kbd>esc</kbd></button></form>
+  </dialog>
+
+  <script>
+    // Filters are words in the query (source:github), so the box, the rail and
+    // the CLI echo can never disagree. The rail and the tags only rewrite the
+    // box and submit it; the server does the parsing.
+    const form = document.querySelector('.search-form');
+    const q = form.q, hl = document.getElementById('hl');
+    const shell = document.getElementById('shell'), help = document.getElementById('help');
+    const results = document.getElementById('results');
+    // same pattern as ops in query.go: a value with spaces is double-quoted
+    const OPS = /(^|\s)(source|tag|since):("[^"]*"|\S*)/g;
+
+    const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const ops = () => Object.fromEntries([...q.value.matchAll(OPS)].map(m => [m[2], m[3].replace(/^"+|"+$/g, '')]));
+
+    // Draw the typed text with the filters coloured, and press the rail
+    // buttons that match it.
+    function paint() {
+      hl.innerHTML = esc(q.value).replace(OPS, '$1<span class="op">$2<b>:</b>$3</span>');
+      const o = ops();
+      document.querySelectorAll('.rail [data-op], #results [data-op]').forEach(b =>
+        b.setAttribute('aria-pressed', (o[b.dataset.op] || '') === b.dataset.v));
+    }
+    function setOp(op, v) {
+      if (/\s/.test(v)) v = `"${v}"`;
+      q.value = (q.value.replace(new RegExp('(^|\\s)' + op + ':("[^"]*"|\\S*)', 'g'), ' ').trim() + (v ? ' ' + op + ':' + v : '')).trim();
+      paint();
+      htmx.trigger(form, 'submit');
     }
 
-    // Capture phase: the field must be current before htmx, bound on the link or
-    // the pill itself, builds the request that includes the form.
-    document.addEventListener('click', e => {
-      const link = e.target.closest('a.tag');
-      if (link) {
-        setTag(new URL(link.getAttribute('hx-get'), location).searchParams.get('tag') || '');
-        if (tagsMenu) tagsMenu.open = false;
-      } else if (e.target.closest('.active-tag')) {
-        setTag('');
-      }
-    }, true);
+    function toast(msg) {
+      const t = document.createElement('div');
+      t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+      document.body.append(t); setTimeout(() => t.remove(), 1400);
+    }
+    async function copy(text) {
+      try { await navigator.clipboard.writeText(text); toast(document.body.dataset.copied); }
+      catch { toast(document.body.dataset.copyFailed + ' ' + text); }
+    }
 
-    // Typing a query is a fresh intent, so it drops the tag.
-    form.q.addEventListener('input', () => setTag(''));
+    // j/k move a "current" row and focus its title link, so Enter and the
+    // screen reader follow; Tab still walks every link.
+    let sel = -1;
+    const rows = () => results.querySelectorAll('.hit');
+    function move(d) {
+      const r = rows(); if (!r.length) return;
+      sel = sel < 0 ? (d < 0 ? r.length - 1 : 0) : (sel + d + r.length) % r.length;
+      r.forEach((el, n) => el.setAttribute('aria-current', n === sel));
+      r[sel].querySelector('h3 a').focus({ preventScroll: true });
+      r[sel].scrollIntoView({ block: 'nearest' });
+    }
+    results.addEventListener('focusin', e => {
+      const h = e.target.closest('.hit');
+      if (h) { sel = [...rows()].indexOf(h); rows().forEach(el => el.setAttribute('aria-current', el === h)); }
+    });
+    document.body.addEventListener('htmx:afterSwap', e => { if (e.target === results) { sel = -1; paint(); } });
+
+    function fold(force) {
+      const folded = shell.classList.toggle('folded', force);
+      document.getElementById('fold').setAttribute('aria-expanded', !folded);
+      try { localStorage.setItem('glane.rail', folded ? 'folded' : ''); } catch {}
+    }
+    try { if (localStorage.getItem('glane.rail') === 'folded') fold(true); } catch {}
+
+    q.addEventListener('input', paint);
+    q.addEventListener('scroll', () => { hl.scrollLeft = q.scrollLeft; });
+    q.addEventListener('keydown', e => {
+      // leave the box without clearing it; ↓ steps into the results
+      if (e.key === 'Escape') { e.preventDefault(); q.blur(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+    });
+
+    document.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.op) setOp(b.dataset.op, b.dataset.op === 'tag' && b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.v);
+      else if (b.dataset.copy) copy(b.dataset.copy);
+      else if (b.id === 'fold') fold();
+      else if (b.id === 'clear') { q.value = ''; paint(); htmx.trigger(form, 'submit'); q.focus(); }
+    });
+
+    let opener;
+    help.addEventListener('close', () => opener?.focus?.());
+    help.addEventListener('click', e => { if (e.target === help) help.close(); });
+    document.addEventListener('keydown', e => {
+      if (help.open || e.metaKey || e.ctrlKey || e.altKey || e.target.matches('input, textarea')) return;
+      const row = rows()[sel], d = row?.dataset;
+      const key = /^[0-9]$/.test(e.key) && document.querySelector(`.rail [data-key="${e.key}"]:not(:disabled)`);
+      const act = {
+        '/': () => q.focus(),
+        '?': () => { opener = document.activeElement; help.showModal(); },
+        '[': () => fold(),
+        j: () => move(1), k: () => move(-1),
+        o: () => d && window.open(d.url, '_blank', 'noreferrer'),
+        O: () => d && window.open(d.origUrl || d.url, '_blank', 'noreferrer'),
+        y: () => d && copy(d.url),
+        Y: () => d && copy(`[${d.title.slice(0, 80).replace(/[[\]\n]/g, ' ').trim()}](${d.url})`),
+      }[e.key] || (key && (() => key.click()));
+      if (act) { e.preventDefault(); act(); }
+    });
+    paint();
   </script>
 </body>
 </html>

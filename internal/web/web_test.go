@@ -150,9 +150,10 @@ func TestListingAnnouncesTruncation(t *testing.T) {
 	}
 }
 
-// Copilot review: the page opened on a blank #results and tag links dropped the
-// other filters. Guard both wires.
-func TestIndexAutoListsAndCarriesTag(t *testing.T) {
+// The page must open on the newest items rather than a blank #results, and
+// every filter control writes an operator into the query box instead of
+// keeping state of its own, so the box, the rail and the CLI echo agree.
+func TestIndexAutoListsAndFiltersThroughQuery(t *testing.T) {
 	s, _ := store.Open(t.TempDir() + "/t.db")
 	defer s.Close()
 	seedTagged(t, s, "1", "alpha", []string{"rust"})
@@ -163,55 +164,52 @@ func TestIndexAutoListsAndCarriesTag(t *testing.T) {
 	if !strings.Contains(body, `hx-trigger="load, submit"`) {
 		t.Fatalf("index must request the newest items on load: %s", body)
 	}
-	if !strings.Contains(body, `<input type="hidden" name="tag">`) {
-		t.Fatalf("index must keep the browsed tag as form state: %s", body)
-	}
-	// attribute by attribute: reordering them in the template is a no-op and
-	// must not fail the test.
-	for _, attr := range []string{`hx-get="/search?tag=rust"`, `hx-target="#results"`, `hx-include=".search-form"`} {
-		if !strings.Contains(body, attr) {
-			t.Fatalf("index tag link must carry the other filters, missing %s: %s", attr, body)
+	for _, want := range []string{
+		`data-op="tag" data-v="rust"`,       // the tag rail
+		`data-op="source" data-v="bluesky"`, // a source facet…
+		`data-key="2"`,                      // …reachable from the keyboard
+		`data-op="since" data-v="30d"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("index filter rail missing %s: %s", want, body)
 		}
 	}
-	// The cloud used to sit in the idle screen, which auto-listing made
-	// unreachable; it now hangs off a filter pill, next to the clearable
-	// indicator for whichever tag is active.
-	if !strings.Contains(body, `<details class="tags-filter">`) {
-		t.Fatalf("tag cloud must be reachable from the filter row: %s", body)
-	}
-	if !strings.Contains(body, `class="active-tag"`) {
-		t.Fatalf("index must show the browsed tag so it can be cleared: %s", body)
+	// a source with nothing indexed stays in place (so 1–4 never shift) but
+	// can't be picked
+	if !strings.Contains(body, `data-v="github" data-key="4" aria-pressed="false" disabled`) {
+		t.Fatalf("empty source facet must be disabled: %s", body)
 	}
 }
 
-func TestTagRenderedAsClickableLink(t *testing.T) {
+func TestTagRenderedAsFilterButton(t *testing.T) {
 	s, _ := store.Open(t.TempDir() + "/t.db")
 	defer s.Close()
 	seedTagged(t, s, "1", "alpha", []string{"rust"})
 
 	rec := httptest.NewRecorder()
 	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?tag=rust", nil))
-	if !strings.Contains(rec.Body.String(), `hx-get="/search?tag=rust"`) {
-		t.Fatalf("tag not rendered as an htmx link: %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), `data-op="tag" data-v="rust"`) {
+		t.Fatalf("result tag not rendered as a filter button: %s", rec.Body.String())
 	}
 }
 
-func TestIndexListsTagsForBrowsing(t *testing.T) {
+// Operators typed in the box filter like the URL parameters, and the fragment
+// echoes the equivalent CLI command.
+func TestSearchOperatorsInQuery(t *testing.T) {
 	s, _ := store.Open(t.TempDir() + "/t.db")
 	defer s.Close()
 	seedTagged(t, s, "1", "alpha", []string{"rust"})
+	seedTagged(t, s, "2", "alpha beta", []string{"go"})
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=alpha+tag%3Arust+since%3A20", nil))
 	body := rec.Body.String()
-	if rec.Code != 200 {
-		t.Fatalf("status %d", rec.Code)
+	if !strings.Contains(body, "http://x/1") || strings.Contains(body, "http://x/2") {
+		t.Fatalf("tag: in the query must filter like ?tag=: %s", body)
 	}
-	if !strings.Contains(body, "rust") {
-		t.Fatalf("tag not listed on index for browsing: %s", body)
-	}
-	if !strings.Contains(body, `hx-get="/search?tag=rust"`) {
-		t.Fatalf("index tag not rendered as an htmx link: %s", body)
+	// since:20 is a date being typed: ignored, and left out of the echo
+	if !strings.Contains(body, "<code>glane search alpha --tag rust</code>") {
+		t.Fatalf("missing CLI echo: %s", body)
 	}
 }
 

@@ -152,7 +152,8 @@ fails. This is the command to schedule.
 
 ### `glane search [query] [flags]`
 Searches the index. **The query comes first** (multiple words are fine unquoted);
-flags come after. Words match whole tokens, except the last word, which matches
+flags come after. A query word starting with `-` would read as a flag: put the
+flags first and the query after `--` (`glane search --tag go -- -foo`). Words match whole tokens, except the last word, which matches
 as a prefix (type-ahead): `useTa` finds `useTabs`.
 
 With **no query**, it lists instead of searching: `--tag` browses that tag, and
@@ -252,12 +253,24 @@ Add `-json` for machine-readable output (same fields, JSON-encoded).
 ```
 
 ### `glane serve [--port N]`
-Serves the local web UI (default `http://127.0.0.1:8080`) — a single page with
-search-as-you-type, a source filter, a **date filter** (`since`), and
-**clickable tags** — click a tag on any result, or pick one from the `tags`
-filter, to browse everything carrying it. The page opens on your newest items,
-so a date plus a source is a back-from-holiday review; filters combine, and the
-tag you are browsing stays pinned as a pill until you clear it. Local-only; no auth.
+Serves the local web UI (default `http://127.0.0.1:8080`), a search console
+built for the keyboard. The page opens on your newest items and searches as you
+type.
+
+- **Filters are words in the query**, the same as the CLI flags:
+  `cold start source:twitter tag:aws since:30d`; quote a value with spaces,
+  `tag:"software engineering"`. The filter rail (sources,
+  `7d`/`30d`/`1y`, tags) only writes those words into the box, and each listing
+  shows the matching `glane search …` command, ready to copy.
+- **Keyboard**: `/` search, `esc` leave the box (the query stays), `j`/`k`
+  move through results, `o` open the link, `O` the original post, `y` copy the
+  URL, `Y` a markdown link, `1`–`4` pick a source (`0` all), `[` hide the
+  rail, `?` list all of this.
+- **Index health** in the rail: how much is enriched, summarized and embedded,
+  with the command that fills each gap. The status bar shows the item count,
+  whether semantic search is on (and its model), and the last sync per source.
+
+Local-only; no auth.
 
 The UI speaks **English and French**, picked from your browser's
 `Accept-Language` (English when it asks for neither). Nothing to configure.

@@ -8,9 +8,10 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>">
   <link rel="stylesheet" href="/static/base.css">
   <style>
+    main { padding-block: 2rem 5rem; }
     h2 {
-      font-size: .95rem; font-weight: 600; letter-spacing: -.01em;
-      color: var(--ink); margin: 2.4rem 0 .9rem;
+      margin: 2.4rem 0 .9rem; font: 500 11px var(--mono); color: var(--faint);
+      text-transform: uppercase; letter-spacing: .08em;
     }
     .cards {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -22,7 +23,7 @@
     }
     /* the corpus size leads; everything else is read against it */
     .card.total { grid-column: 1 / -1; background: none; border: 0; padding: 0 0 .4rem; }
-    .card.total .n { font-size: 3.2rem; letter-spacing: -.045em; line-height: 1; }
+    .card.total .n { font-size: 3.2rem; letter-spacing: -.04em; line-height: 1; }
     .card .n {
       font-size: 1.6rem; font-weight: 600; letter-spacing: -.02em;
       font-variant-numeric: tabular-nums;
@@ -49,15 +50,14 @@
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <span class="mark" aria-hidden="true">🌾</span>
-        <h1>glane</h1>
-      </div>
-      <a class="nav" href="/">{{.T.backToSearch}}</a>
-    </header>
+  <header class="top">
+    <a class="brand" href="/"><i></i>glane</a>
+    <nav class="navlinks" aria-label="{{.T.pagesAria}}">
+      <a href="/">{{.T.search}}</a><a href="/stats" aria-current="page">{{.T.stats}}</a>
+    </nav>
+  </header>
 
+  <div class="wrap">
     <main>
       <section class="cards">
         <div class="card total"><div class="n">{{.D.Total}}</div><div class="label">{{.T.total}}</div></div>

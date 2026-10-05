@@ -285,6 +285,9 @@ func cmdSearch(s *store.Store, args []string) {
 	since := fs.String("since", "", "only items on/after this date (YYYY, YYYY-MM-DD, or a window like 7d, 2w, 3m, 1y)")
 	tag := fs.String("tag", "", "filter by tag")
 	fs.Parse(flagArgs)
+	if query == "" { // flags first, then the query after "--": glane search --tag go -- -foo
+		query = strings.Join(fs.Args(), " ")
+	}
 	sinceTs, err := store.ParseSince(*since)
 	if err != nil {
 		fatal(err)

@@ -13,6 +13,7 @@ import (
 	gembed "github.com/jcgay/glane/internal/embed"
 	"github.com/jcgay/glane/internal/search"
 	"github.com/jcgay/glane/internal/store"
+	"github.com/jcgay/glane/internal/summarize"
 )
 
 //go:embed templates/*.html static/*
@@ -39,6 +40,12 @@ var funcs = template.FuncMap{
 		}
 		return h
 	},
+	// head is the first n of xs (all of them when there are fewer), and more
+	// how many it left out: results show three tags and a "+n".
+	"head": func(n int, xs []string) []string { return xs[:min(n, len(xs))] },
+	"more": func(n int, xs []string) int { return max(len(xs)-n, 0) },
+	"inc":  func(i int) int { return i + 1 },
+	"join": strings.Join,
 	// pct is n as a whole percentage of total, for the stats meters.
 	"pct": func(n, total int) int {
 		if total <= 0 {
@@ -80,6 +87,28 @@ const pageLimit = 50
 type page struct {
 	Hits      []store.Result
 	Truncated bool
+	Query     query
+}
+
+// sources are the facets of the filter rail, in the order the 1–4 keys pick
+// them. All four always show, so a key always lands on the same source.
+var sources = []string{"twitter", "bluesky", "mastodon", "github"}
+
+type facet struct {
+	Source string
+	Count  int
+	Key    int
+}
+
+// home is what index.html renders: the filter rail, the index health and the
+// status bar all read from it.
+type home struct {
+	Tags       []store.TagCount
+	Stats      store.Stats
+	Sources    []facet
+	EmbedModel string // "" when semantic search is off
+	Embed      bool
+	Summary    bool // a summary endpoint is set, so `glane summarize` would do something
 }
 
 func handler(s *store.Store) http.Handler {
@@ -91,11 +120,30 @@ func handler(s *store.Store) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		tags, err := s.TagCounts() // degrade silently: no tags just means no browse list
+		// degrade silently: no tags or stats just mean an emptier rail
+		tags, err := s.TagCounts()
 		if err != nil {
 			log.Printf("glane: tag counts: %v", err)
 		}
-		if err := tmpl.ExecuteTemplate(w, "index.html", view{pick(w, r), tags}); err != nil {
+		st, err := s.Stats()
+		if err != nil {
+			log.Printf("glane: stats: %v", err)
+		}
+		h := home{Tags: tags, Stats: st}
+		for i, src := range sources {
+			f := facet{Source: src, Key: i + 1}
+			for _, sc := range st.BySource {
+				if sc.Source == src {
+					f.Count = sc.Count
+				}
+			}
+			h.Sources = append(h.Sources, f)
+		}
+		if c := gembed.FromEnv(); c != nil {
+			h.Embed, h.EmbedModel = true, c.Model
+		}
+		h.Summary = summarize.FromEnv() != nil
+		if err := tmpl.ExecuteTemplate(w, "index.html", view{pick(w, r), h}); err != nil {
 			log.Printf("glane: render index.html: %v", err)
 		}
 	})
@@ -111,21 +159,25 @@ func handler(s *store.Store) http.Handler {
 	})
 
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query().Get("q")
-		// A malformed date just means no date filter — hand-crafted URLs aside,
-		// the picker itself reports "" until the date is complete, and a review
-		// screen should keep rendering rather than 500.
-		since, _ := store.ParseSince(r.URL.Query().Get("since"))
+		p := r.URL.Query()
+		qr := parseQuery(p.Get("q"), p.Get("source"), p.Get("tag"), p.Get("since"))
+		q := qr.Words
+		// A malformed date just means no date filter: "since:20" is what the box
+		// holds halfway through typing "since:2026", and a review screen should
+		// keep rendering rather than 500.
+		since, err := store.ParseSince(qr.Since)
+		if err != nil {
+			qr.Since = ""
+		}
 		f := store.Filter{
-			Source: r.URL.Query().Get("source"),
-			Tag:    r.URL.Query().Get("tag"),
+			Source: qr.Source,
+			Tag:    qr.Tag,
 			Since:  since,
 			Limit:  pageLimit,
 		}
 		// No query is the review listing (newest first), not an empty screen —
 		// source, date and tag all narrow it.
 		var res []store.Result
-		var err error
 		if q != "" {
 			res, err = search.Hybrid(s, gembed.FromEnv(), q, f)
 		} else {
@@ -139,8 +191,8 @@ func handler(s *store.Store) http.Handler {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		p := page{Hits: res, Truncated: len(res) == pageLimit}
-		if err := tmpl.ExecuteTemplate(w, "results.html", view{pick(w, r), p}); err != nil {
+		pg := page{Hits: res, Truncated: len(res) == pageLimit, Query: qr}
+		if err := tmpl.ExecuteTemplate(w, "results.html", view{pick(w, r), pg}); err != nil {
 			log.Printf("glane: render results.html: %v", err)
 		}
 	})
