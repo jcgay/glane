@@ -240,7 +240,7 @@
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
       <span class="field">
         <span class="hl" id="hl" aria-hidden="true"></span>
-        <input id="q" type="text" role="searchbox" name="q" autocomplete="off" spellcheck="false" autofocus
+        <input id="q" type="text" role="searchbox" name="q" value="{{.D.Q}}" autocomplete="off" spellcheck="false" autofocus
                placeholder="{{.T.searchPlaceholder}}" aria-label="{{.T.searchAria}}" aria-describedby="syntax"
                hx-get="/search" hx-trigger="input changed delay:300ms" hx-target="#results"
                hx-indicator="#load" hx-include="closest form">
@@ -323,7 +323,7 @@
     const shell = document.getElementById('shell'), help = document.getElementById('help');
     const results = document.getElementById('results');
     // same pattern as ops in query.go: a value with spaces is double-quoted
-    const OPS = /(^|\s)(source|tag|since):("[^"]*"|\S*)/g;
+    const OPS = /(^|\s)(source|tag|since):("[^"]*"?|\S*)/g;
 
     const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     const ops = () => Object.fromEntries([...q.value.matchAll(OPS)].map(m => [m[2], m[3].replace(/^"+|"+$/g, '')]));
@@ -338,7 +338,7 @@
     }
     function setOp(op, v) {
       if (/\s/.test(v)) v = `"${v}"`;
-      q.value = (q.value.replace(new RegExp('(^|\\s)' + op + ':("[^"]*"|\\S*)', 'g'), ' ').trim() + (v ? ' ' + op + ':' + v : '')).trim();
+      q.value = (q.value.replace(new RegExp('(^|\\s)' + op + ':("[^"]*"?|\\S*)', 'g'), ' ').trim() + (v ? ' ' + op + ':' + v : '')).trim();
       paint();
       htmx.trigger(form, 'submit');
     }
@@ -371,6 +371,22 @@
     document.body.addEventListener('htmx:afterSwap', e => { if (e.target === results) sel = -1; });
     // the rail comes back out-of-band with every result list
     document.body.addEventListener('htmx:afterSettle', paint);
+
+    // The query lives in ?q= so a search survives a reload and can be shared.
+    // Typing rewrites the history entry; Enter, a filter or "clear" adds one,
+    // so Back undoes it. popstate replays an entry without adding another.
+    let push = false, popping = false;
+    form.addEventListener('submit', () => { push = !popping; popping = false; });
+    document.body.addEventListener('htmx:afterRequest', e => {
+      if (e.detail.target !== results || !e.detail.successful) return;
+      const s = q.value ? '?' + new URLSearchParams({ q: q.value }) : '';
+      if (s !== location.search) history[push ? 'pushState' : 'replaceState'](null, '', s || location.pathname);
+      push = false;
+    });
+    addEventListener('popstate', () => {
+      q.value = new URLSearchParams(location.search).get('q') || '';
+      paint(); popping = true; htmx.trigger(form, 'submit');
+    });
 
     function fold(force) {
       const folded = shell.classList.toggle('folded', force);

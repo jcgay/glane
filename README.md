@@ -261,7 +261,11 @@ type.
   `cold start source:twitter tag:aws since:30d`; quote a value with spaces,
   `tag:"software engineering"`. The filter rail (sources,
   `7d`/`30d`/`1y`, tags) only writes those words into the box, and each listing
-  shows the matching `glane search …` command, ready to copy.
+  shows the matching `glane search …` command, ready to copy. A filter it
+  can't apply (`since:abc`, an unknown source, a second `tag:`) is named in
+  the status line rather than silently dropped.
+- **The query is in the URL** (`/?q=…`): reload, bookmark or share a search;
+  Back undoes the last filter or Enter.
 - **Keyboard**: `/` search, `esc` leave the box (the query stays), `j`/`k`
   move through results, `o` open the link, `O` the original post, `y` copy the
   URL, `Y` a markdown link, `1`–`4` pick a source (`0` all), `[` hide the

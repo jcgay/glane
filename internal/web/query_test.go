@@ -13,10 +13,22 @@ func TestParseQuery(t *testing.T) {
 		{"x source:github since:", "twitter", "go", "2024", query{"x", "github", "go", ""}},
 		{"foo:bar", "", "", "", query{Words: "foo:bar"}},
 		{`x tag:"software engineering" y`, "", "", "", query{Words: "x y", Tag: "software engineering"}},
+		// a quote still open reads to the end: the closing one is often not typed yet
+		{`x tag:"web development`, "", "", "", query{Words: "x", Tag: "web development"}},
+		{"source:TWITTER", "", "", "", query{Source: "twitter"}},
 	} {
-		if got := parseQuery(tc.q, tc.source, tc.tag, tc.since); got != tc.want {
+		if got, _ := parseQuery(tc.q, tc.source, tc.tag, tc.since); got != tc.want {
 			t.Errorf("parseQuery(%q) = %+v, want %+v", tc.q, got, tc.want)
 		}
+	}
+}
+
+// An operator typed twice keeps the last value, and says so: the box holds
+// one source, one tag and one date.
+func TestParseQueryReportsRepeatedOperators(t *testing.T) {
+	q, kept := parseQuery("tag:go source:github tag:java source:github", "", "", "")
+	if q.Tag != "java" || len(kept) != 1 || kept[0] != "tag:java" {
+		t.Fatalf("got %+v, kept %q; want tag java, kept [tag:java]", q, kept)
 	}
 }
 

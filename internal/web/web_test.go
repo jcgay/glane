@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -360,5 +361,42 @@ func TestSearchSendsFacetsOutOfBand(t *testing.T) {
 	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
 	if !strings.Contains(rec.Body.String(), `data-v="twitter" data-key="1" aria-pressed="false" disabled>`) {
 		t.Fatalf("empty source not disabled without a query: %s", rec.Body.String())
+	}
+}
+
+// A filter the search cannot apply is dropped, never silently: the status line
+// names it, so an empty or unfiltered listing is not mistaken for the answer.
+func TestSearchNotesIgnoredFilters(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	seedTagged(t, s, "1", "alpha", []string{"rust"})
+
+	for q, want := range map[string]string{
+		"alpha since:abc":       fmt.Sprintf(en["noteSince"], "abc"),
+		"alpha source:foo":      fmt.Sprintf(en["noteSource"], "foo"),
+		"tag:go tag:rust alpha": fmt.Sprintf(en["noteRepeated"], "tag:rust"),
+	} {
+		rec := httptest.NewRecorder()
+		handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q="+url.QueryEscape(q), nil))
+		body := rec.Body.String()
+		if !strings.Contains(body, want) {
+			t.Errorf("%q: missing note %q: %s", q, want, body)
+		}
+		if !strings.Contains(body, "http://x/1") {
+			t.Errorf("%q: the ignored filter must not hide the hit: %s", q, body)
+		}
+	}
+}
+
+// The page reads ?q= so a search survives a reload and can be bookmarked; the
+// script writes it back after each search.
+func TestIndexPrefillsQueryFromURL(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/?q="+url.QueryEscape(`tag:"web dev"`), nil))
+	if !strings.Contains(rec.Body.String(), `value="tag:&#34;web dev&#34;"`) {
+		t.Fatalf("search box not prefilled from ?q=: %s", rec.Body.String())
 	}
 }

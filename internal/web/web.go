@@ -90,6 +90,7 @@ type page struct {
 	Truncated bool
 	Query     query
 	Rail      rail
+	Notes     []string // filters typed but not applied, for the status line
 }
 
 // sources are the facets of the filter rail, in the order the 1–4 keys pick
@@ -138,7 +139,8 @@ type home struct {
 	Stats      store.Stats
 	EmbedModel string // "" when semantic search is off
 	Embed      bool
-	Summary    bool // a summary endpoint is set, so `glane summarize` would do something
+	Summary    bool   // a summary endpoint is set, so `glane summarize` would do something
+	Q          string // ?q=, so a search survives a reload and can be shared
 }
 
 func handler(s *store.Store) http.Handler {
@@ -159,7 +161,7 @@ func handler(s *store.Store) http.Handler {
 		if err != nil {
 			log.Printf("glane: stats: %v", err)
 		}
-		h := home{Rail: newRail(fc, query{}), Stats: st}
+		h := home{Rail: newRail(fc, query{}), Stats: st, Q: r.URL.Query().Get("q")}
 		if c := gembed.FromEnv(); c != nil {
 			h.Embed, h.EmbedModel = true, c.Model
 		}
@@ -180,15 +182,25 @@ func handler(s *store.Store) http.Handler {
 	})
 
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
+		t := pick(w, r)
 		p := r.URL.Query()
-		qr := parseQuery(p.Get("q"), p.Get("source"), p.Get("tag"), p.Get("since"))
+		qr, kept := parseQuery(p.Get("q"), p.Get("source"), p.Get("tag"), p.Get("since"))
 		q := qr.Words
+		var notes []string
+		for _, k := range kept {
+			notes = append(notes, fmt.Sprintf(t["noteRepeated"], k))
+		}
 		// A malformed date just means no date filter: "since:20" is what the box
 		// holds halfway through typing "since:2026", and a review screen should
-		// keep rendering rather than 500.
+		// keep rendering rather than 500. Same for a source still being typed.
 		since, err := store.ParseSince(qr.Since)
 		if err != nil {
+			notes = append(notes, fmt.Sprintf(t["noteSince"], qr.Since))
 			qr.Since = ""
+		}
+		if qr.Source != "" && !slices.Contains(sources, qr.Source) {
+			notes = append(notes, fmt.Sprintf(t["noteSource"], qr.Source))
+			qr.Source = ""
 		}
 		f := store.Filter{
 			Source: qr.Source,
@@ -220,8 +232,8 @@ func handler(s *store.Store) http.Handler {
 		}
 		rl := newRail(fc, qr)
 		rl.OOB = true
-		pg := page{Hits: res, Truncated: len(res) == pageLimit, Query: qr, Rail: rl}
-		if err := tmpl.ExecuteTemplate(w, "results.html", view{pick(w, r), pg}); err != nil {
+		pg := page{Hits: res, Truncated: len(res) == pageLimit, Query: qr, Rail: rl, Notes: notes}
+		if err := tmpl.ExecuteTemplate(w, "results.html", view{t, pg}); err != nil {
 			log.Printf("glane: render results.html: %v", err)
 		}
 	})

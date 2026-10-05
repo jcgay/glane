@@ -2,6 +2,7 @@ package web
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -13,16 +14,27 @@ type query struct {
 }
 
 // ops matches one filter in the box; a value with spaces is double-quoted
-// (tag:"software engineering"). index.html's OPS is the same pattern.
-var ops = regexp.MustCompile(`(^|\s)(source|tag|since):("[^"]*"|\S*)`)
+// (tag:"software engineering"), and a quote left open runs to the end of the
+// box. index.html's OPS is the same pattern.
+var ops = regexp.MustCompile(`(^|\s)(source|tag|since):("[^"]*"?|\S*)`)
 
 // parseQuery reads the filters from the URL parameters first, then lets any
 // operator typed in q override them. An operator with an empty value (since:)
-// clears that filter; an unknown one (foo:bar) is just a word.
-func parseQuery(q, source, tag, since string) query {
-	out := query{Source: source, Tag: tag, Since: since}
+// clears that filter; an unknown one (foo:bar) is just a word. Sources are
+// stored lowercase. kept lists, as op:value, each operator typed twice with
+// different values: the last one wins, and the page says so.
+func parseQuery(q, source, tag, since string) (out query, kept []string) {
+	out = query{Source: strings.ToLower(source), Tag: tag, Since: since}
+	seen := map[string]string{}
 	for _, m := range ops.FindAllStringSubmatch(q, -1) {
 		val := strings.Trim(m[3], `"`)
+		if m[2] == "source" {
+			val = strings.ToLower(val)
+		}
+		if prev, ok := seen[m[2]]; ok && prev != val {
+			kept = append(slices.DeleteFunc(kept, func(k string) bool { return strings.HasPrefix(k, m[2]+":") }), m[2]+":"+val)
+		}
+		seen[m[2]] = val
 		switch m[2] {
 		case "source":
 			out.Source = val
@@ -33,7 +45,7 @@ func parseQuery(q, source, tag, since string) query {
 		}
 	}
 	out.Words = strings.Join(strings.Fields(ops.ReplaceAllString(q, " ")), " ")
-	return out
+	return out, kept
 }
 
 // CLI is the `glane search` invocation that returns the same listing, ready to
