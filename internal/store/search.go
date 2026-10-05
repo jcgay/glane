@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -13,8 +14,8 @@ type Filter struct {
 	Tag    string
 }
 
-// ParseSince converts "YYYY" or "YYYY-MM-DD" (what an <input type="date">
-// emits) to a Unix timestamp for Filter.Since — the start of that day/year.
+// ParseSince converts "YYYY", "YYYY-MM-DD" or a relative window ("7d", "2w",
+// "3m", "1y") to a Unix timestamp for Filter.Since — the start of that day/year.
 // Empty input means "no date filter", not an error. The date is read in the
 // local zone: both the picker and someone typing --since mean their own
 // midnight, and parsing as UTC would silently drop items east of Greenwich.
@@ -28,7 +29,23 @@ func ParseSince(v string) (int64, error) {
 	if t, err := time.ParseInLocation("2006", v, time.Local); err == nil {
 		return t.Unix(), nil
 	}
-	return 0, fmt.Errorf("invalid --since %q (want YYYY or YYYY-MM-DD)", v)
+	// A relative window (7d, 2w, 3m, 1y) counts back from today's midnight, so
+	// "7d" means the same thing all day long rather than drifting by the hour.
+	if n, err := strconv.Atoi(v[:len(v)-1]); err == nil && n >= 0 && len(v) > 1 && v[0] != '+' {
+		now := time.Now()
+		t := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+		switch strings.ToLower(v[len(v)-1:]) {
+		case "d":
+			return t.AddDate(0, 0, -n).Unix(), nil
+		case "w":
+			return t.AddDate(0, 0, -7*n).Unix(), nil
+		case "m":
+			return t.AddDate(0, -n, 0).Unix(), nil
+		case "y":
+			return t.AddDate(-n, 0, 0).Unix(), nil
+		}
+	}
+	return 0, fmt.Errorf("invalid --since %q (want YYYY, YYYY-MM-DD or a window like 7d, 2w, 3m, 1y)", v)
 }
 
 type Result struct {

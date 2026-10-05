@@ -163,7 +163,7 @@ everything that landed while you were away.
 |------|---------|---------|
 | `--source` | all | Restrict to one source (`twitter`, `bluesky`, `mastodon`, `github`) |
 | `--tag` | — | Restrict to a tag (see `glane summarize`); with no query, browses that tag |
-| `--since` | — | Only items on/after a date: `YYYY` or `YYYY-MM-DD`, read as your local midnight |
+| `--since` | — | Only items on/after a date: `YYYY` or `YYYY-MM-DD`, read as your local midnight, or a window back from today: `7d`, `2w`, `3m`, `1y` |
 | `--limit` | 20 | Max results |
 
 `--since` filters on the item's own date, which is when *you* starred it for
@@ -181,6 +181,7 @@ an extra highlighted excerpt so you can see why the result came up.
 ./glane search --tag rust           # browse everything tagged rust, newest first
 ./glane search --since 2026-07-20 --limit 100   # review everything since a date
 ./glane search --since 2026-07-20 --source github --limit 100   # …just the repos
+./glane search --since 7d          # what landed this past week
 ```
 
 If an embeddings endpoint is configured (see [Semantic search](#semantic-search)),

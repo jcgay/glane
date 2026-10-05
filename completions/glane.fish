@@ -24,7 +24,7 @@ complete -c glane -n "__fish_seen_subcommand_from sync" -a "github mastodon blue
 # flags
 complete -c glane -n "__fish_seen_subcommand_from search" -l source -d "filter by source"
 complete -c glane -n "__fish_seen_subcommand_from search" -l limit  -d "max results"
-complete -c glane -n "__fish_seen_subcommand_from search" -l since  -d "on/after date (YYYY or YYYY-MM-DD)"
+complete -c glane -n "__fish_seen_subcommand_from search" -l since  -d "on/after date (YYYY, YYYY-MM-DD, or 7d/2w/3m/1y)"
 complete -c glane -n "__fish_seen_subcommand_from search" -l tag    -d "filter by tag"
 complete -c glane -n "__fish_seen_subcommand_from serve"     -l port  -d "listen port"
 complete -c glane -n "__fish_seen_subcommand_from enrich"    -l limit -d "max items this run"

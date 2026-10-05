@@ -282,7 +282,7 @@ func cmdSearch(s *store.Store, args []string) {
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 	source := fs.String("source", "", "filter by source")
 	limit := fs.Int("limit", 20, "max results")
-	since := fs.String("since", "", "only items on/after this date (YYYY or YYYY-MM-DD)")
+	since := fs.String("since", "", "only items on/after this date (YYYY, YYYY-MM-DD, or a window like 7d, 2w, 3m, 1y)")
 	tag := fs.String("tag", "", "filter by tag")
 	fs.Parse(flagArgs)
 	sinceTs, err := store.ParseSince(*since)

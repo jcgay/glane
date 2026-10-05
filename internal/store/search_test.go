@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSearchFTSMatchesAndFilters(t *testing.T) {
@@ -181,6 +182,28 @@ func TestParseSince(t *testing.T) {
 	}
 	if _, err := ParseSince("nope"); err == nil {
 		t.Errorf("ParseSince(\"nope\") = nil error, want an error")
+	}
+	for _, bad := range []string{"d", "-3d", "7x", "7"} {
+		if _, err := ParseSince(bad); err == nil {
+			t.Errorf("ParseSince(%q) = nil error, want an error", bad)
+		}
+	}
+
+	// Relative windows count back from today's local midnight, so "7d" keeps
+	// everything since the start of the day a week ago.
+	now := time.Now()
+	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	for in, want := range map[string]time.Time{
+		"0d":  midnight,
+		"7d":  midnight.AddDate(0, 0, -7),
+		"2w":  midnight.AddDate(0, 0, -14),
+		"3m":  midnight.AddDate(0, -3, 0),
+		"1y":  midnight.AddDate(-1, 0, 0),
+		"30D": midnight.AddDate(0, 0, -30),
+	} {
+		if ts, err := ParseSince(in); err != nil || ts != want.Unix() {
+			t.Errorf("ParseSince(%q) = (%v, %v), want %v", in, time.Unix(ts, 0), err, want)
+		}
 	}
 }
 
