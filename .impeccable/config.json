@@ -1,0 +1,38 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "geist",
+        "createdAt": "2026-10-05T19:23:28.874Z",
+        "reason": "project choice: commit 28bf07f embeds Geist on purpose (SIL OFL, offline UI)"
+      },
+      {
+        "rule": "overused-font",
+        "value": "geist mono",
+        "createdAt": "2026-10-05T19:23:28.943Z",
+        "reason": "project choice: commit 28bf07f embeds Geist Mono on purpose"
+      },
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          "internal/web/templates/index.html"
+        ],
+        "createdAt": "2026-10-05T19:23:29.010Z",
+        "reason": "the only infinite animation is the htmx loading bar (.load), visible only while a request runs"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "internal/web/templates/index.html"
+        ],
+        "createdAt": "2026-10-05T19:23:29.074Z",
+        "reason": "dense keyboard console: 11-15px range is deliberate, hierarchy comes from weight, mono vs sans and colour"
+      }
+    ]
+  }
+}
