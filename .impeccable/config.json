@@ -32,6 +32,15 @@
         ],
         "createdAt": "2026-10-05T19:23:29.074Z",
         "reason": "dense keyboard console: 11-15px range is deliberate, hierarchy comes from weight, mono vs sans and colour"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "internal/web/templates/index.html"
+        ],
+        "createdAt": "2026-10-06T17:30:49.998Z",
+        "reason": "assistant triage: flags .seg, a segmented control whose buttons fill their cells with centred text by design; predates this session and desktop is pixel-identical"
       }
     ]
   }
