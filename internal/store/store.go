@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
 
 	_ "modernc.org/sqlite"
 )
@@ -105,6 +106,27 @@ func Open(path string) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, err
+	}
+	return &Store{db: db}, nil
+}
+
+// OpenReadOnly opens an existing database without ever writing to it: no
+// schema, no journal file, no lock. immutable=1 is safe because a synced copy
+// is only ever replaced whole (the sync tool renames a finished download over
+// it), never changed in place; to see a new copy, open it again.
+func OpenReadOnly(path string) (*Store, error) {
+	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro&immutable=1")
+	if err != nil {
+		return nil, err
+	}
+	// every new connection reopens the path, which may by now point at a
+	// newer or broken copy: pin the one opened below to keep reading this one
+	db.SetMaxOpenConns(1)
+	// sql.Open is lazy: touch items so that a missing file or a database that
+	// isn't glane's fails here rather than on the first search
+	if _, err := db.Exec("SELECT 1 FROM items LIMIT 1"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("open %s read-only: %w", path, err)
 	}
 	return &Store{db: db}, nil
 }
