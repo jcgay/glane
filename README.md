@@ -14,29 +14,99 @@ It imports a **Twitter/X archive** and syncs live sources — **GitHub stars**,
 An optional LLM step summarizes and tags each saved article, so you can recognize
 a forgotten bookmark at a glance and browse your veille by topic.
 
-## Requirements
-
-- [mise](https://mise.jdx.dev/) (manages the Go toolchain; version pinned in `mise.toml`)
-- Or Go 1.25+ directly if you prefer not to use mise
-
-```sh
-mise install          # installs the pinned Go
-```
-
 ## Install
+
+### On your computer
 
 ```sh
 brew install jcgay/jcgay/glane
 ```
 
-## Build
+That's all full-text search needs. Everything else is optional, and only
+for the feature it names:
+
+| To… | Install | See |
+|-----|---------|-----|
+| sync GitHub, Mastodon, Bluesky | nothing, just a token per source | [Quick start](#quick-start) |
+| search by meaning | [Ollama](https://ollama.com) (`brew install ollama`) or any OpenAI-compatible embeddings API | [Semantic search](#semantic-search) |
+| summarize and tag articles | the same, with a chat model | [`glane summarize`](#glane-summarize---limit-n) |
+| share the index with other machines or a phone | [Syncthing](https://syncthing.net) (`brew install syncthing`) | [Sharing across machines](#sharing-across-machines) |
+| keep the index fresh on a schedule | nothing, `glane update` runs sync, enrich and summarize | [Scheduling](#scheduling) |
+
+### On an Android phone
+
+- An arm64 phone on Android 11 or newer.
+- [Syncthing-Fork](https://f-droid.org/packages/com.github.catfriend1.syncthingfork/)
+  from F-Droid, to receive `glane.db` from your computer.
+- The glane APK. There is no published release: build it (see
+  [Android app](#android-app) under Development), or get the
+  `app-debug.apk` file from whoever built it.
+
+Then follow [Android](#android) to share the database and set the app up.
+
+## Development
+
+### Go binary
+
+- [mise](https://mise.jdx.dev/), which installs the Go version pinned in
+  `mise.toml`. Or Go 1.26+ directly, if you prefer not to use mise.
 
 ```sh
-mise exec -- go build -o glane .
-# or, with mise activated in your shell:  go build -o glane .
+mise install          # installs the pinned Go
+mise run build        # ./glane, self-contained (the web UI assets are embedded)
+mise run check        # tests, go vet, gofmt
 ```
 
-This produces a self-contained `glane` binary (the web UI assets are embedded).
+Without mise activated in your shell, prefix Go commands with
+`mise exec --`, e.g. `mise exec -- go test ./internal/search/`.
+
+### Android app
+
+The app lives in `android/` and packages the Go binary, cross-compiled
+without cgo, so on top of Go it needs:
+
+- **JDK 17 or newer**, the Android Gradle Plugin's minimum (it also builds on
+  Temurin 25), e.g. `mise use --global java@temurin-21`.
+- **The Android SDK** with Platform 36, Build-Tools 36 and Platform-Tools
+  (`adb`). Android Studio's SDK Manager installs them; without Android Studio:
+
+  ```sh
+  brew install --cask android-commandlinetools
+  sdkmanager --licenses
+  sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+  ```
+
+- **Where that SDK is**: set `ANDROID_HOME`, or write it to
+  `android/local.properties` (ignored by git). Android Studio puts it in
+  `~/Library/Android/sdk`, the Homebrew cask in
+  `/opt/homebrew/share/android-commandlinetools`:
+
+  ```properties
+  sdk.dir=/Users/you/Library/Android/sdk
+  ```
+
+Gradle itself, the NDK, gomobile and Android Studio are not needed: the
+wrapper downloads Gradle, and Go builds the server alone.
+
+```sh
+mise run android      # android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Run it through mise, or with mise activated: the build calls `go`, which
+must be on the `PATH` of the Gradle daemon.
+
+To install on a phone, turn on USB debugging (Settings › About phone, tap
+*Build number* seven times, then Developer options › USB debugging), plug
+it in and accept the prompt:
+
+```sh
+adb devices           # the phone, listed as "device"
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+The APK is signed with the debug key in `~/.android/debug.keystore`. An
+update installs over the existing app only when built with the same key: from
+another machine, uninstall the app first, or copy that keystore over.
 
 ## Quick start
 
@@ -396,13 +466,10 @@ An Android app searches your index offline, read-only, over the copy of
    [Syncthing-Fork](https://f-droid.org/packages/com.github.catfriend1.syncthingfork/)
    from F-Droid, add the `~/Sync/glane` folder and set it to **Receive
    Only** on the phone, so the phone can never send a change back.
-2. Build and install the app (needs the Android SDK and USB debugging on
-   the phone):
-
-   ```sh
-   mise run android
-   adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-   ```
+2. Install the app: `adb install -r app-debug.apk` from a computer, or copy
+   the APK to the phone and open it (Android asks to allow installing apps
+   from that source). Building the APK is covered in
+   [Android app](#android-app).
 
 3. Open glane, grant "All files access" (needed to read the Syncthing
    folder), and adjust the database path if it isn't
