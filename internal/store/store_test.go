@@ -85,6 +85,15 @@ func TestForeignKeysCascade(t *testing.T) {
 	}
 }
 
+func TestOpenCreatesParentDir(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "share", "glane", "glane.db")
+	s, err := Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+}
+
 func TestOpenReadOnlyNeverWrites(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "glane.db")
