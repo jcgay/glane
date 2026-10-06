@@ -19,6 +19,20 @@ func TestFirstURL(t *testing.T) {
 	if got := FirstURL("no link here"); got != "" {
 		t.Fatalf("want empty, got %q", got)
 	}
+	for text, want := range map[string]string{
+		"the loop [https://t.ly/U0KfM].":           "https://t.ly/U0KfM",
+		"(see https://x.com/a), then":              "https://x.com/a",
+		"read https://x.com/a!":                    "https://x.com/a",
+		"https://en.wikipedia.org/wiki/Go_(lang).": "https://en.wikipedia.org/wiki/Go_(lang)",
+		"lire “https://x.com/a”.":                  "https://x.com/a",
+		"«https://x.com/a»":                        "https://x.com/a",
+		"<https://x.com/a>":                        "https://x.com/a",
+		"https://x.com/a/":                         "https://x.com/a/",
+	} {
+		if got := FirstURL(text); got != want {
+			t.Errorf("FirstURL(%q) = %q, want %q", text, got, want)
+		}
+	}
 }
 
 func TestExtractPullsBody(t *testing.T) {

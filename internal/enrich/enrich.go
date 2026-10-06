@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	readability "github.com/go-shiori/go-readability"
 	"github.com/jcgay/glane/internal/embed"
@@ -17,7 +18,24 @@ import (
 
 var urlRe = regexp.MustCompile(`https?://[^\s]+`)
 
-func FirstURL(text string) string { return urlRe.FindString(text) }
+// FirstURL returns the first link in text, without the punctuation prose glues
+// to it ("[url].", "(see url),", "«url»", "<url>"). A closing bracket stays
+// when the URL opened it, as in Wikipedia's ".../Go_(lang)".
+func FirstURL(text string) string {
+	u := urlRe.FindString(text)
+	for u != "" {
+		last, size := utf8.DecodeLastRuneInString(u)
+		switch {
+		case strings.ContainsRune(".,;:!?'\"”’»›>…", last):
+		case last == ')' && strings.Count(u, "(") < strings.Count(u, ")"):
+		case last == ']' && strings.Count(u, "[") < strings.Count(u, "]"):
+		default:
+			return u
+		}
+		u = u[:len(u)-size]
+	}
+	return u
+}
 
 func Extract(body io.Reader, pageURL string) (string, string, error) {
 	u, _ := url.Parse(pageURL)
