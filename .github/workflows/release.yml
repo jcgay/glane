@@ -24,3 +24,40 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+  # The APK is signed with the release key kept in the repository secrets, so
+  # each release installs over the previous one (see README, Android app).
+  android:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+      - name: Build the signed APK
+        working-directory: android
+        env:
+          GLANE_KEYSTORE_BASE64: ${{ secrets.GLANE_KEYSTORE_BASE64 }}
+          GLANE_KEYSTORE_PASSWORD: ${{ secrets.GLANE_KEYSTORE_PASSWORD }}
+          GLANE_KEY_ALIAS: ${{ secrets.GLANE_KEY_ALIAS }}
+          GLANE_KEY_PASSWORD: ${{ secrets.GLANE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$GLANE_KEYSTORE_BASE64" ]; then
+            echo "::error::GLANE_KEYSTORE_BASE64 is not set: see README, Android app"
+            exit 1
+          fi
+          echo "$GLANE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/glane.jks"
+          GLANE_KEYSTORE="$RUNNER_TEMP/glane.jks" ./gradlew assembleRelease -PglaneVersion="${GITHUB_REF_NAME#v}"
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          apk="glane_${GITHUB_REF_NAME#v}_android_arm64.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "$apk"
+          gh release upload "$GITHUB_REF_NAME" "$apk" --clobber
