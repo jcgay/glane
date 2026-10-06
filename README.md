@@ -38,9 +38,10 @@ for the feature it names:
 - An arm64 phone on Android 11 or newer.
 - [Syncthing-Fork](https://f-droid.org/packages/com.github.catfriend1.syncthingfork/)
   from F-Droid, to receive `glane.db` from your computer.
-- The glane APK. There is no published release: build it (see
-  [Android app](#android-app) under Development), or get the
-  `app-debug.apk` file from whoever built it.
+- The glane APK: `glane_<version>_android_arm64.apk`, attached to each
+  [release](https://github.com/jcgay/glane/releases). To be told about new
+  ones and install them from the phone, add the repository to
+  [Obtainium](https://github.com/ImranR98/Obtainium).
 
 Then follow [Android](#android) to share the database and set the app up.
 
@@ -104,9 +105,31 @@ adb devices           # the phone, listed as "device"
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-The APK is signed with the debug key in `~/.android/debug.keystore`. An
-update installs over the existing app only when built with the same key: from
-another machine, uninstall the app first, or copy that keystore over.
+That APK is signed with the debug key in `~/.android/debug.keystore`.
+Android installs an update over an app only when both are signed with the
+same key, so a debug build and a release build don't mix: uninstall one
+before installing the other.
+
+CI builds a debug APK on every pull request and keeps it as a run artifact.
+A `v*` tag builds the release APK, signed with the release key held in the
+repository secrets, and attaches it to the GitHub release. The release key
+is created once:
+
+```sh
+keytool -genkeypair -keystore glane-release.jks -alias glane \
+  -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=glane"
+base64 -i glane-release.jks | gh secret set GLANE_KEYSTORE_BASE64
+gh secret set GLANE_KEYSTORE_PASSWORD   # the password keytool asked for
+gh secret set GLANE_KEY_PASSWORD        # the same one (keytool's PKCS12 default)
+gh secret set GLANE_KEY_ALIAS --body glane
+```
+
+Keep `glane-release.jks` and its passwords somewhere safe, out of the
+repository: without them no later release can update an installed app, and
+everyone would have to uninstall and start over. To build a signed release
+locally, point `GLANE_KEYSTORE` at the file and set the three other
+variables, then run `./gradlew assembleRelease -PglaneVersion=1.4.0` in
+`android/`.
 
 ## Quick start
 
@@ -466,10 +489,11 @@ An Android app searches your index offline, read-only, over the copy of
    [Syncthing-Fork](https://f-droid.org/packages/com.github.catfriend1.syncthingfork/)
    from F-Droid, add the `~/Sync/glane` folder and set it to **Receive
    Only** on the phone, so the phone can never send a change back.
-2. Install the app: `adb install -r app-debug.apk` from a computer, or copy
-   the APK to the phone and open it (Android asks to allow installing apps
-   from that source). Building the APK is covered in
-   [Android app](#android-app).
+2. Install the app: download the APK from the
+   [releases](https://github.com/jcgay/glane/releases) on the phone and open
+   it (Android asks to allow installing apps from that source), or run
+   `adb install -r <apk>` from a computer. Building one yourself is covered
+   in [Android app](#android-app).
 
 3. Open glane, grant "All files access" (needed to read the Syncthing
    folder), and adjust the database path if it isn't
