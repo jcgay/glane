@@ -162,6 +162,8 @@
     }
     /* the passage of the fetched article that matched, when nothing shown did */
     .hit p.x { -webkit-line-clamp: 1; padding-left: 8px; border-left: 1px solid var(--border-strong); font-size: 13px; color: var(--faint); }
+    /* the selected card shows its whole title and summary (up to ~7 lines) */
+    .hit[aria-current="true"] :is(h3, p:not(.x)) { -webkit-line-clamp: unset; }
     .hit mark { padding: 0 1px; border-radius: 2px; background: var(--accent-soft); color: var(--accent-ink); }
     .hit .m {
       grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
