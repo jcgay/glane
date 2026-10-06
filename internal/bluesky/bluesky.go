@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -45,10 +46,52 @@ type postView struct {
 		Handle string `json:"handle"`
 	} `json:"author"`
 	Record struct {
-		Text      string `json:"text"`
-		CreatedAt string `json:"createdAt"`
+		Text      string  `json:"text"`
+		CreatedAt string  `json:"createdAt"`
+		Facets    []facet `json:"facets"`
 	} `json:"record"`
 	Embed *embedView `json:"embed"`
+}
+
+// facet annotates a UTF-8 byte range of the record text (app.bsky.richtext.facet).
+type facet struct {
+	Index    facetIndex     `json:"index"`
+	Features []facetFeature `json:"features"`
+}
+
+type facetIndex struct {
+	ByteStart int `json:"byteStart"`
+	ByteEnd   int `json:"byteEnd"`
+}
+
+type facetFeature struct {
+	Type string `json:"$type"`
+	URI  string `json:"uri"`
+}
+
+// expandLinks swaps each link facet's range in text for its full URI. Bluesky
+// clients shorten long links in the text ("https://blog.senko.net/c...") and
+// keep the real URL only in the facet. Facets are applied from the last one
+// back so earlier byte offsets stay valid; malformed ones are skipped.
+// https://docs.bsky.app/docs/advanced-guides/post-richtext
+func expandLinks(text string, facets []facet) string {
+	sorted := slices.Clone(facets)
+	slices.SortFunc(sorted, func(a, b facet) int { return b.Index.ByteStart - a.Index.ByteStart })
+	end := len(text) + 1 // facets must not overlap the one applied before
+	for _, f := range sorted {
+		s, e := f.Index.ByteStart, f.Index.ByteEnd
+		if s < 0 || s >= e || e > len(text) || e > end {
+			continue
+		}
+		for _, ft := range f.Features {
+			if ft.Type == "app.bsky.richtext.facet#link" && ft.URI != "" {
+				text = text[:s] + ft.URI + text[e:]
+				end = s
+				break
+			}
+		}
+	}
+	return text
 }
 
 type externalView struct {
@@ -99,7 +142,7 @@ func (p postView) toItem(kind string) store.Item {
 	if t, err := time.Parse(time.RFC3339, p.Record.CreatedAt); err == nil {
 		ts = t.Unix()
 	}
-	text := p.Record.Text
+	text := expandLinks(p.Record.Text, p.Record.Facets)
 	if ext := externalLink(p.Embed); ext != nil {
 		// Append the shared article's title/description/URL so enrich's
 		// FirstURL(Text) can follow it and FTS indexes the article context.

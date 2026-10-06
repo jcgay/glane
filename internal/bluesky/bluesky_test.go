@@ -1,6 +1,7 @@
 package bluesky
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -287,5 +288,44 @@ func TestSyncExternalLinkIsSearchableAndInText(t *testing.T) {
 	}
 	if !strings.Contains(res[0].Text, "https://example.com/scaling-postgres") {
 		t.Fatalf("external URL not in Text (enrich could not follow it): %q", res[0].Text)
+	}
+}
+
+// TestToItemExpandsLinkFacets: Bluesky shortens long links in record.text
+// ("https://blog.senko.net/c...") and keeps the full URL only in the link
+// facet, indexed in UTF-8 bytes. enrich follows the first URL in the text, so
+// the shortened one must be replaced.
+func TestToItemExpandsLinkFacets(t *testing.T) {
+	raw := `{
+		"uri": "at://d/app.bsky.feed.post/x",
+		"author": {"handle": "a.bsky.social"},
+		"record": {
+			"text": "🔥 read https://blog.senko.net/c... and blog.senko.net/b... now",
+			"facets": [
+				{"index": {"byteStart": 10, "byteEnd": 37},
+				 "features": [{"$type": "app.bsky.richtext.facet#link", "uri": "https://blog.senko.net/code-was-never-the-hard-part"}]},
+				{"index": {"byteStart": 42, "byteEnd": 61},
+				 "features": [{"$type": "app.bsky.richtext.facet#link", "uri": "https://blog.senko.net/bonus"}]},
+				{"index": {"byteStart": 0, "byteEnd": 4},
+				 "features": [{"$type": "app.bsky.richtext.facet#tag", "tag": "fire"}]}
+			]
+		}
+	}`
+	var p postView
+	if err := json.Unmarshal([]byte(raw), &p); err != nil {
+		t.Fatal(err)
+	}
+	want := "🔥 read https://blog.senko.net/code-was-never-the-hard-part and https://blog.senko.net/bonus now"
+	if got := p.toItem("like").Text; got != want {
+		t.Fatalf("Text = %q\nwant   %q", got, want)
+	}
+}
+
+func TestToItemIgnoresOutOfRangeFacet(t *testing.T) {
+	var p postView
+	p.Record.Text = "short"
+	p.Record.Facets = []facet{{Index: facetIndex{ByteStart: 2, ByteEnd: 99}, Features: []facetFeature{{Type: "app.bsky.richtext.facet#link", URI: "https://x.com"}}}}
+	if got := p.toItem("like").Text; got != "short" {
+		t.Fatalf("bad facet changed text: %q", got)
 	}
 }
