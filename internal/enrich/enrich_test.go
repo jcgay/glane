@@ -35,6 +35,19 @@ func TestFirstURL(t *testing.T) {
 	}
 }
 
+func TestFetchURLUpgradesTCo(t *testing.T) {
+	for in, want := range map[string]string{
+		"http://t.co/4cwf2k15ow":    "https://t.co/4cwf2k15ow",
+		"https://t.co/4cwf2k15ow":   "https://t.co/4cwf2k15ow",
+		"http://example.com/t.co/x": "http://example.com/t.co/x",
+		"http://t.co.example.com/x": "http://t.co.example.com/x",
+	} {
+		if got := fetchURL(in); got != want {
+			t.Errorf("fetchURL(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 // TestRunSendsUserAgent: some sites (codescene, lemire.me) answer 403 to Go's
 // default User-Agent, so enrich must identify itself.
 func TestRunSendsUserAgent(t *testing.T) {

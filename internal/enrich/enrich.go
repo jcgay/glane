@@ -37,6 +37,16 @@ func FirstURL(text string) string {
 	return u
 }
 
+// fetchURL returns the URL to request for link. t.co no longer answers plain
+// HTTP (Cloudflare 520) but still redirects over HTTPS, and old tweets in a
+// Twitter archive carry http://t.co links.
+func fetchURL(link string) string {
+	if rest, ok := strings.CutPrefix(link, "http://t.co/"); ok {
+		return "https://t.co/" + rest
+	}
+	return link
+}
+
 // userAgent replaces Go's default "Go-http-client/1.1", which some sites
 // (codescene.com, lemire.me) answer with a 403.
 const userAgent = "glane/1.0 (+https://github.com/jcgay/glane)"
@@ -87,7 +97,7 @@ func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int, progress
 		e := Enrichment{LinkURL: link, Status: "failed"}
 
 		var resp *http.Response
-		req, err := http.NewRequest(http.MethodGet, link, nil)
+		req, err := http.NewRequest(http.MethodGet, fetchURL(link), nil)
 		if err == nil {
 			req.Header.Set("User-Agent", userAgent)
 			resp, err = hc.Do(req)
