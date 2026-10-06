@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English by default, French in values-fr: the same two languages as the
+     web UI, which picks one from the phone's language too -->
+<resources>
+    <string name="access_title">File access</string>
+    <string name="access_body">glane reads glane.db in the folder Syncthing keeps in sync, so it needs access to all files. It only ever reads, never writes.</string>
+    <string name="access_allow">Allow</string>
+    <string name="missing_title">glane.db not found</string>
+    <string name="missing_body">Syncthing may not have received it yet, or it is somewhere else.</string>
+    <string name="change_path">Change the path</string>
+    <string name="retry">Try again</string>
+    <string name="starting">Starting glane…</string>
+    <string name="failed_title">glane didn\'t start</string>
+    <string name="restart">Restart</string>
+    <string name="path_title">Path to glane.db</string>
+</resources>
