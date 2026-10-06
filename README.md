@@ -385,6 +385,36 @@ Three rules keep the shared file consistent:
   placeholder. Mark the glane folder "keep downloaded" (a plain Syncthing or
   Dropbox folder doesn't have this issue).
 
+## Android
+
+An Android app searches your index offline, read-only, over the copy of
+`glane.db` that Syncthing keeps on the phone. It wraps `glane serve
+--read-only` and shows the same web UI; semantic search is off there
+(full-text only).
+
+1. Share the database folder with the phone: install
+   [Syncthing-Fork](https://f-droid.org/packages/com.github.catfriend1.syncthingfork/)
+   from F-Droid, add the `~/Sync/glane` folder and set it to **Receive
+   Only** on the phone, so the phone can never send a change back.
+2. Build and install the app (needs the Android SDK and USB debugging on
+   the phone):
+
+   ```sh
+   mise run android
+   adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+   ```
+
+3. Open glane, grant "All files access" (needed to read the Syncthing
+   folder), and adjust the database path if it isn't
+   `/storage/emulated/0/Sync/glane/glane.db`.
+
+When Syncthing delivers a newer copy, the next search uses it, with no
+restart.
+
+The server listens on `127.0.0.1` with a random port and no password, so
+another app on the phone could find it and read your index (never change
+it). Only install apps you trust next to it.
+
 ## Environment variables
 
 | Variable | Used by | Meaning |

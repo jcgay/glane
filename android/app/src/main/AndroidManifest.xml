@@ -1,4 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application android:label="glane" />
+
+    <!-- read glane.db where Syncthing drops it, in shared storage -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <!-- any socket, even the WebView ↔ glane one on 127.0.0.1, fails with EPERM without it -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- cleartext is only ever http://127.0.0.1: external links go to the browser -->
+    <application
+        android:label="glane"
+        android:theme="@android:style/Theme.DeviceDefault.DayNight"
+        android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="true">
+        <!-- configChanges: rotating must not recreate the activity and kill the server -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
 </manifest>
