@@ -21,3 +21,8 @@ run = "gofmt -w ."
 description = "Run test, vet and check formatting"
 depends = ["test", "vet"]
 run = "test -z \"$(gofmt -l .)\" || { echo 'unformatted files:'; gofmt -l .; exit 1; }"
+
+[tasks.android]
+description = "Build the Android app (debug-signed APK, Go server included)"
+dir = "android"
+run = "./gradlew assembleDebug"
