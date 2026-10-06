@@ -47,6 +47,7 @@
     }
     .fold:hover { color: var(--ink); background: var(--surface-2); }
     .fold .i { width: 16px; height: 16px; }
+    .fold .i.phone { display: none; }
 
     /* thin bar on the bottom edge of the top bar while a request runs */
     .load { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; overflow: hidden; visibility: hidden; }
@@ -206,21 +207,75 @@
       padding: 6px 12px; border-radius: 6px; font: 12px var(--mono); color: var(--bg); background: var(--ink);
     }
 
-    /* phones: the document scrolls (URL bar collapses, pull-to-refresh works),
-       the rail lays out as a strip of the essential filters */
+    /* phones: the document scrolls (URL bar collapses, pull-to-refresh works).
+       The rail starts folded so results come first; the fold button opens it
+       as a panel under the bar, and an amber dot on it says a filter is on. */
     @media (max-width: 760px) {
-      html, body { height: auto; }
-      body { display: block; }
-      .top { position: sticky; top: 0; z-index: 5; }
-      .shell, .shell.folded { display: block; }
-      .shell.folded .rail { display: flex; }
+      html { height: auto; }
+      body { height: auto; min-height: 100dvh; }
+      .top { position: sticky; top: 0; z-index: 5; gap: 8px; padding: 8px 8px 8px 16px; }
+      .shell, .shell.folded { display: block; flex: 1; }
       .list { overflow: visible; }
-      .rail { flex-direction: row; flex-wrap: wrap; gap: 14px; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--border); }
-      .rail > section { flex: 1 1 150px; }
-      .rail .tagsec, .rail .healthsec, .facet kbd, .fold, .navlinks, .cmd kbd, .status .keys { display: none; }
+      .rail { flex-direction: row; flex-wrap: wrap; gap: 18px 20px; padding: 16px; border-right: 0; border-bottom: 1px solid var(--border); background: var(--surface); }
+      .rail > section { flex: 1 1 150px; min-width: 0; }
+      /* the period on top, then the sources two by two: half the height of
+         a single column, and no empty half beside it */
+      .rail .sincesec { order: -1; flex-basis: 100%; }
+      .rail #rail-sources { flex-basis: 100%; }
+      .rail .facet { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
+      .rail .tagsec { flex-basis: 100%; }
+      .rail .healthsec, .navlinks { display: none; }
+
+      .fold { position: relative; order: 1; }
+      .fold .i { display: none; }
+      .fold .i.phone { display: block; }
+      .fold[aria-expanded="true"] { color: var(--accent-ink); background: var(--accent-soft); }
+      .fold.on::after {
+        content: ""; position: absolute; top: 9px; right: 9px; width: 7px; height: 7px;
+        border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px var(--surface);
+      }
+      /* every tag would fill the screen: two rows that scroll sideways, edge to edge */
+      .tagrail {
+        display: grid; grid-auto-flow: column; grid-template-rows: auto auto; justify-content: start;
+        overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+        margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px;
+        /* fade the right edge so a cut on a tag boundary still reads as "more" */
+        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+        mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+      }
+      .tagrail .tag { white-space: nowrap; }
+
       .cli { width: 100%; margin-left: 0; }
       .head, .hit { padding-inline: 16px; }
-      .hit { grid-template-columns: 2ch minmax(0, 1fr) auto; gap: 4px 10px; }
+      .hit { grid-template-columns: 2ch minmax(0, 1fr) auto; gap: 6px 10px; padding-block: 14px; }
+      .hit h3 { font-size: 15.5px; }
+      .hit p { font-size: 14.5px; }
+    }
+
+    /* touch, at any width (a phone on its side, a tablet): no keyboard to
+       hint at, no shell to paste a command into, and everything a finger
+       taps at least 44px tall, tags 32px. A mouse never matches this. */
+    /* a phone on its side: the sync line would take a third of the height */
+    @media (pointer: coarse) and (max-height: 500px) { .status .sync { display: none; } }
+    @media (pointer: coarse) {
+      .facet kbd, .fold kbd, .cmd kbd, .status .keys, .cli { display: none; }
+      .field input, .field .hl { padding: 11px 0; font-size: 16px; }
+      .fold { justify-content: center; width: 44px; height: 44px; padding: 0; border-radius: 8px; }
+      .fold .i { width: 20px; height: 20px; }
+      .facet { gap: 2px; }
+      .facet button { min-height: 44px; font-size: 15px; }
+      .seg button { min-height: 44px; font-size: 13px; }
+      .tag { align-items: center; min-height: 32px; padding: 0 10px; font-size: 13px; }
+      .tagrail, .tags { gap: 8px; }
+      /* on a result a tag stays a light 24px label; an invisible margin
+         makes it a 34px target */
+      .hit .tag { position: relative; min-height: 24px; padding: 0 8px; }
+      .hit .tag::after { content: ""; position: absolute; inset: -5px -2px; }
+      /* "+2" only names the other tags in a hover tooltip a finger can't open */
+      .tags .plus { display: none; }
+      .btn { min-height: 44px; padding: 0 16px; font-size: 13px; }
+      /* grow the meta links' hit area without moving the text */
+      .hit .m a { padding-block: 10px; margin-block: -10px; }
     }
   </style>
 </head>
@@ -230,7 +285,8 @@
   <header class="top">
     <a class="brand" href="/" title="{{.T.tagline}}"><i></i>glane</a>
     <button class="fold" id="fold" type="button" aria-controls="rail" aria-expanded="true" title="{{.T.toggleFilters}}">
-      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg><kbd>[</kbd>
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+      <svg class="i phone" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><kbd>[</kbd>
     </button>
     <!-- hx-trigger="load" opens the page on the newest items rather than a blank
          #results; "submit" is how Enter and the filter buttons (via the script
@@ -258,7 +314,7 @@
   <div class="shell" id="shell">
     <aside class="rail" id="rail" aria-label="{{.T.filtersAria}}">
       {{template "rail-sources" .}}
-      <section>
+      <section class="sincesec">
         <h2>{{.T.since}}</h2>
         <div class="seg" role="group" aria-label="{{.T.sinceAria}}">
           <button type="button" data-op="since" data-v="7d" aria-pressed="false">7d</button><button type="button" data-op="since" data-v="30d" aria-pressed="false">30d</button><button type="button" data-op="since" data-v="1y" aria-pressed="false">1y</button><button type="button" data-op="since" data-v="" aria-pressed="false">{{.T.allTime}}</button>
@@ -289,7 +345,7 @@
     <span>{{.D.Stats.Total}} {{.T.items}}</span>
     <span>fts5 <span class="on">●</span></span>
     <span>vec {{if .D.Embed}}<span class="on">●</span> {{.D.EmbedModel}}{{else}}○ {{.T.off}}{{end}}</span>
-    {{if .D.Stats.LastSyncBySource}}<span>sync {{range $i, $s := .D.Stats.LastSyncBySource}}{{if $i}} · {{end}}{{$s.Source}} {{reltime $s.UpdatedAt $.T}}{{end}}</span>{{end}}
+    {{if .D.Stats.LastSyncBySource}}<span class="sync">sync {{range $i, $s := .D.Stats.LastSyncBySource}}{{if $i}} · {{end}}{{$s.Source}} {{reltime $s.UpdatedAt $.T}}{{end}}</span>{{end}}
     <span class="keys">
       <span><kbd>j</kbd> <kbd>k</kbd> {{.T.keyMove}}</span><span><kbd>o</kbd> {{.T.keyOpen}}</span>
       <span><kbd>y</kbd> {{.T.keyCopy}}</span><span><kbd>[</kbd> {{.T.filters}}</span><span><kbd>?</kbd> {{.T.keyHelp}}</span>
@@ -335,6 +391,7 @@
     function paint() {
       hl.innerHTML = esc(q.value).replace(OPS, '$1<span class="op">$2<b>:</b>$3</span>');
       const o = ops();
+      document.getElementById('fold').classList.toggle('on', Object.values(o).some(Boolean));
       document.querySelectorAll('.rail [data-op], #results [data-op]').forEach(b =>
         b.setAttribute('aria-pressed', (o[b.dataset.op] || '') === b.dataset.v));
     }
@@ -390,12 +447,18 @@
       paint(); popping = true; htmx.trigger(form, 'submit');
     });
 
+    // A phone opens on its results with the rail folded, whatever a wide
+    // window last chose, and its own toggling isn't remembered.
+    const phone = matchMedia('(max-width: 760px)');
     function fold(force) {
       const folded = shell.classList.toggle('folded', force);
       document.getElementById('fold').setAttribute('aria-expanded', !folded);
-      try { localStorage.setItem('glane.rail', folded ? 'folded' : ''); } catch {}
+      if (!phone.matches) try { localStorage.setItem('glane.rail', folded ? 'folded' : ''); } catch {}
+      // the panel opens at the top of the page: bring it into view from deep in the list
+      else if (!folded && force === undefined) scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     }
-    try { if (localStorage.getItem('glane.rail') === 'folded') fold(true); } catch {}
+    if (phone.matches) fold(true);
+    else try { if (localStorage.getItem('glane.rail') === 'folded') fold(true); } catch {}
 
     q.addEventListener('input', paint);
     q.addEventListener('scroll', () => { hl.scrollLeft = q.scrollLeft; });
