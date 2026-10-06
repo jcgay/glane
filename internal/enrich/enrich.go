@@ -37,6 +37,10 @@ func FirstURL(text string) string {
 	return u
 }
 
+// userAgent replaces Go's default "Go-http-client/1.1", which some sites
+// (codescene.com, lemire.me) answer with a 403.
+const userAgent = "glane/1.0 (+https://github.com/jcgay/glane)"
+
 func Extract(body io.Reader, pageURL string) (string, string, error) {
 	u, _ := url.Parse(pageURL)
 	art, err := readability.FromReader(body, u)
@@ -82,7 +86,12 @@ func Run(s *store.Store, hc *http.Client, emb *embed.Client, limit int, progress
 		report(fmt.Sprintf("enrich [%d/%d] %s…", i+1, len(items), host))
 		e := Enrichment{LinkURL: link, Status: "failed"}
 
-		resp, err := hc.Get(link)
+		var resp *http.Response
+		req, err := http.NewRequest(http.MethodGet, link, nil)
+		if err == nil {
+			req.Header.Set("User-Agent", userAgent)
+			resp, err = hc.Do(req)
+		}
 		if err == nil && resp.StatusCode == 200 {
 			// resp.Request.URL is the final URL after redirects, so this
 			// un-shortens t.co (and any other shortener) for free.

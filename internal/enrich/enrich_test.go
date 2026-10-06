@@ -35,6 +35,33 @@ func TestFirstURL(t *testing.T) {
 	}
 }
 
+// TestRunSendsUserAgent: some sites (codescene, lemire.me) answer 403 to Go's
+// default User-Agent, so enrich must identify itself.
+func TestRunSendsUserAgent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.UserAgent(), "Go-http-client") {
+			http.Error(w, "bots go away", http.StatusForbidden)
+			return
+		}
+		w.Write([]byte(`<html><head><title>Post</title></head><body><article><p>article body about profile guided optimization</p></article></body></html>`))
+	}))
+	defer srv.Close()
+
+	s, err := store.Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.Upsert([]store.Item{{Source: "bluesky", SourceID: "1", URL: "https://bsky.app/p/1", Text: "read " + srv.URL + "/post"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	done, failed, err := Run(s, srv.Client(), nil, 10)
+	if err != nil || done != 1 || failed != 0 {
+		t.Fatalf("Run = %d done, %d failed, err %v; want 1 done", done, failed, err)
+	}
+}
+
 func TestExtractPullsBody(t *testing.T) {
 	html := `<html><head><title>My Post</title></head><body><article>
 		<p>The cold start problem in AWS Lambda is about init latency.</p>
