@@ -252,7 +252,7 @@ Add `-json` for machine-readable output (same fields, JSON-encoded).
 ./glane stats -json
 ```
 
-### `glane serve [--port N]`
+### `glane serve [--port N] [--read-only]`
 Serves the local web UI (default `http://127.0.0.1:8080`), a search console
 built for the keyboard. The page opens on your newest items and searches as you
 type.
@@ -273,6 +273,11 @@ type.
 - **Index health** in the rail: how much is enriched, summarized and embedded,
   with the command that fills each gap. The status bar shows the item count,
   whether semantic search is on (and its model), and the last sync per source.
+- **`--read-only`** never writes the database: no schema migration, no
+  journal file, and a missing file is an error rather than a new empty
+  database. When a sync tool replaces the file, the next request picks up
+  the new copy without a restart. This is how the Android app serves the
+  copy Syncthing brings to the phone.
 
 Local-only; no auth.
 
