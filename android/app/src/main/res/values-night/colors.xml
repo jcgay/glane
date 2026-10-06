@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the web UI's tokens (internal/web/static/base.css), dark -->
+<resources>
+    <color name="bg">#121210</color>
+    <color name="surface">#18171A</color>
+    <color name="border_strong">#3A3833</color>
+    <color name="ink">#E9E6DF</color>
+    <color name="muted">#A29C91</color>
+    <color name="accent">#F0A050</color>
+    <color name="on_accent">#121210</color>
+</resources>

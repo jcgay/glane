@@ -9,7 +9,8 @@
     <!-- cleartext is only ever http://127.0.0.1: external links go to the browser -->
     <application
         android:label="glane"
-        android:theme="@android:style/Theme.DeviceDefault.DayNight"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/Glane"
         android:usesCleartextTraffic="true"
         android:enableOnBackInvokedCallback="true">
         <!-- configChanges: rotating must not recreate the activity and kill the server -->

@@ -3,12 +3,22 @@ package fr.jcgay.glane
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.view.Gravity
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -17,6 +27,8 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.window.OnBackInvokedDispatcher
 import java.io.File
@@ -39,6 +51,7 @@ class MainActivity : Activity() {
     private var resumed = false
     private var port = 0
     @Volatile private var lastLine = ""
+    private var redraw: (() -> Unit)? = null
     private val prefs by lazy { getSharedPreferences("glane", MODE_PRIVATE) }
 
     private var dbPath: String
@@ -58,6 +71,7 @@ class MainActivity : Activity() {
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            setBackgroundColor(getColor(R.color.bg))
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     if (request.url.host == "127.0.0.1") return false
@@ -118,14 +132,21 @@ class MainActivity : Activity() {
         }
         if (!Environment.isExternalStorageManager()) {
             return show(
-                "glane lit glane.db dans le dossier synchronisé par Syncthing : il a besoin de l'accès à tous les fichiers.",
+                "Accès aux fichiers",
+                "glane lit glane.db dans le dossier que Syncthing synchronise : il lui faut l'accès à tous les fichiers. Il ne fait que lire, jamais écrire.",
+                null,
                 "Autoriser" to {
                     startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName")))
                 },
             )
         }
         if (!File(dbPath).canRead()) {
-            return show("glane.db introuvable à $dbPath", "Réglages" to ::askPath, "Réessayer" to ::start)
+            return show(
+                "glane.db introuvable",
+                "Syncthing ne l'a peut-être pas encore reçu, ou il est ailleurs.",
+                dbPath,
+                "Changer le chemin" to ::askPath, "Réessayer" to ::start,
+            )
         }
         val resume = web.url?.substringAfter("127.0.0.1:$port", "/") ?: prefs.getString("page", "/")!!
         port = ServerSocket(0).use { it.localPort }
@@ -158,7 +179,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 // killed in the background: onResume restarts it
                 if (server !== p || !resumed) return@runOnUiThread
-                show("glane n'a pas démarré : $lastLine", "Relancer" to ::start, "Réglages" to ::askPath)
+                show("glane n'a pas démarré", null, lastLine.ifBlank { null }, "Relancer" to ::start, "Changer le chemin" to ::askPath)
             }
         }.start()
     }
@@ -190,22 +211,108 @@ class MainActivity : Activity() {
         root.addView(web)
     }
 
-    private fun show(text: String, vararg actions: Pair<String, () -> Unit>) {
+    private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
+
+    // the web UI's faces (assets/fonts, converted from internal/web/static),
+    // so the native screens are lettered like the page that replaces them
+    private fun geist(file: String, weight: Int) =
+        Typeface.Builder(assets, "fonts/$file-Variable.ttf").setFontVariationSettings("'wght' $weight").build()
+    private val sans by lazy { geist("Geist", 400) }
+    private val sansMedium by lazy { geist("Geist", 560) }
+    private val mono by lazy { geist("GeistMono", 400) }
+    private val monoBold by lazy { geist("GeistMono", 600) }
+
+    /**
+     * A native screen in the web UI's colours: a title, an optional sentence,
+     * an optional monospaced detail (a path, glane's error line), then the
+     * actions, the first one filled. No action means work in progress.
+     */
+    private fun show(title: String, body: String? = null, code: String? = null, vararg actions: Pair<String, () -> Unit>) {
+        redraw = { show(title, body, code, *actions) }
+        fun rounded(fill: Int, stroke: Int? = null) = GradientDrawable().apply {
+            cornerRadius = 8.dp.toFloat()
+            setColor(fill)
+            stroke?.let { setStroke(1.dp, it) }
+        }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 48)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(28.dp, 24.dp, 28.dp, 32.dp)
             addView(TextView(context).apply {
-                this.text = text
-                textSize = 16f
+                text = "glane"
+                typeface = monoBold
+                textSize = 17f
+                setTextColor(getColor(R.color.ink))
+                val mark = rounded(getColor(R.color.accent)).apply { cornerRadius = 2.dp.toFloat(); setBounds(0, 0, 9.dp, 9.dp) }
+                setCompoundDrawablesRelative(mark, null, null, null)
+                compoundDrawablePadding = 10.dp
+            }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { bottomMargin = 40.dp })
+            addView(TextView(context).apply {
+                text = title
+                textSize = 24f
+                typeface = sansMedium
+                letterSpacing = -0.01f
+                setTextColor(getColor(R.color.ink))
             })
-            actions.forEach { (label, action) ->
+            body?.let {
+                addView(TextView(context).apply {
+                    text = it
+                    textSize = 16f
+                    typeface = sans
+                    setLineSpacing(0f, 1.25f)
+                    setTextColor(getColor(R.color.muted))
+                }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = 10.dp })
+            }
+            code?.let {
+                addView(TextView(context).apply {
+                    text = it
+                    typeface = mono
+                    textSize = 13f
+                    setTextIsSelectable(true)
+                    setTextColor(getColor(R.color.muted))
+                    background = rounded(getColor(R.color.surface), getColor(R.color.border_strong))
+                    setPadding(14.dp, 12.dp, 14.dp, 12.dp)
+                }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = 16.dp })
+            }
+            if (actions.isEmpty()) {
+                addView(ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                    isIndeterminate = true
+                    indeterminateTintList = ColorStateList.valueOf(getColor(R.color.accent))
+                }, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = 20.dp })
+            }
+            actions.forEachIndexed { i, (label, action) ->
                 addView(Button(context).apply {
-                    this.text = label
+                    text = label
+                    isAllCaps = false
+                    textSize = 15f
+                    typeface = sansMedium
+                    stateListAnimator = null
+                    if (i == 0) {
+                        setTextColor(getColor(R.color.on_accent))
+                        background = rounded(getColor(R.color.accent))
+                    } else {
+                        setTextColor(getColor(R.color.ink))
+                        background = rounded(Color.TRANSPARENT, getColor(R.color.border_strong))
+                    }
                     setOnClickListener { action() }
-                })
+                }, LinearLayout.LayoutParams(MATCH_PARENT, 52.dp).apply { topMargin = if (i == 0) 28.dp else 10.dp })
             }
         }
         root.removeAllViews()
-        root.addView(box)
+        root.addView(ScrollView(this).apply {
+            isFillViewport = true
+            addView(box)
+        })
+    }
+
+    // configChanges keeps the activity on a dark/light switch: repaint what
+    // was drawn with the old colours
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        window.setBackgroundDrawable(ColorDrawable(getColor(R.color.bg)))
+        web.setBackgroundColor(getColor(R.color.bg))
+        val bars = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        window.insetsController?.setSystemBarsAppearance(if (resources.getBoolean(R.bool.light_bars)) bars else 0, bars)
+        if (root.getChildAt(0) !== web) redraw?.invoke()
     }
 }
