@@ -427,6 +427,19 @@
       const h = e.target.closest('.hit');
       if (h) { sel = [...rows()].indexOf(h); rows().forEach(el => el.setAttribute('aria-current', el === h)); }
     });
+    // On a touch screen the first tap on a row selects it, which shows its
+    // whole summary; only a tap on the selected row's title leaves for the
+    // link. The ↗ link and buttons act right away. Selection is read at
+    // pointerdown: the tap focuses the title, selecting the row before click.
+    const touch = matchMedia('(pointer: coarse)');
+    let armed = null;
+    results.addEventListener('pointerdown', e => { armed = e.target.closest('.hit[aria-current="true"]'); });
+    results.addEventListener('click', e => {
+      const h = e.target.closest('.hit');
+      if (!touch.matches || !e.detail || !h || h === armed || e.target.closest('button, .m a')) return;
+      e.preventDefault();
+      h.querySelector('h3 a').focus({ preventScroll: true });
+    });
     document.body.addEventListener('htmx:afterSwap', e => { if (e.target === results) sel = -1; });
     // the rail comes back out-of-band with every result list
     document.body.addEventListener('htmx:afterSettle', paint);
