@@ -506,6 +506,9 @@ The server listens on `127.0.0.1` with a random port and no password, so
 another app on the phone could find it and read your index (never change
 it). Only install apps you trust next to it.
 
+The app speaks the phone's language when it is French, and English
+otherwise, like the web UI.
+
 ## Environment variables
 
 | Variable | Used by | Meaning |

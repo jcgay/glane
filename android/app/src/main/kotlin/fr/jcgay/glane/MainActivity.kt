@@ -132,20 +132,20 @@ class MainActivity : Activity() {
         }
         if (!Environment.isExternalStorageManager()) {
             return show(
-                "Accès aux fichiers",
-                "glane lit glane.db dans le dossier que Syncthing synchronise : il lui faut l'accès à tous les fichiers. Il ne fait que lire, jamais écrire.",
+                getString(R.string.access_title),
+                getString(R.string.access_body),
                 null,
-                "Autoriser" to {
+                getString(R.string.access_allow) to {
                     startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName")))
                 },
             )
         }
         if (!File(dbPath).canRead()) {
             return show(
-                "glane.db introuvable",
-                "Syncthing ne l'a peut-être pas encore reçu, ou il est ailleurs.",
+                getString(R.string.missing_title),
+                getString(R.string.missing_body),
                 dbPath,
-                "Changer le chemin" to ::askPath, "Réessayer" to ::start,
+                getString(R.string.change_path) to ::askPath, getString(R.string.retry) to ::start,
             )
         }
         val resume = web.url?.substringAfter("127.0.0.1:$port", "/") ?: prefs.getString("page", "/")!!
@@ -157,7 +157,7 @@ class MainActivity : Activity() {
             .start()
         server = p
         val reader = Thread { p.inputStream.bufferedReader().forEachLine { lastLine = it } }.apply { start() }
-        show("Démarrage de glane…")
+        show(getString(R.string.starting))
         Thread {
             val deadline = System.currentTimeMillis() + 10_000
             while (p.isAlive && !listening(port) && System.currentTimeMillis() < deadline) Thread.sleep(50)
@@ -179,7 +179,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 // killed in the background: onResume restarts it
                 if (server !== p || !resumed) return@runOnUiThread
-                show("glane n'a pas démarré", null, lastLine.ifBlank { null }, "Relancer" to ::start, "Changer le chemin" to ::askPath)
+                show(getString(R.string.failed_title), null, lastLine.ifBlank { null }, getString(R.string.restart) to ::start, getString(R.string.change_path) to ::askPath)
             }
         }.start()
     }
@@ -193,15 +193,15 @@ class MainActivity : Activity() {
             setSingleLine()
         }
         AlertDialog.Builder(this)
-            .setTitle("Chemin de glane.db")
+            .setTitle(R.string.path_title)
             .setView(input)
-            .setPositiveButton("OK") { _, _ ->
+            .setPositiveButton(android.R.string.ok) { _, _ ->
                 dbPath = input.text.toString().trim()
                 server?.destroy()
                 server = null
                 start()
             }
-            .setNegativeButton("Annuler", null)
+            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
