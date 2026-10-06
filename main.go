@@ -31,9 +31,7 @@ func dbPath() string {
 		return p
 	}
 	home, _ := os.UserHomeDir()
-	p := filepath.Join(home, ".local", "share", "glane")
-	os.MkdirAll(p, 0o755)
-	return filepath.Join(p, "glane.db")
+	return filepath.Join(home, ".local", "share", "glane", "glane.db")
 }
 
 func main() {
@@ -43,6 +41,11 @@ func main() {
 	}
 	if a := os.Args[1]; a == "version" || a == "--version" || a == "-v" {
 		fmt.Println(version)
+		return
+	}
+	// serve opens the database itself: --read-only must never create or write it
+	if os.Args[1] == "serve" {
+		cmdServe(os.Args[2:])
 		return
 	}
 	s, err := store.Open(dbPath())
@@ -58,8 +61,6 @@ func main() {
 		cmdSync(s, os.Args[2:])
 	case "search":
 		cmdSearch(s, os.Args[2:])
-	case "serve":
-		cmdServe(s, os.Args[2:])
 	case "enrich":
 		cmdEnrich(s, os.Args[2:])
 	case "summarize":
@@ -356,11 +357,24 @@ func termHighlight(s string) string {
 	return strings.NewReplacer(store.MarkStart, "", store.MarkEnd, "").Replace(s)
 }
 
-func cmdServe(s *store.Store, args []string) {
+func cmdServe(args []string) {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	port := fs.Int("port", 8080, "listen port")
+	readOnly := fs.Bool("read-only", false, "never write the database; reopen it when a sync replaces the file")
 	fs.Parse(args)
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
+	if *readOnly {
+		fmt.Printf("glane serving %s read-only on http://%s\n", dbPath(), addr)
+		if err := web.ServeReadOnly(dbPath(), addr, os.Getenv("GLANE_SERVE_TOKEN")); err != nil {
+			fatal(err)
+		}
+		return
+	}
+	s, err := store.Open(dbPath())
+	if err != nil {
+		fatal(err)
+	}
+	defer s.Close()
 	fmt.Printf("glane serving on http://%s\n", addr)
 	if err := web.Serve(s, addr); err != nil {
 		fatal(err)

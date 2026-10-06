@@ -3,6 +3,8 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
@@ -98,6 +100,7 @@ CREATE INDEX IF NOT EXISTS items_created_at ON items(created_at);
 `
 
 func Open(path string) (*Store, error) {
+	os.MkdirAll(filepath.Dir(path), 0o755)
 	dsn := "file:" + path + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
