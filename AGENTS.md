@@ -4,8 +4,10 @@ This file provides guidance to coding agents when working with code in this repo
 
 `glane` is a single Go binary + one SQLite file that indexes your saved tech-watch
 posts (Twitter archive import, live GitHub/Mastodon/Bluesky sync) for full-text and
-optional semantic search. The README is the source of truth for user-facing behavior,
-commands, and env vars — read it before changing CLI surface or docs.
+optional semantic search. The README and `docs/*.md` are the source of truth for
+user-facing behavior: the README holds the overview, the command summary table and the
+env vars; `docs/commands.md` holds every command's flags and behavior. Read them before
+changing CLI surface or docs.
 
 ## Build & test
 
@@ -54,5 +56,5 @@ dispatcher (`switch os.Args[1]` → `cmd*` functions); each subcommand parses it
   **stdout** so piping stays clean. Keep this split.
 - External LLM/embedding endpoints are entirely optional and driven by env vars — every
   feature must still work offline with no model configured.
-- Update `README.md` **and** `completions/glane.fish` whenever CLI surface, flags, or
-  env vars change (see auto-memory).
+- Update `docs/commands.md`, the README's command table and env var table, **and**
+  `completions/glane.fish` whenever CLI surface, flags, or env vars change.

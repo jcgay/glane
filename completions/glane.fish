@@ -27,6 +27,7 @@ complete -c glane -n "__fish_seen_subcommand_from search" -l limit  -d "max resu
 complete -c glane -n "__fish_seen_subcommand_from search" -l since  -d "on/after date (YYYY, YYYY-MM-DD, or 7d/2w/3m/1y)"
 complete -c glane -n "__fish_seen_subcommand_from search" -l tag    -d "filter by tag"
 complete -c glane -n "__fish_seen_subcommand_from serve"     -l port  -d "listen port"
+complete -c glane -n "__fish_seen_subcommand_from serve"     -l read-only -d "never write the database; reload it when replaced"
 complete -c glane -n "__fish_seen_subcommand_from enrich"    -l limit -d "max items this run"
 complete -c glane -n "__fish_seen_subcommand_from enrich"    -l force -d "re-enrich already-fetched items"
 complete -c glane -n "__fish_seen_subcommand_from summarize" -l limit -d "max items this run"

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="access_title">Accès aux fichiers</string>
+    <string name="access_body">glane lit glane.db dans le dossier que Syncthing synchronise : il lui faut l\'accès à tous les fichiers. Il ne fait que lire, jamais écrire.</string>
+    <string name="access_allow">Autoriser</string>
+    <string name="missing_title">glane.db introuvable</string>
+    <string name="missing_body">Syncthing ne l\'a peut-être pas encore reçu, ou il est ailleurs.</string>
+    <string name="change_path">Changer le chemin</string>
+    <string name="retry">Réessayer</string>
+    <string name="starting">Démarrage de glane…</string>
+    <string name="failed_title">glane n\'a pas démarré</string>
+    <string name="restart">Relancer</string>
+    <string name="path_title">Chemin de glane.db</string>
+</resources>
