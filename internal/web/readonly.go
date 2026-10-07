@@ -1,6 +1,7 @@
 package web
 
 import (
+	"crypto/subtle"
 	"log"
 	"net/http"
 	"os"
@@ -12,13 +13,30 @@ import (
 
 // ServeReadOnly serves the database at path without ever writing to it, and
 // picks up a new copy as soon as one replaces the file (a sync tool renaming
-// its download over it), without a restart.
-func ServeReadOnly(path, addr string) error {
+// its download over it), without a restart. A non-empty token is required
+// as the glane_token cookie on every request.
+func ServeReadOnly(path, addr, token string) error {
 	r := &reloader{path: path}
 	if _, err := r.current(); err != nil {
 		return err
 	}
-	return http.ListenAndServe(addr, r)
+	return http.ListenAndServe(addr, requireToken(token, r))
+}
+
+// requireToken turns away requests without the token, when there is one: on
+// Android, 127.0.0.1 is shared by every app holding the INTERNET permission.
+func requireToken(token string, h http.Handler) http.Handler {
+	if token == "" {
+		return h
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		c, err := req.Cookie("glane_token")
+		if err != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(token)) != 1 {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		h.ServeHTTP(w, req)
+	})
 }
 
 // reloader is a handler over the newest readable copy of one database file.

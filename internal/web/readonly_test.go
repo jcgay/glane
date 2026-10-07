@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"log"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -93,8 +94,23 @@ func TestReloaderSurvivesMissingFile(t *testing.T) {
 }
 
 func TestServeReadOnlyFailsFastOnMissingFile(t *testing.T) {
-	err := ServeReadOnly(filepath.Join(t.TempDir(), "missing.db"), "127.0.0.1:0")
+	err := ServeReadOnly(filepath.Join(t.TempDir(), "missing.db"), "127.0.0.1:0", "")
 	if err == nil {
 		t.Fatal("ServeReadOnly started without a database")
+	}
+}
+
+func TestRequireToken(t *testing.T) {
+	h := requireToken("s3cret", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	for cookie, want := range map[string]int{"": 403, "nope": 403, "s3cret": 200} {
+		req := httptest.NewRequest("GET", "/", nil)
+		if cookie != "" {
+			req.AddCookie(&http.Cookie{Name: "glane_token", Value: cookie})
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != want {
+			t.Errorf("cookie %q: got %d, want %d", cookie, rec.Code, want)
+		}
 	}
 }
