@@ -19,6 +19,7 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -35,6 +36,7 @@ import java.io.File
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.UUID
 
 private const val DEFAULT_DB = "/storage/emulated/0/Sync/glane/glane.db"
 
@@ -50,6 +52,8 @@ class MainActivity : Activity() {
     private var ready: Process? = null // the server, once it answers on port
     private var resumed = false
     private var port = 0
+    // any app with INTERNET can reach 127.0.0.1: glane only answers this cookie
+    private val token = UUID.randomUUID().toString()
     @Volatile private var lastLine = ""
     private var redraw: (() -> Unit)? = null
     private val prefs by lazy { getSharedPreferences("glane", MODE_PRIVATE) }
@@ -149,11 +153,17 @@ class MainActivity : Activity() {
             )
         }
         val resume = web.url?.substringAfter("127.0.0.1:$port", "/") ?: prefs.getString("page", "/")!!
-        port = ServerSocket(0).use { it.localPort }
+        // the port of the server Android killed, so the WebView's history still
+        // points at a live origin
+        // ponytail: taken in the meantime, a new port leaves Back on dead pages; clearHistory if it bites
+        port = runCatching { ServerSocket(port).use { it.localPort } }.getOrElse { ServerSocket(0).use { it.localPort } }
         lastLine = ""
         val p = ProcessBuilder(File(applicationInfo.nativeLibraryDir, "libglane.so").path, "serve", "--read-only", "--port", "$port")
             .redirectErrorStream(true)
-            .apply { environment()["GLANE_DB"] = dbPath }
+            .apply {
+                environment()["GLANE_DB"] = dbPath
+                environment()["GLANE_SERVE_TOKEN"] = token
+            }
             .start()
         server = p
         val reader = Thread { p.inputStream.bufferedReader().forEachLine { lastLine = it } }.apply { start() }
@@ -166,7 +176,9 @@ class MainActivity : Activity() {
                     if (server !== p) return@runOnUiThread
                     ready = p
                     showWeb()
-                    web.loadUrl("http://127.0.0.1:$port$resume")
+                    CookieManager.getInstance().setCookie("http://127.0.0.1:$port", "glane_token=$token") {
+                        web.loadUrl("http://127.0.0.1:$port$resume")
+                    }
                 }
                 // keep watching: a server dying under the page would leave
                 // Chromium's "connection refused" in its place
