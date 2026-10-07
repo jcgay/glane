@@ -205,9 +205,11 @@ type.
   journal file, and a missing file is an error rather than a new empty
   database. When a sync tool replaces the file, the next request picks up
   the new copy without a restart. This is how the Android app serves the
-  copy Syncthing brings to the phone.
+  copy Syncthing brings to the phone. With `GLANE_SERVE_TOKEN` set, every
+  request must carry it as the `glane_token` cookie, or gets a `403`: the
+  Android app sets it, since any app on the phone can reach `127.0.0.1`.
 
-Local-only; no auth.
+Local-only; no auth by default.
 
 The UI speaks **English and French**, picked from your browser's
 `Accept-Language` (English when it asks for neither). Nothing to configure.

@@ -143,6 +143,7 @@ An Android app searches your index offline, read-only, over the copy of
 | `GLANE_SUMMARY_MODEL` | `summarize` | Chat model name (e.g. `gemma3`) |
 | `GLANE_SUMMARY_KEY` | `summarize` | Chat API key; omit for local endpoints |
 | `GLANE_SUMMARY_TIMEOUT` | `summarize` | Per-request timeout in seconds (default 180) |
+| `GLANE_SERVE_TOKEN` | `serve --read-only` | Required as the `glane_token` cookie on every request; unset → no check |
 
 > The Mastodon/Bluesky variables intentionally match
 > [social-timeline](https://github.com/jcgay/social-timeline), so the same
