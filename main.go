@@ -365,7 +365,7 @@ func cmdServe(args []string) {
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
 	if *readOnly {
 		fmt.Printf("glane serving %s read-only on http://%s\n", dbPath(), addr)
-		if err := web.ServeReadOnly(dbPath(), addr); err != nil {
+		if err := web.ServeReadOnly(dbPath(), addr, os.Getenv("GLANE_SERVE_TOKEN")); err != nil {
 			fatal(err)
 		}
 		return
