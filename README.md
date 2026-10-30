@@ -279,6 +279,62 @@ Local-only; no auth.
 The UI speaks **English and French**, picked from your browser's
 `Accept-Language` (English when it asks for neither). Nothing to configure.
 
+#### As a desktop app
+
+The UI is an installable web app: its own window, an icon in the Dock or the
+app launcher, no address bar. With `glane serve` running, open
+`http://127.0.0.1:8080` and:
+
+- **Chrome / Chromium** (macOS, Ubuntu): menu ⋮ → *Cast, save and share* →
+  *Install page as app* (or the install icon at the end of the address bar).
+- **Safari** (macOS 14+): *File* → *Add to Dock*.
+
+The app only shows what the server serves, so start `glane serve` at login.
+A service doesn't see your shell's environment: put `GLANE_DB`,
+`GLANE_EMBED_*` and the rest in the service file itself, and use the absolute
+path of the `glane` binary.
+
+**Ubuntu** (systemd user unit), `~/.config/systemd/user/glane.service`:
+
+```ini
+[Unit]
+Description=glane web UI
+
+[Service]
+ExecStart=%h/.local/bin/glane serve
+# Environment=GLANE_EMBED_URL=http://localhost:11434/v1
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+```sh
+systemctl --user enable --now glane
+```
+
+**macOS** (launchd agent), `~/Library/LaunchAgents/glane.serve.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>glane.serve</string>
+  <key>ProgramArguments</key>
+  <array><string>/usr/local/bin/glane</string><string>serve</string></array>
+  <!-- <key>EnvironmentVariables</key>
+  <dict><key>GLANE_EMBED_URL</key><string>http://localhost:11434/v1</string></dict> -->
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+</dict>
+</plist>
+```
+
+```sh
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/glane.serve.plist
+```
+
 ## Semantic search
 
 Semantic search lets you find a post by meaning even when you've forgotten its

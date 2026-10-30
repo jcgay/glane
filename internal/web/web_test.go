@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http/httptest"
 	"net/url"
@@ -322,6 +323,34 @@ func TestIndexHasStatsLink(t *testing.T) {
 	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
 	if !strings.Contains(rec.Body.String(), `href="/stats"`) {
 		t.Fatalf("index missing nav link to /stats: %s", rec.Body.String())
+	}
+}
+
+// The PWA install needs a reachable manifest whose icons are served too.
+func TestManifestAndIconsServed(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+
+	rec := httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	if !strings.Contains(rec.Body.String(), `rel="manifest" href="/static/manifest.json"`) {
+		t.Fatalf("index missing manifest link")
+	}
+	var m struct {
+		StartURL string `json:"start_url"`
+		Icons    []struct{ Src string }
+	}
+	rec = httptest.NewRecorder()
+	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/static/manifest.json", nil))
+	if err := json.Unmarshal(rec.Body.Bytes(), &m); err != nil || m.StartURL != "/" || len(m.Icons) == 0 {
+		t.Fatalf("bad manifest (%v): %s", err, rec.Body.String())
+	}
+	for _, ic := range m.Icons {
+		rec = httptest.NewRecorder()
+		handler(s).ServeHTTP(rec, httptest.NewRequest("GET", ic.Src, nil))
+		if rec.Code != 200 || rec.Header().Get("Content-Type") != "image/png" {
+			t.Errorf("icon %s: %d %s", ic.Src, rec.Code, rec.Header().Get("Content-Type"))
+		}
 	}
 }
 
