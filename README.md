@@ -126,6 +126,12 @@ An Android app searches your index offline, read-only, over the copy of
 `glane.db` that Syncthing keeps on the phone. Setup:
 [docs/android.md](docs/android.md).
 
+## Desktop app
+
+The web UI installs as a desktop app from Chrome, Chromium or Safari: its own
+window and Dock icon, with `glane serve` started at login. Setup:
+[docs/desktop-app.md](docs/desktop-app.md).
+
 ## Environment variables
 
 | Variable | Used by | Meaning |
