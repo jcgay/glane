@@ -14,64 +14,29 @@ browser.
 
 ## Launch it like an app
 
-Started from the Finder, the Dock or the app launcher, a program doesn't see
-your shell's environment (`GLANE_DB`, `GLANE_EMBED_*`, `PATH`). The launchers
-below go through your login shell, so they see what your terminal sees.
-
-### macOS
-
 ```sh
-mkdir -p ~/Applications/Glane.app/Contents/MacOS
-cat > ~/Applications/Glane.app/Contents/MacOS/glane <<'EOF'
-#!/bin/sh
-exec "$SHELL" -lc 'glane app'
-EOF
-chmod +x ~/Applications/Glane.app/Contents/MacOS/glane
-cat > ~/Applications/Glane.app/Contents/Info.plist <<'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleExecutable</key><string>glane</string>
-  <key>CFBundleName</key><string>Glane</string>
-  <key>CFBundleIdentifier</key><string>com.glane.app</string>
-</dict>
-</plist>
-EOF
+glane app --install
 ```
 
-Open `~/Applications` in the Finder and drag Glane to the Dock.
+writes a launcher: `~/Applications/Glane.app` on macOS (drag it to the
+Dock), a `Glane` entry in the app launcher on Linux. Run it again after an
+upgrade if the icon changed (the Finder and the Dock may show the old one
+until they refresh their cache); to remove it, delete the paths it printed.
 
-### Ubuntu
-
-Save as `~/.local/share/applications/glane.desktop`:
-
-```ini
-[Desktop Entry]
-Type=Application
-Name=Glane
-Exec=sh -c 'exec "$SHELL" -lc "glane app"'
-Terminal=false
-```
+Started from the Finder, the Dock or the app launcher, a program doesn't see
+your shell's environment (`GLANE_DB`, `GLANE_EMBED_*`, `PATH`). The launcher
+goes through your login shell (`$SHELL -lc 'glane app'`), so it sees what
+your terminal sees, and finds `glane` on your PATH.
 
 ### When it doesn't start
 
-A launcher has nowhere to print errors. Send them to a file to find out why,
-on macOS:
+On macOS, errors go to `~/Library/Logs/glane-app.log` (Console.app shows
+it). On Linux, `journalctl --user -e` shows them.
 
-```sh
-exec "$SHELL" -lc 'glane app' 2>>/tmp/glane-app.log
-```
-
-and on Ubuntu:
-
-```ini
-Exec=sh -c 'exec "$SHELL" -lc "glane app" 2>>/tmp/glane-app.log'
-```
-
-Rather not load your whole shell configuration? Set the variables in the
-launcher instead, before `exec`: `export GLANE_EMBED_URL=…`, then call
-`glane` by its full path (`command -v glane` prints it).
+Rather not load your whole shell configuration? Edit the launcher
+(`Glane.app/Contents/MacOS/glane`, or the `Exec=` line of
+`glane.desktop`): set the variables before `exec`, then call `glane` by its
+full path (`command -v glane` prints it). `--install` overwrites these edits.
 
 ## Server always on
 

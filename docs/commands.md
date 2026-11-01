@@ -214,12 +214,18 @@ Local-only; no auth by default.
 The UI speaks **English and French**, picked from your browser's
 `Accept-Language` (English when it asks for neither). Nothing to configure.
 
-## `glane app`
+## `glane app [--install]`
 
 Shows the same UI as `glane serve` in a native window (macOS, Linux). It
 serves on a free `127.0.0.1` port and stops when the window closes; links
-open in your default browser. No flags: for a fixed port or `--read-only`,
-use `glane serve`.
+open in your default browser. For a fixed port or `--read-only`, use
+`glane serve`.
+
+- **`--install`** writes a launcher instead of opening the window:
+  `~/Applications/Glane.app` on macOS; `glane.desktop` and its icon under
+  `$XDG_DATA_HOME` (`~/.local/share`) on Linux. It prints the paths, and
+  overwrites an earlier install. The launcher runs `glane app` through your
+  login shell, so it needs `glane` on that shell's PATH.
 
 Linux needs WebKitGTK (`apt install libwebkit2gtk-4.1-0`); without it the
 command exits with that hint. Not available in the Android build. Launching

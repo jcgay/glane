@@ -44,6 +44,8 @@ brews:
     extra_install: |
       fish_completion.install "completions/glane.fish"
     caveats: |
+      Desktop app (Dock / app launcher): glane app --install
+
       To let Claude Code search your tech-watch, register the plugin:
         claude plugin marketplace add jcgay/glane
         claude plugin install glane@glane

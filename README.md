@@ -93,7 +93,7 @@ export GLANE_SUMMARY_URL=http://localhost:11434/v1 GLANE_SUMMARY_MODEL=gemma3
 | `glane tags` | List your tags with counts |
 | `glane stats [-json]` | Show what's indexed |
 | `glane serve [--port N] [--read-only]` | Serve the keyboard-first web UI |
-| `glane app` | Open the web UI in a native window, with its own server |
+| `glane app [--install]` | Open the web UI in a native window, with its own server; `--install` adds it to the Dock / app launcher |
 
 Every flag, example and edge case: [docs/commands.md](docs/commands.md).
 
