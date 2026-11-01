@@ -71,6 +71,12 @@ Deux leçons :
 
 Non vérifié : Linux / WebKitGTK.
 
+Compilation croisée : linux, darwin et windows (amd64, arm64) compilent sans
+cgo. `GOOS=android` échoue : purego y exige cgo (`undefined: cgo.Dlopen`). Or
+l'APK embarque le binaire `glane` compilé pour Android. Le code qui importe
+glaze porte donc `//go:build !android`, et un fichier `app_android.go` fournit
+un `cmdApp` qui refuse proprement.
+
 ## Design
 
 ### `internal/web`
@@ -95,11 +101,17 @@ Non vérifié : Linux / WebKitGTK.
 
 Aucun flag. Le message de démarrage indique la base servie, comme `serve`.
 
+`app.go` porte aussi `func init() { runtime.LockOSThread() }`, commenté :
+AppKit et GTK exigent le thread principal. Sans effet sur les autres commandes.
+
+### `app_android.go`
+
+`cmdApp` qui sort en erreur : `glane app is not available on Android`.
+
 ### `main.go`
 
-- `func init() { runtime.LockOSThread() }`, commenté : AppKit et GTK exigent le
-  thread principal. Sans effet sur les autres commandes.
-- Un `case "app"` dans le dispatcher, et `app` dans la ligne d'usage.
+Un `case "app"` qui appelle `cmdApp(os.Args[2:])` avant l'ouverture commune de
+la base (comme `serve`), et `app` dans la ligne d'usage.
 
 ## Erreurs
 
