@@ -36,7 +36,7 @@ func dbPath() string {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|summarize|update|tags|stats|serve|version> ...")
+		fmt.Fprintln(os.Stderr, "usage: glane <import|sync|search|enrich|summarize|update|tags|stats|serve|app|version> ...")
 		os.Exit(2)
 	}
 	if a := os.Args[1]; a == "version" || a == "--version" || a == "-v" {
@@ -46,6 +46,11 @@ func main() {
 	// serve opens the database itself: --read-only must never create or write it
 	if os.Args[1] == "serve" {
 		cmdServe(os.Args[2:])
+		return
+	}
+	// app opens the database itself and closes it once the window is gone
+	if os.Args[1] == "app" {
+		cmdApp(os.Args[2:])
 		return
 	}
 	s, err := store.Open(dbPath())
