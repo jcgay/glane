@@ -156,3 +156,49 @@ veut pas charger tout son shell.
 - README : une ligne dans le tableau des commandes et le prérequis WebKitGTK
   sous Linux.
 - `completions/glane.fish` : la sous-commande `app`.
+
+## Addendum : `glane app --install`
+
+**Problème.** Créer `Glane.app` ou le `.desktop` à la main (heredocs dans la
+doc) est fastidieux. Un cask Homebrew livrant un `.app` exige GoReleaser Pro
+(`app_bundles`, clé `app:` du cask) et, l'app téléchargée étant mise en
+quarantaine, une signature et une notarisation Apple. Un `post_install` de
+formule ne peut pas écrire dans `~/Applications`.
+
+**Décision.** Le binaire écrit lui-même le lanceur : `glane app --install`.
+Un fichier créé localement n'a pas d'attribut de quarantaine, Gatekeeper ne
+s'en mêle pas. La formule le signale dans ses `caveats`. La règle « aucun
+flag » ci-dessus devient « un seul flag, `--install` ».
+
+**Vérifié (2026-11-01).** Un `Glane.app` fait main, lancé par le Finder, est
+enregistré comme une seule app (`com.glane.app`, bundle `Glane.app`) : la
+chaîne `exec` garde le même PID jusqu'au binaire `glane`, donc pas de seconde
+icône dans le Dock, et `$SHELL` est défini.
+
+**Comportement.**
+
+- Écrit le lanceur, affiche les chemins créés sur stdout, sort sans ouvrir de
+  fenêtre. Relancé, il écrase. Pas de `--uninstall` : la doc dit quoi supprimer.
+- Le lanceur appelle `glane` via le PATH du shell de login, jamais un chemin
+  absolu : sous Homebrew le vrai chemin est `Cellar/glane/<version>/…` et
+  casserait au prochain `brew upgrade`. Si `glane` n'est pas dans le PATH au
+  moment de l'install, un avertissement sur stderr.
+- macOS, `~/Applications/Glane.app` :
+  - `Contents/MacOS/glane` (0755) :
+    `exec "$SHELL" -lc 'exec glane app' 2>>"$HOME/Library/Logs/glane-app.log"`
+  - `Contents/Info.plist` : `CFBundleExecutable`, `CFBundleName`,
+    `CFBundleIdentifier` (`com.glane.app`), `CFBundlePackageType` (`APPL`),
+    `CFBundleIconFile` (`glane`), `NSHighResolutionCapable` (sans lui, une app
+    en bundle s'affiche floue sur écran Retina).
+  - `Contents/Resources/glane.icns` : produit en Go depuis le PNG 512 px
+    embarqué (en-tête `icns` + bloc `ic09`), sans `sips`.
+- Linux, sous `$XDG_DATA_HOME` (défaut `~/.local/share`) :
+  - `applications/glane.desktop` : `Name=Glane`,
+    `Exec=sh -c 'exec "$SHELL" -lc "exec glane app"'`, `Icon=glane`,
+    `Terminal=false`. GNOME envoie déjà le stderr des apps au journal.
+  - `icons/hicolor/512x512/apps/glane.png`.
+- Autres OS : erreur `--install supports macOS and Linux`.
+
+**Code.** `installLauncher(goos, home, dataHome string) ([]string, error)` dans
+`launcher.go` (sans tag de build : aucune dépendance à glaze), testé sur un
+répertoire temporaire.
