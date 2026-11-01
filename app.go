@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -26,8 +27,15 @@ func init() { runtime.LockOSThread() }
 // cmdApp serves the UI on a free loopback port and shows it in a native
 // window; closing the window stops the server.
 func cmdApp(args []string) {
-	if len(args) > 0 {
-		fatal(fmt.Errorf("usage: glane app"))
+	fs := flag.NewFlagSet("app", flag.ExitOnError)
+	install := fs.Bool("install", false, "write a desktop launcher (macOS: ~/Applications/Glane.app) instead of opening the window")
+	fs.Parse(args)
+	if fs.NArg() > 0 {
+		fatal(fmt.Errorf("usage: glane app [--install]"))
+	}
+	if *install {
+		cmdInstallLauncher()
+		return
 	}
 	s, err := store.Open(dbPath())
 	if err != nil {
