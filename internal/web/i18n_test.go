@@ -82,7 +82,7 @@ func TestPagesFollowAcceptLanguage(t *testing.T) {
 			req.Header.Set("Accept-Language", tc.header)
 		}
 		rec := httptest.NewRecorder()
-		handler(s).ServeHTTP(rec, req)
+		Handler(s).ServeHTTP(rec, req)
 		// the labels go through html/template, so compare what it emits
 		if !strings.Contains(rec.Body.String(), template.HTMLEscapeString(tc.want)) {
 			t.Errorf("Accept-Language %q on %s: want %q in body, got: %s", tc.header, tc.path, tc.want, rec.Body.String())

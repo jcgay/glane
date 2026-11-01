@@ -91,6 +91,6 @@ func (r *reloader) current() (http.Handler, error) {
 		// finish before it closes; a slower one would fail mid-query
 		time.AfterFunc(time.Minute, func() { old.Close() })
 	}
-	r.fi, r.s, r.h = fi, s, handler(s)
+	r.fi, r.s, r.h = fi, s, Handler(s)
 	return r.h, nil
 }

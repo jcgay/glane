@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
@@ -36,7 +37,7 @@ func TestSearchByTagBrowse(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/search?tag=rust", nil)
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, req)
+	Handler(s).ServeHTTP(rec, req)
 	body := rec.Body.String()
 	if rec.Code != 200 {
 		t.Fatalf("status %d", rec.Code)
@@ -57,13 +58,13 @@ func TestSearchTextAndTagFilter(t *testing.T) {
 
 	// text matches item 1, tag rust matches item 1 → present
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=alpha&tag=rust", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=alpha&tag=rust", nil))
 	if !strings.Contains(rec.Body.String(), "http://x/1") {
 		t.Fatalf("text+tag should return item 1: %s", rec.Body.String())
 	}
 	// text matches item 1 but tag go does not → excluded (no results)
 	rec2 := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?q=alpha&tag=go", nil))
+	Handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?q=alpha&tag=go", nil))
 	if strings.Contains(rec2.Body.String(), "http://x/1") {
 		t.Fatalf("tag=go must exclude the rust item even when text matches: %s", rec2.Body.String())
 	}
@@ -80,7 +81,7 @@ func TestEmptyQueryListsRecentSinceDate(t *testing.T) {
 
 	// No query, no tag: the review listing, not a blank screen.
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
 	body := rec.Body.String()
 	if !strings.Contains(body, "http://x/1") || !strings.Contains(body, "http://x/2") {
 		t.Fatalf("empty query should list every item: %s", body)
@@ -88,7 +89,7 @@ func TestEmptyQueryListsRecentSinceDate(t *testing.T) {
 
 	// The date picker narrows it down.
 	rec2 := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?since=2023-05-01", nil))
+	Handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?since=2023-05-01", nil))
 	body2 := rec2.Body.String()
 	if strings.Contains(body2, "http://x/1") || !strings.Contains(body2, "http://x/2") {
 		t.Fatalf("since=2023-05-01 should keep only the july item: %s", body2)
@@ -96,7 +97,7 @@ func TestEmptyQueryListsRecentSinceDate(t *testing.T) {
 
 	// A half-typed date degrades to no filter instead of erroring out.
 	rec3 := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec3, httptest.NewRequest("GET", "/search?since=20", nil))
+	Handler(s).ServeHTTP(rec3, httptest.NewRequest("GET", "/search?since=20", nil))
 	if rec3.Code != 200 || !strings.Contains(rec3.Body.String(), "http://x/1") {
 		t.Fatalf("malformed date should fall back to no filter, got %d: %s", rec3.Code, rec3.Body.String())
 	}
@@ -113,7 +114,7 @@ func TestTagBrowseHonorsSince(t *testing.T) {
 	s.Upsert([]store.Item{{Source: "bluesky", SourceID: "2", Kind: "like", Text: "beta", URL: "http://x/2", CreatedAt: 1688169600}})
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?tag=rust&since=2023-05-01", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?tag=rust&since=2023-05-01", nil))
 	body := rec.Body.String()
 	if strings.Contains(body, "http://x/1") || !strings.Contains(body, "http://x/2") {
 		t.Fatalf("tag browse should still honor since: %s", body)
@@ -135,7 +136,7 @@ func TestListingAnnouncesTruncation(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
 	body := rec.Body.String()
 	if !strings.Contains(body, fmt.Sprintf("%d results", pageLimit)) {
 		t.Fatalf("listing must show how many it returned: %s", body)
@@ -146,7 +147,7 @@ func TestListingAnnouncesTruncation(t *testing.T) {
 
 	// Under the cap, no warning — otherwise it cries wolf on every search.
 	rec2 := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?source=twitter&q=item", nil))
+	Handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?source=twitter&q=item", nil))
 	if strings.Contains(rec2.Body.String(), en["truncated"]) {
 		t.Fatalf("empty result set must not claim truncation: %s", rec2.Body.String())
 	}
@@ -161,7 +162,7 @@ func TestIndexAutoListsAndFiltersThroughQuery(t *testing.T) {
 	seedTagged(t, s, "1", "alpha", []string{"rust"})
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
 	body := rec.Body.String()
 	if !strings.Contains(body, `hx-trigger="load, submit"`) {
 		t.Fatalf("index must request the newest items on load: %s", body)
@@ -189,7 +190,7 @@ func TestTagRenderedAsFilterButton(t *testing.T) {
 	seedTagged(t, s, "1", "alpha", []string{"rust"})
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?tag=rust", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?tag=rust", nil))
 	if !strings.Contains(rec.Body.String(), `data-op="tag" data-v="rust"`) {
 		t.Fatalf("result tag not rendered as a filter button: %s", rec.Body.String())
 	}
@@ -204,7 +205,7 @@ func TestSearchOperatorsInQuery(t *testing.T) {
 	seedTagged(t, s, "2", "alpha beta", []string{"go"})
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=alpha+tag%3Arust+since%3A20", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=alpha+tag%3Arust+since%3A20", nil))
 	body := rec.Body.String()
 	if !strings.Contains(body, "http://x/1") || strings.Contains(body, "http://x/2") {
 		t.Fatalf("tag: in the query must filter like ?tag=: %s", body)
@@ -225,7 +226,7 @@ func TestEnrichedLinkShownAsPrimary(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=check", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=check", nil))
 	body := rec.Body.String()
 	// enriched link is the primary destination…
 	if !strings.Contains(body, `href="http://realsite.com/article"`) {
@@ -249,7 +250,7 @@ func TestSearchRendersHighlightedExcerpt(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=entanglement", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=entanglement", nil))
 	body := rec.Body.String()
 
 	if !strings.Contains(body, "<mark>entanglement</mark>") {
@@ -272,7 +273,7 @@ func TestSearchHighlightsShownSummary(t *testing.T) {
 	s.SaveSummary(res[0].ID, "a thread about lambda cold starts", nil)
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=lambda", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=lambda", nil))
 	body := rec.Body.String()
 	if !strings.Contains(body, "<mark>lambda</mark>") {
 		t.Fatalf("term in shown summary not highlighted: %s", body)
@@ -286,7 +287,7 @@ func TestSearchFragmentRendersHits(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/search?q=lambda", nil)
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, req)
+	Handler(s).ServeHTTP(rec, req)
 
 	if rec.Code != 200 {
 		t.Fatalf("status %d", rec.Code)
@@ -302,7 +303,7 @@ func TestStatsPageShowsCounts(t *testing.T) {
 	seedTagged(t, s, "1", "alpha", []string{"rust"})
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/stats", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/stats", nil))
 	if rec.Code != 200 {
 		t.Fatalf("status %d", rec.Code)
 	}
@@ -320,7 +321,7 @@ func TestIndexHasStatsLink(t *testing.T) {
 	defer s.Close()
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
 	if !strings.Contains(rec.Body.String(), `href="/stats"`) {
 		t.Fatalf("index missing nav link to /stats: %s", rec.Body.String())
 	}
@@ -332,7 +333,7 @@ func TestManifestAndIconsServed(t *testing.T) {
 	defer s.Close()
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
 	if !strings.Contains(rec.Body.String(), `rel="manifest" href="/static/manifest.json"`) {
 		t.Fatalf("index missing manifest link")
 	}
@@ -341,13 +342,13 @@ func TestManifestAndIconsServed(t *testing.T) {
 		Icons    []struct{ Src string }
 	}
 	rec = httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/static/manifest.json", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/static/manifest.json", nil))
 	if err := json.Unmarshal(rec.Body.Bytes(), &m); err != nil || m.StartURL != "/" || len(m.Icons) == 0 {
 		t.Fatalf("bad manifest (%v): %s", err, rec.Body.String())
 	}
 	for _, ic := range m.Icons {
 		rec = httptest.NewRecorder()
-		handler(s).ServeHTTP(rec, httptest.NewRequest("GET", ic.Src, nil))
+		Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", ic.Src, nil))
 		if rec.Code != 200 || rec.Header().Get("Content-Type") != "image/png" {
 			t.Errorf("icon %s: %d %s", ic.Src, rec.Code, rec.Header().Get("Content-Type"))
 		}
@@ -363,7 +364,7 @@ func TestSearchSendsFacetsOutOfBand(t *testing.T) {
 	seedTagged(t, s, "2", "beta", []string{"go"})
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=alpha", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q=alpha", nil))
 	body := rec.Body.String()
 	for _, want := range []string{
 		`id="rail-sources" hx-swap-oob="true"`,
@@ -387,7 +388,7 @@ func TestSearchSendsFacetsOutOfBand(t *testing.T) {
 	}
 
 	rec = httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
 	if !strings.Contains(rec.Body.String(), `data-v="twitter" data-key="1" aria-pressed="false" disabled>`) {
 		t.Fatalf("empty source not disabled without a query: %s", rec.Body.String())
 	}
@@ -406,7 +407,7 @@ func TestSearchNotesIgnoredFilters(t *testing.T) {
 		"tag:go tag:rust alpha": fmt.Sprintf(en["noteRepeated"], "tag:rust"),
 	} {
 		rec := httptest.NewRecorder()
-		handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q="+url.QueryEscape(q), nil))
+		Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q="+url.QueryEscape(q), nil))
 		body := rec.Body.String()
 		if !strings.Contains(body, want) {
 			t.Errorf("%q: missing note %q: %s", q, want, body)
@@ -424,8 +425,15 @@ func TestIndexPrefillsQueryFromURL(t *testing.T) {
 	defer s.Close()
 
 	rec := httptest.NewRecorder()
-	handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/?q="+url.QueryEscape(`tag:"web dev"`), nil))
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/?q="+url.QueryEscape(`tag:"web dev"`), nil))
 	if !strings.Contains(rec.Body.String(), `value="tag:&#34;web dev&#34;"`) {
 		t.Fatalf("search box not prefilled from ?q=: %s", rec.Body.String())
+	}
+}
+
+func TestAppIconIsEmbeddedPNG(t *testing.T) {
+	icon := AppIcon()
+	if !bytes.HasPrefix(icon, []byte("\x89PNG\r\n\x1a\n")) {
+		t.Fatalf("AppIcon is not a PNG (%d bytes)", len(icon))
 	}
 }

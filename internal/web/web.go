@@ -20,6 +20,13 @@ import (
 //go:embed templates/*.html static/*
 var assets embed.FS
 
+// AppIcon is the 512 px PNG the manifest uses, for a native window's Dock
+// or taskbar icon.
+func AppIcon() []byte {
+	b, _ := assets.ReadFile("static/icon-512.png") // embedded: can't fail
+	return b
+}
+
 var markReplacer = strings.NewReplacer(store.MarkStart, "<mark>", store.MarkEnd, "</mark>")
 
 var funcs = template.FuncMap{
@@ -143,7 +150,9 @@ type home struct {
 	Q          string // ?q=, so a search survives a reload and can be shared
 }
 
-func handler(s *store.Store) http.Handler {
+// Handler serves the whole web UI over s. Serve, ServeReadOnly and
+// `glane app` all mount it.
+func Handler(s *store.Store) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.FileServer(http.FS(assets)))
 
@@ -241,5 +250,5 @@ func handler(s *store.Store) http.Handler {
 }
 
 func Serve(s *store.Store, addr string) error {
-	return http.ListenAndServe(addr, handler(s))
+	return http.ListenAndServe(addr, Handler(s))
 }
