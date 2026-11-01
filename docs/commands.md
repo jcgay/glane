@@ -213,3 +213,14 @@ Local-only; no auth by default.
 
 The UI speaks **English and French**, picked from your browser's
 `Accept-Language` (English when it asks for neither). Nothing to configure.
+
+## `glane app`
+
+Shows the same UI as `glane serve` in a native window (macOS, Linux). It
+serves on a free `127.0.0.1` port and stops when the window closes; links
+open in your default browser. No flags: for a fixed port or `--read-only`,
+use `glane serve`.
+
+Linux needs WebKitGTK (`apt install libwebkit2gtk-4.1-0`); without it the
+command exits with that hint. Not available in the Android build. Launching
+it from the Dock or the app launcher: [Desktop app](desktop-app.md).

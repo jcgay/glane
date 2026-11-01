@@ -93,6 +93,7 @@ export GLANE_SUMMARY_URL=http://localhost:11434/v1 GLANE_SUMMARY_MODEL=gemma3
 | `glane tags` | List your tags with counts |
 | `glane stats [-json]` | Show what's indexed |
 | `glane serve [--port N] [--read-only]` | Serve the keyboard-first web UI |
+| `glane app` | Open the web UI in a native window, with its own server |
 
 Every flag, example and edge case: [docs/commands.md](docs/commands.md).
 
@@ -128,9 +129,9 @@ An Android app searches your index offline, read-only, over the copy of
 
 ## Desktop app
 
-The web UI installs as a desktop app from Chrome, Chromium or Safari: its own
-window and Dock icon, with `glane serve` started at login. Setup:
-[docs/desktop-app.md](docs/desktop-app.md).
+`glane app` opens the UI in its own window and stops its server when you
+close it; on Linux it needs WebKitGTK. Dock and launcher setup, and the
+always-on alternative: [docs/desktop-app.md](docs/desktop-app.md).
 
 ## Environment variables
 
