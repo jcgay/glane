@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-02T12:00:00Z",
+  "title": "Design System: glane",
+  "extensions": {
+    "colorMeta": {
+      "console-amber": { "role": "primary", "displayName": "Console Amber", "canonical": "#f0a050", "lightVariant": "burnt-amber", "cssVar": "--accent", "tonalRamp": ["#3a2208", "#5e3710", "#8a521a", "#b86e28", "#f0a050", "#f6b877", "#f9d3a8", "#fdeedd"] },
+      "console-amber-ink": { "role": "primary", "displayName": "Amber Ink", "canonical": "#f6b877", "lightVariant": "burnt-amber-ink", "cssVar": "--accent-ink" },
+      "console-amber-soft": { "role": "primary", "displayName": "Amber Wash", "canonical": "rgba(240, 160, 80, .12)", "lightVariant": "burnt-amber-soft", "cssVar": "--accent-soft" },
+      "console-amber-sel": { "role": "primary", "displayName": "Amber Haze", "canonical": "rgba(240, 160, 80, .07)", "lightVariant": "burnt-amber-sel", "cssVar": "--sel" },
+      "signal-green": { "role": "tertiary", "displayName": "Signal Green", "canonical": "#7cc48b", "lightVariant": "paper-ok", "cssVar": "--ok" },
+      "src-twitter": { "role": "tertiary", "displayName": "Steel Blue (twitter)", "canonical": "#6ba3dd", "lightVariant": "paper-src-twitter", "cssVar": "--src-twitter" },
+      "src-bluesky": { "role": "tertiary", "displayName": "Lagoon (bluesky)", "canonical": "#45a7c9", "lightVariant": "paper-src-bluesky", "cssVar": "--src-bluesky" },
+      "src-mastodon": { "role": "tertiary", "displayName": "Lilac (mastodon)", "canonical": "#a281e0", "lightVariant": "paper-src-mastodon", "cssVar": "--src-mastodon" },
+      "src-github": { "role": "tertiary", "displayName": "Slate (github)", "canonical": "#9aa2ad", "lightVariant": "paper-src-github", "cssVar": "--src-github" },
+      "graphite-bg": { "role": "neutral", "displayName": "Graphite", "canonical": "#121210", "lightVariant": "paper-bg", "cssVar": "--bg", "tonalRamp": ["#121210", "#18171a", "#1f1e1c", "#2a2926", "#3a3833", "#959086", "#a29c91", "#e9e6df"] },
+      "graphite-surface": { "role": "neutral", "displayName": "Raised Graphite", "canonical": "#18171a", "lightVariant": "paper-surface", "cssVar": "--surface" },
+      "graphite-surface-2": { "role": "neutral", "displayName": "Graphite Well", "canonical": "#1f1e1c", "lightVariant": "paper-surface-2", "cssVar": "--surface-2" },
+      "graphite-border": { "role": "neutral", "displayName": "Hairline", "canonical": "#2a2926", "lightVariant": "paper-border", "cssVar": "--border" },
+      "graphite-border-strong": { "role": "neutral", "displayName": "Strong Hairline", "canonical": "#3a3833", "lightVariant": "paper-border-strong", "cssVar": "--border-strong" },
+      "bone-ink": { "role": "neutral", "displayName": "Bone Ink", "canonical": "#e9e6df", "lightVariant": "paper-ink", "cssVar": "--ink" },
+      "dust-muted": { "role": "neutral", "displayName": "Dust", "canonical": "#a29c91", "lightVariant": "paper-muted", "cssVar": "--muted" },
+      "dust-faint": { "role": "neutral", "displayName": "Faint Dust", "canonical": "#959086", "lightVariant": "paper-faint", "cssVar": "--faint" },
+      "paper-bg": { "role": "neutral", "displayName": "Paper (light)", "canonical": "#f7f6f3", "cssVar": "--bg", "tonalRamp": ["#1c1b18", "#5f594f", "#655f55", "#d3cdc2", "#e4e0d8", "#f0eee9", "#f7f6f3", "#ffffff"] },
+      "burnt-amber": { "role": "primary", "displayName": "Burnt Amber (light)", "canonical": "#b45309", "cssVar": "--accent", "tonalRamp": ["#3d1c03", "#5e2c05", "#8a3f07", "#b45309", "#d9772f", "#efa76a", "#fbeddd", "#fdf4ea"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The corpus total on /stats only." },
+      "headline": { "displayName": "Headline", "purpose": "Stat card counts." },
+      "title": { "displayName": "Title", "purpose": "Result titles, clamped to 2 lines unless selected; 15.5px on phones." },
+      "body": { "displayName": "Body", "purpose": "Page default and dialog text." },
+      "body-small": { "displayName": "Summary", "purpose": "Result summaries in Dust, 56ch max, clamped to 2 lines; 14.5px on phones." },
+      "brand": { "displayName": "Brand", "purpose": "The glane wordmark." },
+      "command": { "displayName": "Command", "purpose": "Query field and its coloured overlay; 16px under pointer: coarse." },
+      "meta": { "displayName": "Meta", "purpose": "Counts, dates, meta row, status bar, buttons, tags, segmented control (12-13px)." },
+      "label": { "displayName": "Label", "purpose": "Uppercase rail and stats section headings naming the control or table below." }
+    },
+    "shadows": [
+      { "name": "dialog-lift", "value": "0 24px 48px -16px rgba(0, 0, 0, .5)", "light": "0 1px 2px rgba(60, 50, 30, .05), 0 16px 40px -16px rgba(60, 50, 30, .25)", "purpose": "Help dialog only (--shadow)." },
+      { "name": "focus-halo", "value": "0 0 0 3px var(--accent-soft)", "purpose": "Command bar when it has focus." },
+      { "name": "focus-ring", "value": "outline: 2px solid var(--accent); outline-offset: 2px", "purpose": "Every link and control that doesn't draw its own focus." }
+    ],
+    "motion": [
+      { "name": "load-slide", "value": ".9s cubic-bezier(.22, 1, .36, 1) infinite", "purpose": "2px amber loading bar, only while an htmx request runs." },
+      { "name": "stale-fade", "value": "opacity .2s", "purpose": "Previous results fade to .55 while a request runs." },
+      { "name": "reduced-motion", "value": "transition-duration: 0s; animation-duration: 0s", "purpose": "Global under prefers-reduced-motion: reduce." }
+    ],
+    "breakpoints": [
+      { "name": "phone", "value": "max-width: 760px" },
+      { "name": "touch", "value": "pointer: coarse" },
+      { "name": "touch-landscape", "value": "(pointer: coarse) and (max-height: 500px)" },
+      { "name": "theme-light", "value": "prefers-color-scheme: light" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Command Bar",
+      "kind": "input",
+      "refersTo": "command-bar",
+      "description": "The query line: mono input with amber filter operators, amber outline and halo on focus.",
+      "html": "<form class=\"ds-cmd\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 6 6 6-6 6\"/></svg><input class=\"ds-cmd-in\" value=\"\" placeholder=\"search  source:github  tag:go  since:30d\"><kbd class=\"ds-kbd\">/</kbd></form>",
+      "css": ".ds-cmd { display: flex; align-items: center; gap: 8px; margin: 0; background: var(--bg, #121210); border: 1px solid var(--faint, #959086); border-radius: 8px; padding: 0 10px; color: var(--accent, #f0a050); } .ds-cmd:focus-within { border-color: var(--accent, #f0a050); box-shadow: 0 0 0 3px var(--accent-soft, rgba(240,160,80,.12)); } .ds-cmd-in { flex: 1; min-width: 0; padding: 9px 0; font: 14px var(--mono, 'Geist Mono', ui-monospace, monospace); background: transparent; border: 0; outline: 0; color: var(--ink, #e9e6df); caret-color: var(--accent, #f0a050); } .ds-cmd-in::placeholder { color: var(--faint, #959086); } .ds-kbd { font: 500 11px var(--mono, 'Geist Mono', ui-monospace, monospace); color: var(--muted, #a29c91); background: var(--surface-2, #1f1e1c); border: 1px solid var(--border-strong, #3a3833); border-bottom-width: 2px; border-radius: 4px; padding: 0 .35em; }"
+    },
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Small outlined mono button (copy, more, clear); amber on hover.",
+      "html": "<button class=\"ds-btn\">more <kbd class=\"ds-kbd\">n</kbd></button>",
+      "css": ".ds-btn { padding: 4px 12px; font: 12px var(--mono, 'Geist Mono', ui-monospace, monospace); color: var(--muted, #a29c91); background: none; border: 1px solid var(--border-strong, #3a3833); border-radius: 4px; cursor: pointer; } .ds-btn:hover { color: var(--accent-ink, #f6b877); border-color: var(--accent, #f0a050); } .ds-btn:focus-visible { outline: 2px solid var(--accent, #f0a050); outline-offset: 2px; } .ds-kbd { font: 500 11px var(--mono, 'Geist Mono', ui-monospace, monospace); color: var(--muted, #a29c91); background: var(--surface-2, #1f1e1c); border: 1px solid var(--border-strong, #3a3833); border-bottom-width: 2px; border-radius: 4px; padding: 0 .35em; }"
+    },
+    {
+      "name": "Tag Pill",
+      "kind": "chip",
+      "refersTo": "tag-pill",
+      "description": "Mono tag with a faint # prefix; amber border on hover, amber wash when pressed.",
+      "html": "<span style=\"display:flex;gap:4px\"><button class=\"ds-tag\">golang</button><button class=\"ds-tag\" aria-pressed=\"true\">sqlite</button><button class=\"ds-tag\">htmx</button></span>",
+      "css": ".ds-tag { display: inline-flex; gap: 4px; padding: 2px 6px; font: 12px var(--mono, 'Geist Mono', ui-monospace, monospace); color: var(--muted, #a29c91); white-space: nowrap; background: var(--surface-2, #1f1e1c); border: 1px solid var(--border, #2a2926); border-radius: 4px; cursor: pointer; } .ds-tag::before { content: '#'; color: var(--faint, #959086); } .ds-tag:hover { color: var(--accent-ink, #f6b877); border-color: var(--accent, #f0a050); } .ds-tag[aria-pressed='true'] { color: var(--accent-ink, #f6b877); border-color: var(--accent, #f0a050); background: var(--accent-soft, rgba(240,160,80,.12)); } .ds-tag:focus-visible { outline: 2px solid var(--accent, #f0a050); outline-offset: 2px; }"
+    },
+    {
+      "name": "Segmented Period Control",
+      "kind": "custom",
+      "refersTo": "segmented-control",
+      "description": "Four-cell since: control in the rail, faint outline at 3:1, amber wash when pressed.",
+      "html": "<div class=\"ds-seg\"><button>7d</button><button aria-pressed=\"true\">30d</button><button>1y</button><button>all</button></div>",
+      "css": ".ds-seg { display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden; width: 192px; border: 1px solid var(--faint, #959086); border-radius: 6px; } .ds-seg button { padding: 5px 0; font: 12px var(--mono, 'Geist Mono', ui-monospace, monospace); color: var(--muted, #a29c91); background: none; border: 0; cursor: pointer; } .ds-seg button + button { border-left: 1px solid var(--border-strong, #3a3833); } .ds-seg button:hover { color: var(--ink, #e9e6df); } .ds-seg button[aria-pressed='true'] { background: var(--accent-soft, rgba(240,160,80,.12)); color: var(--accent-ink, #f6b877); } .ds-seg button:focus-visible { outline: 2px solid var(--accent, #f0a050); outline-offset: -2px; }"
+    },
+    {
+      "name": "Source Facet",
+      "kind": "custom",
+      "refersTo": "facet-row",
+      "description": "Rail row: source square, name, tabular count, keycap; pressed in amber wash.",
+      "html": "<div class=\"ds-facet\"><button aria-pressed=\"true\"><span class=\"ds-dot\" style=\"background:var(--src-github,#9aa2ad)\"></span>github<span class=\"ds-n\">1,204</span></button><button><span class=\"ds-dot\" style=\"background:var(--src-mastodon,#a281e0)\"></span>mastodon<span class=\"ds-n\">388</span></button></div>",
+      "css": ".ds-facet { display: flex; flex-direction: column; gap: 1px; width: 200px; } .ds-facet button { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 5px; color: var(--muted, #a29c91); background: none; border: 0; text-align: left; font: 13px var(--sans, Geist, system-ui, sans-serif); cursor: pointer; } .ds-facet button:hover { background: var(--surface-2, #1f1e1c); color: var(--ink, #e9e6df); } .ds-facet button[aria-pressed='true'] { background: var(--accent-soft, rgba(240,160,80,.12)); color: var(--accent-ink, #f6b877); } .ds-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; } .ds-n { margin-left: auto; font: 12px var(--mono, 'Geist Mono', ui-monospace, monospace); color: var(--faint, #959086); font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Result Row",
+      "kind": "card",
+      "refersTo": "result-row",
+      "description": "Numbered, ruled result: gutter index and source square, sans title and summary, mono meta row with provenance badge.",
+      "html": "<div class=\"ds-hit\" aria-current=\"true\"><span class=\"ds-g\">1<span class=\"ds-dot\" style=\"background:var(--src-bluesky,#45a7c9)\"></span></span><h3 class=\"ds-h\">Reciprocal Rank Fusion for hybrid search</h3><time class=\"ds-t\">3w ago</time><p class=\"ds-p\">Why fusing BM25 with vector ranks beats either alone, with a minimal implementation.</p><div class=\"ds-m\"><a href=\"#\">example.com</a><span>bluesky/like</span><span class=\"ds-prov ds-vec\">bm25+vec</span></div></div>",
+      "css": ".ds-hit { display: grid; grid-template-columns: 3ch minmax(0,1fr) 11ch; gap: 4px 12px; padding: 12px 20px; border-bottom: 1px solid var(--border, #2a2926); color: var(--ink, #e9e6df); } .ds-hit:hover { background: var(--surface-2, #1f1e1c); } .ds-hit[aria-current='true'] { background: var(--sel, rgba(240,160,80,.07)); } .ds-g { grid-row: 1 / span 3; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-top: 2px; font: 12px var(--mono, 'Geist Mono', ui-monospace, monospace); color: var(--faint, #959086); font-variant-numeric: tabular-nums; } .ds-hit[aria-current='true'] .ds-g { color: var(--accent, #f0a050); } .ds-dot { width: 10px; height: 10px; border-radius: 2px; } .ds-h { margin: 0; font: 560 14.5px/1.35 var(--sans, Geist, system-ui, sans-serif); letter-spacing: -.01em; } .ds-t { text-align: right; font: 12px var(--mono, 'Geist Mono', ui-monospace, monospace); color: var(--faint, #959086); } .ds-p { grid-column: 2 / -1; max-width: 56ch; margin: 0; font: 13.5px/1.45 var(--sans, Geist, system-ui, sans-serif); color: var(--muted, #a29c91); } .ds-m { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font: 12px var(--mono, 'Geist Mono', ui-monospace, monospace); color: var(--faint, #959086); } .ds-m a { color: var(--accent-ink, #f6b877); text-decoration: none; } .ds-m a:hover { text-decoration: underline; text-underline-offset: 3px; } .ds-prov { padding: 0 4px; font-size: 11px; border: 1px solid var(--border-strong, #3a3833); border-radius: 3px; } .ds-vec { color: var(--accent-ink, #f6b877); border-color: var(--accent, #f0a050); }"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "status-bar",
+      "description": "Raised bar with the amber-square mono wordmark and lowercase mono nav links.",
+      "html": "<header class=\"ds-top\"><a class=\"ds-brand\" href=\"#\"><i></i>glane</a><nav class=\"ds-nav\"><a href=\"#\" aria-current=\"page\">search</a><a href=\"#\">stats</a></nav></header>",
+      "css": ".ds-top { display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: var(--surface, #18171a); border-bottom: 1px solid var(--border, #2a2926); } .ds-brand { display: flex; align-items: center; gap: 8px; font: 600 15px var(--mono, 'Geist Mono', ui-monospace, monospace); letter-spacing: -.02em; color: var(--ink, #e9e6df); text-decoration: none; } .ds-brand i { display: block; width: 8px; height: 8px; border-radius: 2px; background: var(--accent, #f0a050); } .ds-nav { display: flex; gap: 14px; margin-left: auto; font: 13px var(--mono, 'Geist Mono', ui-monospace, monospace); } .ds-nav a { color: var(--muted, #a29c91); text-decoration: none; } .ds-nav a:hover, .ds-nav a[aria-current] { color: var(--ink, #e9e6df); } .ds-nav a:focus-visible { outline: 2px solid var(--accent, #f0a050); outline-offset: 2px; border-radius: 4px; }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "stat-card",
+      "description": "Stats card: tabular headline count, dust label, 4px amber meter.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-n\">8,412</div><div class=\"ds-l\">enriched</div><div class=\"ds-meter\"><span style=\"width:72%\"></span></div></div>",
+      "css": ".ds-card { width: 180px; background: var(--surface, #18171a); border: 1px solid var(--border, #2a2926); border-radius: .8rem; padding: 1rem 1.1rem 1.1rem; color: var(--ink, #e9e6df); font-family: var(--sans, Geist, system-ui, sans-serif); } .ds-n { font-size: 1.6rem; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; } .ds-l { font-size: .84rem; color: var(--muted, #a29c91); margin-top: .2rem; } .ds-meter { height: 4px; margin-top: .8rem; border-radius: 2px; background: var(--surface-2, #1f1e1c); overflow: hidden; } .ds-meter span { display: block; height: 100%; border-radius: inherit; background: var(--accent, #f0a050); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Console Beside the Terminal",
+    "overview": "The North Star and descriptive names below were inferred from the shipped code and its comments, not confirmed with the user.\n\nglane's web UI is a dense, dark-first search console meant to sit next to a terminal and an editor. It is graphite with a faint amber bias, and amber is the only accent. One screen holds a top bar with the command line, a filter rail, a scrolling result list and a status bar; only the list and the rail scroll. Everything is reachable from the keyboard, and the interface keeps saying how to drive it: keycaps next to the controls, a `$ glane …` echo of the current query, a help dialog on `?`.\n\nDensity is deliberate. The working type sits between 11px and 15px, and hierarchy comes from weight, from mono against sans, and from colour, not from size jumps. Mono carries anything the machine says (commands, counts, dates, provenance, labels). Sans carries anything a human wrote (titles, summaries). Light mode is a warm paper version of the same system, picked through `prefers-color-scheme`. Fonts and assets are embedded so the UI looks the same offline, in the browser, in the desktop window and in the Android wrapper.",
+    "keyCharacteristics": [
+      "Dark first; light is a full token override, never a separate design.",
+      "One accent (amber), used for focus, the caret, selection, pressed state and the loading bar.",
+      "Mono for machine output, sans for human text.",
+      "Flat surfaces separated by 1px borders; the one shadow belongs to the help dialog.",
+      "Keyboard-first, with a 44px touch floor that only applies under `pointer: coarse`."
+    ],
+    "rules": [
+      { "name": "The One Amber Rule", "body": "Amber is the only accent. Every interactive emphasis (focus, pressed, selected, active link, progress) is a tone of it. No second accent hue.", "section": "colors" },
+      { "name": "The 4.5 Floor Rule", "body": "Faint Dust is the darkest grey that still reads at 4.5:1 on every surface, selected rows included. No text goes below it. That is why muted and faint sit close together: faint is a contrast floor, not a decorative tint.", "section": "colors" },
+      { "name": "The Square Signature Rule", "body": "A source is identified by a small rounded square in its hue (8px, 10px in the result gutter, 2px radius) next to its lowercase name. Source hues never fill text or areas.", "section": "colors" },
+      { "name": "The Mono Means Machine Rule", "body": "Commands, counts, dates, sources, provenance and keys are Geist Mono. Titles and summaries are Geist. Never swap them.", "section": "typography" },
+      { "name": "The Tight Range Rule", "body": "Console surfaces stay within 11–15px. Make hierarchy with weight (400/500/560/600), with family and with Ink/Dust/Faint, not with bigger sizes. Only /stats has big numbers.", "section": "typography" },
+      { "name": "The Tabular Numbers Rule", "body": "Every number that sits in a column or updates (counts, gutter indexes, dates, percentages) uses `font-variant-numeric: tabular-nums`.", "section": "typography" },
+      { "name": "The One Screen Rule", "body": "On a desktop the page never scrolls; the panes do.", "section": "layout" },
+      { "name": "The Touch Floor Rule", "body": "Size for fingers only under `pointer: coarse`. A mouse keeps the dense console.", "section": "layout" },
+      { "name": "The Flat Console Rule", "body": "Bars, rows, rail and cards don't cast shadows. A modal is the only thing that floats.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** take every colour from the `:root` custom properties in `base.css` so the light override follows for free.",
+      "**Do** use Faint Dust (`--faint`) as the lightest text you allow; it is the 4.5:1 floor.",
+      "**Do** set machine output (counts, dates, commands, sources, keys) in Geist Mono with tabular numbers, and human text in Geist.",
+      "**Do** show the key next to any keyboard-driven control with a keycap, and hide it under `pointer: coarse`.",
+      "**Do** express pressed or selected state with Amber Wash plus Amber Ink, and focus with the 2px amber outline (2px offset).",
+      "**Do** keep touch targets at 44px (tags 32px, result tags 24px plus an invisible hit area) under `pointer: coarse` only.",
+      "**Do** use the shared rule from `base.css` to zero transitions and animations under `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "**Don't** add a second accent hue; status green is reserved for \"on\" engines.",
+      "**Don't** use source hues for text, fills or borders; only the small rounded square.",
+      "**Don't** grow the console's type past 15px for hierarchy; use weight, family and Ink/Dust/Faint.",
+      "**Don't** put shadows on bars, rows, rail or cards; only the modal dialog floats.",
+      "**Don't** load fonts or scripts from a CDN; every asset is embedded so the UI renders offline."
+    ]
+  }
+}
