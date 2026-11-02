@@ -12,6 +12,7 @@ type Facets struct {
 	Total    int // every source, the source filter left out
 	BySource []SourceCount
 	Tags     []TagCount  // most frequent first, zero counts left out
+	TagBase  int         // items the tag counts are out of: the tag filter left out
 	Years    []YearCount // newest first, zero counts left out
 }
 
@@ -61,6 +62,10 @@ func (s *Store) Facets(query string, f Filter) (Facets, error) {
 
 	anyTag := f
 	anyTag.Tag = ""
+	sql, args = from("items i", anyTag)
+	if err := s.db.QueryRow("SELECT COUNT(*)"+sql, args...).Scan(&out.TagBase); err != nil {
+		return Facets{}, err
+	}
 	sql, args = from("item_tags tg JOIN items i ON i.id = tg.item_id", anyTag)
 	rows, err = s.db.Query("SELECT tg.tag, COUNT(*) c"+sql+" GROUP BY tg.tag ORDER BY c DESC, tg.tag", args...)
 	if err != nil {

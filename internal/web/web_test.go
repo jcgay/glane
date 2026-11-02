@@ -380,7 +380,7 @@ func TestSearchSendsFacetsOutOfBand(t *testing.T) {
 		`id="rail-sources" hx-swap-oob="true"`,
 		`id="rail-tags" hx-swap-oob="true"`,
 		`data-v="bluesky" data-key="2" aria-pressed="false"><span class="dot bluesky"></span>bluesky<span class="n">1</span>`,
-		`data-v="rust" aria-pressed="false">rust<span class="n">1</span>`,
+		`data-v="rust" aria-pressed="false"><span class="t">rust</span><span class="n">1</span>`,
 		en["countsFTS"],
 	} {
 		if !strings.Contains(body, want) {
@@ -471,5 +471,33 @@ func TestSearchBrowsesOneYear(t *testing.T) {
 	}
 	if !strings.Contains(body, "glane search --since 2023 --until 2023") {
 		t.Fatalf("the CLI echo must carry --until: %s", body)
+	}
+}
+
+// The rail leads with the most distinctive tags and folds the rest: a tag on
+// most of the listing ranks last, the browsed tag always shows, and it leads
+// each result's tags.
+func TestRailFoldsTagsAndDemotesBroadOnes(t *testing.T) {
+	var tags []store.TagCount
+	tags = append(tags, store.TagCount{Tag: "everything", Count: 90})
+	for i := range topTags + 5 {
+		tags = append(tags, store.TagCount{Tag: fmt.Sprintf("t%02d", i), Count: 30 - i})
+	}
+	r := newRail(store.Facets{Total: 3, TagBase: 100, Tags: tags}, query{Tag: "t24"})
+	if len(r.Tags) != topTags+1 || r.Tags[0].Tag != "t24" || r.Tags[1].Tag != "t00" {
+		t.Fatalf("top tags = %+v, want the browsed t24, then t00…", r.Tags)
+	}
+	if last := r.MoreTags[len(r.MoreTags)-1]; last.Tag != "everything" {
+		t.Fatalf("a tag on 90%% of items must rank last, got %+v", r.MoreTags)
+	}
+
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	seedTagged(t, s, "1", "alpha", []string{"a", "b", "c", "rust"})
+	rec := httptest.NewRecorder()
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?tag=rust", nil))
+	if !strings.Contains(rec.Body.String(), `<span class="tags">
+        <button type="button" class="tag" data-op="tag" data-v="rust"`) {
+		t.Fatalf("the browsed tag must lead the result's tags: %s", rec.Body.String())
 	}
 }

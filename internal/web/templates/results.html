@@ -22,9 +22,9 @@
       {{if and .FromFTS .FromSemantic}}<span class="prov vec" title="{{$.T.bothTitle}}">bm25+vec</span>
       {{else if .FromSemantic}}<span class="prov vec" title="{{$.T.semTitle}}">vec</span>
       {{else if .FromFTS}}<span class="prov" title="{{$.T.ftsTitle}}">bm25</span>{{end}}
-      {{if .Tags}}<span class="tags">
-        {{range head 3 .Tags}}<button type="button" class="tag" data-op="tag" data-v="{{.}}" aria-pressed="false">{{.}}</button>{{end}}
-        {{with more 3 .Tags}}<span class="plus" title="{{join (slice $h.Tags 3) ", "}}">+{{.}}</span>{{end}}
+      {{if .Tags}}{{$tags := front $.D.Query.Tag .Tags}}<span class="tags">
+        {{range head 3 $tags}}<button type="button" class="tag" data-op="tag" data-v="{{.}}" aria-pressed="false">{{.}}</button>{{end}}
+        {{with more 3 $tags}}<span class="plus" title="{{join (slice $tags 3) ", "}}">+{{.}}</span>{{end}}
       </span>{{end}}
     </div>
   </li>

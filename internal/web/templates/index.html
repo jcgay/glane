@@ -100,6 +100,11 @@
     .years { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; margin-top: 10px; }
     .tagrail { display: flex; flex-wrap: wrap; gap: 4px; }
     .tagrail .n { color: var(--faint); font-variant-numeric: tabular-nums; }
+    .moretags { margin-top: 8px; }
+    .moretags summary { width: fit-content; padding: 2px 0; font: 12px var(--mono); color: var(--muted); cursor: pointer; }
+    .moretags summary:hover { color: var(--ink); }
+    .moretags summary .n { color: var(--faint); }
+    .moretags[open] summary { margin-bottom: 8px; }
     .health { display: grid; gap: 10px; font: 12px var(--mono); color: var(--muted); }
     .health > div { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; align-items: center; }
     .health .name { text-transform: lowercase; }
@@ -110,9 +115,10 @@
 
     /* a tag pill, in the rail and on every result */
     .tag {
-      display: inline-flex; gap: 4px; padding: 1px 6px; font: 12px var(--mono); color: var(--muted);
-      background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px;
+      display: inline-flex; gap: 4px; max-width: 100%; padding: 2px 6px; font: 12px var(--mono); color: var(--muted);
+      white-space: nowrap; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px;
     }
+    .tag .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .tag::before { content: "#"; color: var(--faint); }
     .tag:hover { color: var(--accent-ink); border-color: var(--accent); }
     .tag[aria-pressed="true"] { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-soft); }
@@ -249,7 +255,6 @@
         -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
         mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
       }
-      .tagrail .tag { white-space: nowrap; }
 
       .cli { width: 100%; margin-left: 0; }
       .head, .hit { padding-inline: 16px; }
@@ -408,6 +413,10 @@
       document.getElementById('fold').classList.toggle('on', Object.values(o).some(Boolean));
       document.querySelectorAll('.rail [data-op], #results [data-op]').forEach(b =>
         b.setAttribute('aria-pressed', (o[b.dataset.op] || '') === b.dataset.v));
+      // the tags are one Tab stop, on the browsed tag or the first
+      const tags = [...document.querySelectorAll('#rail-tags .tag')];
+      const cur = tags.find(b => b.getAttribute('aria-pressed') === 'true') || tags[0];
+      tags.forEach(b => { b.tabIndex = b === cur ? 0 : -1; });
     }
     function put(op, v) {
       if (/\s/.test(v)) v = `"${v}"`;
@@ -469,7 +478,14 @@
       grow = 0;
     });
     // the rail comes back out-of-band with every result list
-    document.body.addEventListener('htmx:afterSettle', paint);
+    // and so do the folded tags: keep them open across searches if they were
+    let moreTags = false;
+    document.addEventListener('toggle', e => { if (e.target.id === 'moretags') moreTags = e.target.open; }, true);
+    document.body.addEventListener('htmx:afterSettle', () => {
+      const d = document.getElementById('moretags');
+      if (d) d.open = moreTags;
+      paint();
+    });
 
     // The query lives in ?q= so a search survives a reload and can be shared.
     // Typing rewrites the history entry; Enter, a filter or "clear" adds one,
@@ -500,6 +516,14 @@
     if (phone.matches) fold(true);
     else try { if (localStorage.getItem('glane.rail') === 'folded') fold(true); } catch {}
 
+    // arrows walk the visible tags, wrapping around
+    document.getElementById('rail').addEventListener('keydown', e => {
+      const b = e.target.closest('#rail-tags .tag');
+      if (!b || !/^Arrow(Left|Right|Up|Down)$/.test(e.key)) return;
+      const vis = [...document.querySelectorAll('#rail-tags .tag')].filter(x => x.offsetParent);
+      const n = vis[(vis.indexOf(b) + (/Right|Down/.test(e.key) ? 1 : -1) + vis.length) % vis.length];
+      e.preventDefault(); b.tabIndex = -1; n.tabIndex = 0; n.focus();
+    });
     q.addEventListener('input', paint);
     q.addEventListener('scroll', () => { hl.scrollLeft = q.scrollLeft; });
     q.addEventListener('keydown', e => {

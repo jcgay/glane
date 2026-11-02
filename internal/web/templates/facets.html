@@ -1,4 +1,5 @@
-{{/* The rail's source, tag and year facets. index.html renders them in place; every
+{{/* The rail's source, tag and year facets. Tags show the most distinctive
+     topTags (web.go) and fold the rest; one Tab stop enters them, arrows move. index.html renders them in place; every
      /search fragment sends them again out-of-band (Rail.OOB), so their counts
      follow the query. Both take the whole view and read .D.Rail. A source is
      disabled at 0 only without words: with them the count is full-text only,
@@ -18,10 +19,17 @@
 {{define "rail-tags"}}{{with .D.Rail}}
 <section class="tagsec" id="rail-tags"{{if .OOB}} hx-swap-oob="true"{{end}}{{if not .Tags}} hidden{{end}}>
   <h2>{{$.T.tags}}</h2>
-  <div class="tagrail">
-    {{range .Tags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="{{eq .Tag $.D.Rail.Query.Tag}}">{{.Tag}}<span class="n">{{.Count}}</span></button>
+  <div class="tagrail" role="group" aria-label="{{$.T.tagsAria}}">
+    {{range .Tags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="{{eq .Tag $.D.Rail.Query.Tag}}"><span class="t">{{.Tag}}</span><span class="n">{{.Count}}</span></button>
     {{end}}
   </div>
+  {{if .MoreTags}}<details class="moretags" id="moretags">
+    <summary>{{$.T.allTags}} <span class="n">+{{len .MoreTags}}</span></summary>
+    <div class="tagrail">
+      {{range .MoreTags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="false"><span class="t">{{.Tag}}</span><span class="n">{{.Count}}</span></button>
+      {{end}}
+    </div>
+  </details>{{end}}
 </section>
 {{end}}{{end}}
 

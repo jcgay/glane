@@ -58,7 +58,7 @@ func TestFacets(t *testing.T) {
 	if src["github"] != 1 || src["twitter"] != 0 || fc.Total != 1 {
 		t.Fatalf("source counts must ignore source:, keep tag: and since:, got %+v", fc)
 	}
-	if tags["db"] != 1 || tags["go"] != 1 {
+	if tags["db"] != 1 || tags["go"] != 1 || fc.TagBase != 1 {
 		t.Fatalf("tag counts must ignore tag:, keep source: and since:, got %+v", fc)
 	}
 

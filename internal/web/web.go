@@ -53,6 +53,15 @@ var funcs = template.FuncMap{
 	// how many it left out: results show three tags and a "+n".
 	"head": func(n int, xs []string) []string { return xs[:min(n, len(xs))] },
 	"more": func(n int, xs []string) int { return max(len(xs)-n, 0) },
+	// front moves x to the start of xs when present: the tag being browsed
+	// leads a result's tags instead of hiding behind "+n".
+	"front": func(x string, xs []string) []string {
+		i := slices.Index(xs, x)
+		if i <= 0 {
+			return xs
+		}
+		return slices.Concat([]string{x}, xs[:i], xs[i+1:])
+	},
 	"inc":  func(i int) int { return i + 1 },
 	"join": strings.Join,
 	// pct is n as a whole percentage of total, for the stats meters.
@@ -119,14 +128,23 @@ type facet struct {
 	Active bool
 }
 
+// The rail shows topTags tags and folds the rest. A tag on more than
+// broadShare of the listing narrows it too little to lead: it ranks after
+// the distinctive ones.
+const (
+	topTags    = 20
+	broadShare = 0.3
+)
+
 // rail is what the source and tag facets render (facets.html).
 type rail struct {
-	Total   int
-	Sources []facet
-	Tags    []store.TagCount
-	Years   []store.YearCount
-	Query   query
-	OOB     bool // sent along a /search fragment, swapped in by id
+	Total    int
+	Sources  []facet
+	Tags     []store.TagCount // the first topTags, the browsed one included
+	MoreTags []store.TagCount // the rest, folded
+	Years    []store.YearCount
+	Query    query
+	OOB      bool // sent along a /search fragment, swapped in by id
 }
 
 func newRail(fc store.Facets, q query) rail {
@@ -144,6 +162,21 @@ func newRail(fc store.Facets, q query) rail {
 	// even when nothing matches it any more
 	if q.Tag != "" && !slices.ContainsFunc(r.Tags, func(t store.TagCount) bool { return t.Tag == q.Tag }) {
 		r.Tags = append(r.Tags, store.TagCount{Tag: q.Tag})
+	}
+	broad := func(t store.TagCount) bool { return float64(t.Count) > broadShare*float64(fc.TagBase) }
+	slices.SortStableFunc(r.Tags, func(a, b store.TagCount) int {
+		switch {
+		case broad(a) == broad(b):
+			return 0
+		case broad(a):
+			return 1
+		}
+		return -1
+	})
+	r.Tags, r.MoreTags = r.Tags[:min(topTags, len(r.Tags))], r.Tags[min(topTags, len(r.Tags)):]
+	if i := slices.IndexFunc(r.MoreTags, func(t store.TagCount) bool { return t.Tag == q.Tag }); i >= 0 {
+		r.Tags = slices.Concat([]store.TagCount{r.MoreTags[i]}, r.Tags)
+		r.MoreTags = slices.Delete(r.MoreTags, i, i+1)
 	}
 	if y := q.Year(); y != "" && !slices.ContainsFunc(r.Years, func(c store.YearCount) bool { return c.Year == y }) {
 		r.Years = append(r.Years, store.YearCount{Year: y})
