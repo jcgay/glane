@@ -357,7 +357,7 @@
       {{template "rail-tags" .}}
       {{with .D.Stats}}{{if .Total}}
       <section class="healthsec">
-        <h2>index</h2>
+        <h2>{{$.T.index}}</h2>
         <div class="health">
           <div><span class="name">{{$.T.enriched}}</span><span>{{pct .Enriched .Total}}%</span><span class="bar"><span style="--w: {{pct .Enriched .Total}}%"></span></span>
             {{if lt .Enriched .Total}}<button type="button" class="run" data-copy="glane enrich" title="{{$.T.copyFix}}">$ glane enrich</button>{{end}}</div>
@@ -379,7 +379,7 @@
     <span>{{num .D.Stats.Total .T}} {{.T.items}}</span>
     <span>fts5 <span class="on">●</span></span>
     <span>vec {{if .D.Embed}}<span class="on">●</span> {{.D.EmbedModel}}{{else}}○ {{.T.off}}{{end}}</span>
-    {{with .D.Sync}}{{if .Latest}}<a class="sync" href="/stats" title="{{$.T.syncTitle}}">sync {{reltime .Latest $.T}}</a>
+    {{with .D.Sync}}{{if .Latest}}<a class="sync" href="/stats" title="{{$.T.syncTitle}}">{{$.T.sync}} {{reltime .Latest $.T}}</a>
     {{range .Stale}}<a class="stale" href="/stats">{{printf $.T.staleSync .Source (reltime .UpdatedAt $.T)}}</a>{{end}}{{end}}{{end}}
     <span class="keys">
       <span><kbd>j</kbd> <kbd>k</kbd> {{.T.keyMove}}</span><span><kbd>o</kbd> {{.T.keyOpen}}</span>
