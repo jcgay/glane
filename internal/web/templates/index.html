@@ -241,6 +241,9 @@
       .rail .sincesec { order: -1; flex-basis: 100%; }
       .rail #rail-sources { flex-basis: 100%; }
       .rail .facet { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
+      /* sixteen years two by two would push the sources off the first screen */
+      .rail .years { grid-template-columns: repeat(4, 1fr); column-gap: 16px; }
+      .rail .years .n { display: none; } /* counted on /stats */
       .next { padding-inline: 16px; }
       .rail .tagsec { flex-basis: 100%; }
       .rail .healthsec, .navlinks { display: none; }
@@ -277,7 +280,7 @@
     /* a phone on its side: the sync line would take a third of the height */
     @media (pointer: coarse) and (max-height: 500px) { .status .sync { display: none; } }
     @media (pointer: coarse) {
-      .facet kbd, .fold kbd, .cmd kbd, .status .keys, .cli { display: none; }
+      .facet kbd, .fold kbd, .cmd kbd, .next kbd, .help form kbd, .status .keys, .cli { display: none; }
       .field input, .field .hl { padding: 11px 0; font-size: 16px; }
       .fold, .helpbtn { justify-content: center; width: 44px; height: 44px; padding: 0; border-radius: 8px; }
       .fold .i, .helpbtn .i { width: 20px; height: 20px; }
@@ -297,6 +300,7 @@
       /* "+2" only names the other tags in a hover tooltip a finger can't open */
       .tags .plus { display: none; }
       .btn { min-height: 44px; padding: 0 16px; font-size: 13px; }
+      .moretags summary { padding-block: 12px; font-size: 13px; }
       /* grow the meta links' hit area without moving the text */
       .hit .m a { padding-block: 10px; margin-block: -10px; }
     }
