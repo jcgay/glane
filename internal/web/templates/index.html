@@ -455,7 +455,8 @@
     }
     function put(op, v) {
       if (/\s/.test(v)) v = `"${v}"`;
-      q.value = (q.value.replace(new RegExp('(^|\\s)' + op + ':("[^"]*"?|\\S*)', 'g'), ' ').trim() + (v ? ' ' + op + ':' + v : '')).trim();
+      // the filter goes with the spaces before it, so none pile up in its place
+      q.value = (q.value.replace(new RegExp('(^|\\s+)' + op + ':("[^"]*"?|\\S*)', 'g'), '').trim() + (v ? ' ' + op + ':' + v : '')).trim();
     }
     // a period replaces the whole date range: a year sets both bounds, the
     // 7d/30d/1y/all buttons drop until:
