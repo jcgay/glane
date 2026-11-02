@@ -108,6 +108,8 @@ main.wrap { padding-block: 2rem 5rem; }
 .dot.bluesky { background: var(--src-bluesky); }
 .dot.mastodon { background: var(--src-mastodon); }
 .dot.github { background: var(--src-github); }
+/* every source at once: a hollow square, so it can't pass for github's grey one */
+.dot.all { background: none; box-shadow: inset 0 0 0 1.5px var(--faint); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
