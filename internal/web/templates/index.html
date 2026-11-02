@@ -511,6 +511,8 @@
       document.getElementById('live').textContent = results.querySelector('.head .count')?.textContent.replace(/\s+/g, ' ').trim() || '';
       sel = -1;
       if (grow && rows()[grow]) { sel = grow - 1; move(1); }
+      // a new search starts at its best hit, not where the last list was left
+      else if (!grow) { results.closest('.list').scrollTop = 0; if (phone.matches) scrollTo(0, 0); }
       grow = 0;
     });
     // the rail comes back out-of-band with every result list
