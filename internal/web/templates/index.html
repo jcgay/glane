@@ -86,7 +86,7 @@
       display: flex; align-items: center; gap: 8px; margin: 0 -8px; padding: 4px 8px;
       border-radius: 5px; color: var(--muted); text-align: left; font-size: 13px;
     }
-    .facet button:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+    .facet button:hover:not(:disabled, [aria-pressed="true"]) { background: var(--surface-2); color: var(--ink); }
     .facet button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); }
     .facet button:disabled { opacity: .5; cursor: default; }
     .facet .n { margin-left: auto; font: 12px var(--mono); color: var(--faint); font-variant-numeric: tabular-nums; }
