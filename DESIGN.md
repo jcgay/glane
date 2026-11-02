@@ -226,7 +226,7 @@ A near-black warm graphite (or a warm paper in light mode), bone ink, dusty grey
 
 **The 4.5 Floor Rule.** Faint Dust is the darkest grey that still reads at 4.5:1 on every surface, selected rows included. No text goes below it. That is why muted and faint sit close together: faint is a contrast floor, not a decorative tint.
 
-**The Square Signature Rule.** A source is identified by a small rounded square in its hue (8px, 10px in the result gutter, 2px radius) next to its lowercase name. Source hues never fill text or areas.
+**The Square Signature Rule.** A source is identified by a small rounded square in its hue (8px, 10px in the result gutter, 2px radius) next to its lowercase name. Source hues never fill text or areas. "All sources" is the same square drawn hollow, a 1.5px Faint Dust outline.
 
 ## Typography
 
@@ -261,7 +261,7 @@ The search page is a full-height flex column: top bar, a grid shell (a 224px rai
 
 Rhythm runs on 4/8/12/16/20px. Rows are padded 12px 20px, the rail has 16px padding with 22px between sections, bars use 6–12px vertical padding.
 
-**Phones (≤760px):** the document scrolls (so the URL bar collapses and pull-to-refresh works) and the top bar becomes sticky. The rail starts folded and opens as a panel under the bar, with the period first, sources two by two, years four across, and tags on two rows that scroll sideways with a 40px fade on the right. The rail health block and nav links are hidden.
+**Phones (≤760px):** the document scrolls (so the URL bar collapses and pull-to-refresh works) and the top bar becomes sticky. The rail starts folded and opens as a panel under the bar, with the period first and its years on one row, then sources two by two, then tags on two rows; the year and tag rows scroll sideways with a 40px fade on the right. A tap on a facet folds the panel again. The rail health block and nav links are hidden; the panel ends with a stats link instead. A touch screen never focuses the search box on load, so no keyboard rises over the results.
 
 **Touch (`pointer: coarse`, any width):** every tappable control is at least 44px tall. Rail tags are 32px, result tags 24px with an invisible hit area that brings them to 34px. Keycap hints, the key legend and the CLI echo are hidden, and the help dialog explains taps instead of keys.
 
@@ -303,7 +303,7 @@ The core of the console. It has a Graphite inset background, a 1px Faint Dust ou
 - **State:** hover gives Amber Ink text and an amber border. Pressed adds Amber Wash. The rail's tags are one Tab stop and arrow keys move between them. Results show three tags, then a `+n`.
 
 ### Facet rows and segmented control
-Rail facet rows are full-width buttons (13px, Dust, 5px radius) laid out as source square, name, tabular count and keycap. Hover is Graphite Well, pressed is Amber Wash with Amber Ink, disabled is 50% opacity. The period control is a 4-cell segmented control: a 1px Faint Dust outline (3:1 against the rail), 6px radius, Strong Hairline dividers, Mono 12px, and pressed cells in Amber Wash. Years sit under it in a two-column facet grid.
+Rail facet rows are full-width buttons (13px, Dust, 5px radius) laid out as source square, name, tabular count and keycap. Hover is Graphite Well, pressed is Amber Wash with Amber Ink, disabled is 50% opacity. The period control is a 4-cell segmented control: a 1px Faint Dust outline (3:1 against the rail), 6px radius, Strong Hairline dividers, Mono 12px, and pressed cells in Amber Wash. Years sit under it in a two-column facet grid, each count right after its year. A caveat on a section ("full-text counts") sits on its heading's line, Mono 400 without the uppercase, so it never pushes the rows down.
 
 ### Result Row
 A numbered, ruled row. It has the gutter (Faint index number turning amber when selected, source square), a Title in Ink, a time in Faint Mono, a summary in Dust, an optional matched excerpt behind a 1px left rule, and a Mono meta row: host link in Amber Ink with an arrow icon, "on source" link, author and source/kind, a provenance badge, tags. Hover is Graphite Well. The j/k-selected row is Amber Haze, unclamps its title and summary, and gets a 2px inset amber outline when its title link has focus. Search hits are `<mark>`ed in Amber Wash with Amber Ink.
