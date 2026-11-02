@@ -195,7 +195,8 @@ type.
   shows the matching `glane search …` command, ready to copy. A filter it
   can't apply (`since:abc`, an unknown source, a second `tag:`) is named in
   the status line rather than silently dropped.
-- **50 results at a time**: a full page says there are more, and `n` or the
+- **50 results at a time**: the header says how many match in all ("50 of
+  396", when that count is exact: without semantic search), and `n` or the
   button under the list shows the next 50, up to 1000.
 - **The query is in the URL** (`/?q=…`): reload, bookmark or share a search;
   Back undoes the last filter or Enter.

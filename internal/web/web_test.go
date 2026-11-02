@@ -136,14 +136,15 @@ func TestListingAnnouncesTruncation(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	t.Setenv("GLANE_EMBED_URL", "") // the full-text count is exact
 	rec := httptest.NewRecorder()
 	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
 	body := rec.Body.String()
-	if !strings.Contains(body, fmt.Sprintf("%d results", pageLimit)) {
-		t.Fatalf("listing must show how many it returned: %s", body)
+	if !strings.Contains(body, fmt.Sprintf("%d of %d results", pageLimit, pageLimit+1)) {
+		t.Fatalf("listing must show how many it returned out of how many: %s", body)
 	}
-	if !strings.Contains(body, en["hasMore"]) || !strings.Contains(body, `hx-vals='{"n": 100}'`) {
-		t.Fatalf("a full page must say there are more and offer the next one: %s", body)
+	if !strings.Contains(body, "1 more") || !strings.Contains(body, `hx-vals='{"n": 100}'`) {
+		t.Fatalf("a full page must offer the next one, sized to what is left: %s", body)
 	}
 
 	// the next page is the same search, one page longer, and the last one
@@ -537,5 +538,26 @@ func TestCountsFollowTheLanguage(t *testing.T) {
 		if tc.got != tc.want {
 			t.Errorf("got %q, want %q", tc.got, tc.want)
 		}
+	}
+}
+
+// A listing of exactly one page has nothing more to offer, even though it
+// filled the page.
+func TestFullPageWithNothingMoreOffersNoMore(t *testing.T) {
+	t.Setenv("GLANE_EMBED_URL", "")
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	items := make([]store.Item, pageLimit)
+	for i := range items {
+		items[i] = store.Item{Source: "github", SourceID: fmt.Sprint(i), Kind: "star",
+			Text: "item", URL: fmt.Sprintf("http://x/%d", i), CreatedAt: int64(i + 1)}
+	}
+	if _, err := s.Upsert(items); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search", nil))
+	if body := rec.Body.String(); strings.Contains(body, `id="more"`) || strings.Contains(body, en["hasMore"]) {
+		t.Fatalf("all %d items are listed, nothing more to offer: %s", pageLimit, body)
 	}
 }

@@ -1,7 +1,7 @@
 <div class="head">
   <span class="count">
-    {{num (len .D.Hits) .T}} {{results (len .D.Hits) .T}} · {{if .D.Query.Words}}{{.T.ranked}}{{else}}{{.T.newest}}{{end}}
-    {{if .D.Next}}<span class="more">{{.T.hasMore}}</span>{{else if .D.Truncated}}<span class="more">{{.T.truncated}}</span>{{end}}
+    {{num (len .D.Hits) .T}} {{with .D.Of}}{{$.T.of}} {{num . $.T}} {{results . $.T}}{{else}}{{results (len .D.Hits) .T}}{{end}} · {{if .D.Query.Words}}{{.T.ranked}}{{else}}{{.T.newest}}{{end}}
+    {{if .D.Of}}{{if not .D.Next}}<span class="more">{{.T.truncated}}</span>{{end}}{{else if .D.Next}}<span class="more">{{.T.hasMore}}</span>{{else if .D.Truncated}}<span class="more">{{.T.truncated}}</span>{{end}}
     {{range .D.Notes}} <span class="more">{{.}}</span>{{end}}
   </span>
   <div class="cli"><code>{{.D.Query.CLI}}</code><button type="button" class="btn" data-copy="{{.D.Query.CLI}}">{{.T.copy}}</button></div>
@@ -32,7 +32,7 @@
 </ol>
 {{if .D.Next}}<div class="next">
   <button type="button" class="btn" id="more" hx-get="/search" hx-include=".search-form" hx-vals='{"n": {{.D.Next}}}'
-          hx-target="#results" hx-indicator="#load">{{.T.more}} <kbd>n</kbd></button>
+          hx-target="#results" hx-indicator="#load">{{printf .T.more .D.NextN}} <kbd>n</kbd></button>
 </div>{{end}}
 {{else}}
 <div class="empty">

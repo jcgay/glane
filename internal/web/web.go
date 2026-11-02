@@ -135,6 +135,8 @@ type page struct {
 	Hits      []store.Result
 	Truncated bool
 	Next      int // ?n= for the next page; 0 when there is none to offer
+	NextN     int // how many that next page adds
+	Of        int // how many match in all, when more than Hits and known exactly
 	Query     query
 	Rail      rail
 	Notes     []string // filters typed but not applied, for the status line
@@ -351,9 +353,10 @@ func Handler(s *store.Store) http.Handler {
 		}
 		// No query is the review listing (newest first), not an empty screen —
 		// source, date and tag all narrow it.
+		ec := gembed.FromEnv()
 		var res []store.Result
 		if q != "" {
-			res, err = search.Hybrid(s, gembed.FromEnv(), q, f)
+			res, err = search.Hybrid(s, ec, q, f)
 		} else {
 			res, err = s.Recent(f)
 		}
@@ -374,8 +377,26 @@ func Handler(s *store.Store) http.Handler {
 		rl := newRail(fc, qr)
 		rl.OOB = true
 		pg := page{Hits: res, Truncated: len(res) == limit, Query: qr, Rail: rl, Notes: notes}
+		// the rail counts the same listing, but full-text only: exact unless
+		// semantic search can add items it misses
+		matched := -1
+		if q == "" || ec == nil {
+			matched = rl.Total
+			for _, sf := range rl.Sources {
+				if sf.Active {
+					matched = sf.Count
+				}
+			}
+			pg.Truncated = matched > len(res)
+			if pg.Truncated {
+				pg.Of = matched
+			}
+		}
 		if pg.Truncated && limit < maxLimit {
-			pg.Next = limit + pageLimit
+			pg.Next, pg.NextN = limit+pageLimit, pageLimit
+			if matched >= 0 {
+				pg.NextN = min(pageLimit, matched-len(res))
+			}
 		}
 		if err := tmpl.ExecuteTemplate(w, "results.html", view{t, pg}); err != nil {
 			log.Printf("glane: render results.html: %v", err)
