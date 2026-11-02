@@ -62,7 +62,14 @@ var funcs = template.FuncMap{
 		}
 		return slices.Concat([]string{x}, xs[:i], xs[i+1:])
 	},
-	"inc":  func(i int) int { return i + 1 },
+	"inc": func(i int) int { return i + 1 },
+	// op spells a filter the way the search box reads it, for a link to /?q=
+	"op": func(name, v string) string {
+		if strings.ContainsAny(v, " \t") {
+			v = `"` + v + `"`
+		}
+		return name + ":" + v
+	},
 	"join": strings.Join,
 	// pct is n as a whole percentage of total, for the stats meters.
 	"pct": func(n, total int) int {
@@ -185,6 +192,15 @@ func newRail(fc store.Facets, q query) rail {
 	return r
 }
 
+// statsPage is what stats.html renders: the counts, then the ways into the
+// index (sources, years, tags), each a link to that listing.
+type statsPage struct {
+	store.Stats
+	Years   []store.YearCount
+	YearMax int // the busiest year: years are drawn against it, to show their shape
+	Tags    []store.TagCount
+}
+
 // home is what index.html renders: the filter rail, the index health and the
 // status bar all read from it.
 type home struct {
@@ -262,11 +278,22 @@ func Handler(s *store.Store) http.Handler {
 	})
 
 	mux.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
-		st, err := s.Stats() // degrade silently: render zero-value stats rather than a hard 500
+		// degrade silently: render zero-value stats rather than a hard 500
+		st, err := s.Stats()
 		if err != nil {
 			log.Printf("glane: stats: %v", err)
 		}
-		if err := tmpl.ExecuteTemplate(w, "stats.html", view{pick(w, r), st}); err != nil {
+		fc, err := s.Facets("", store.Filter{})
+		if err != nil {
+			log.Printf("glane: facets: %v", err)
+		}
+		// the same telling tags the rail leads with, and every year
+		rl := newRail(fc, query{})
+		pg := statsPage{Stats: st, Years: rl.Years, Tags: rl.Tags}
+		for _, y := range pg.Years {
+			pg.YearMax = max(pg.YearMax, y.Count)
+		}
+		if err := tmpl.ExecuteTemplate(w, "stats.html", view{pick(w, r), pg}); err != nil {
 			log.Printf("glane: render stats.html: %v", err)
 		}
 	})

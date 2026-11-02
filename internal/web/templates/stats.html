@@ -41,12 +41,15 @@
     }
     table { width: 100%; border-collapse: collapse; }
     table td { padding: .55rem 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    table td:first-child { width: 8rem; }
+    table td:first-child { width: 12rem; }
     table td:last-child {
       width: 6rem; text-align: right; color: var(--muted);
       font-family: var(--mono); font-size: .85rem; font-variant-numeric: tabular-nums;
     }
     .src { display: inline-flex; align-items: center; gap: .45rem; }
+    table a { color: inherit; text-decoration: none; }
+    table a:hover, table a:focus-visible { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
+    .hint { margin: -.4rem 0 .9rem; font: 12px var(--mono); color: var(--faint); }
     td .meter { margin: 0 1rem; }
     td .meter > span { background: var(--muted); opacity: .45; }
   </style>
@@ -75,11 +78,34 @@
       <h2>{{.T.bySource}}</h2>
       <table>
         {{range .D.BySource}}<tr>
-          <td><span class="src"><span class="dot {{.Source}}"></span>{{.Source}}</span></td>
+          <td><a class="src" href="/?q={{op "source" .Source}}"><span class="dot {{.Source}}"></span>{{.Source}}</a></td>
           <td><div class="meter" aria-hidden="true"><span style="--w: {{pct .Count $.D.Total}}%"></span></div></td>
           <td>{{.Count}}</td>
         </tr>{{end}}
       </table>
+
+      {{if .D.Years}}
+      <h2>{{.T.byYear}}</h2>
+      <table>
+        {{range .D.Years}}<tr>
+          <td><a href="/?q={{printf "%s %s" (op "since" .Year) (op "until" .Year)}}">{{.Year}}</a></td>
+          <td><div class="meter" aria-hidden="true"><span style="--w: {{pct .Count $.D.YearMax}}%"></span></div></td>
+          <td>{{.Count}}</td>
+        </tr>{{end}}
+      </table>
+      {{end}}
+
+      {{if .D.Tags}}
+      <h2>{{.T.topTags}}</h2>
+      <p class="hint">{{.T.topTagsHint}}</p>
+      <table>
+        {{range .D.Tags}}<tr>
+          <td><a href="/?q={{op "tag" .Tag}}">{{.Tag}}</a></td>
+          <td><div class="meter" aria-hidden="true"><span style="--w: {{pct .Count $.D.Total}}%"></span></div></td>
+          <td>{{.Count}}</td>
+        </tr>{{end}}
+      </table>
+      {{end}}
 
       {{if .D.LastSyncBySource}}
       <h2>{{.T.lastSync}}</h2>
@@ -89,5 +115,11 @@
       {{end}}
     </main>
   </div>
+  <script>
+    // / goes back to the search box, as it focuses it there
+    document.addEventListener('keydown', e => {
+      if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); location.href = '/'; }
+    });
+  </script>
 </body>
 </html>

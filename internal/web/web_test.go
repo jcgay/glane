@@ -321,8 +321,14 @@ func TestStatsPageShowsCounts(t *testing.T) {
 	if !strings.Contains(body, `<div class="n">1</div>`) {
 		t.Fatalf("expected a stat card showing 1: %s", body)
 	}
-	if !strings.Contains(body, `<span class="dot bluesky"></span>bluesky</span></td>`) {
-		t.Fatalf("expected bluesky row in per-source table: %s", body)
+	// every row leads to its listing
+	for _, want := range []string{
+		`<a class="src" href="/?q=source%3abluesky"><span class="dot bluesky"></span>bluesky</a>`,
+		`<a href="/?q=tag%3arust">rust</a>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("stats page missing %s: %s", want, body)
+		}
 	}
 }
 

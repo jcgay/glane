@@ -87,6 +87,9 @@ var en = catalog{
 	"tagsLabel":        "Tags",
 	"bySource":         "By source",
 	"lastSync":         "Last sync",
+	"byYear":           "By year",
+	"topTags":          "Telling tags",
+	"topTagsHint":      "the 20 the search rail leads with; tags on most items come last",
 	"syncTitle":        "Last sync of any source; every one is on the stats page",
 	// %s: source, then how long ago it last synced
 	"staleSync": "%s not synced since %s",
@@ -175,6 +178,9 @@ var fr = catalog{
 	"tagsLabel":        "Tags",
 	"bySource":         "Par source",
 	"lastSync":         "Dernier sync",
+	"byYear":           "Par année",
+	"topTags":          "Tags parlants",
+	"topTagsHint":      "les 20 que la colonne de recherche montre d'abord ; les tags présents partout passent après",
 	"syncTitle":        "Dernière synchro, toutes sources confondues ; le détail est sur la page stats",
 	"staleSync":        "%s pas synchronisé depuis %s",
 
