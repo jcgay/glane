@@ -50,6 +50,36 @@
         ],
         "createdAt": "2026-11-02T05:46:45.776Z",
         "reason": "false positive on .card.total, which has border:0 and no background; the static scan merges it with .card's border"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "10px",
+        "createdAt": "2026-11-02T06:28:16.311Z",
+        "reason": "DESIGN.md Typography: keycaps are Mono 500 11px, 10px in the rail"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "16px",
+        "createdAt": "2026-11-02T06:28:16.393Z",
+        "reason": "DESIGN.md Typography: Command is 16px under pointer: coarse so mobile browsers don't zoom"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, .45)",
+        "createdAt": "2026-11-02T06:28:16.476Z",
+        "reason": "DESIGN.md Elevation: the help dialog sits over a 45% black backdrop"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#000",
+        "createdAt": "2026-11-02T06:28:16.563Z",
+        "reason": "false positive: the opaque stop of the phone tag and year rows' fade mask, not a painted colour"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(0, 0, 0)",
+        "createdAt": "2026-11-02T06:28:16.656Z",
+        "reason": "false positive: facets.html and results.html are fragments with no stylesheet, so the static scan falls back to default black"
       }
     ]
   }
