@@ -101,6 +101,9 @@
     .seg button:hover { color: var(--ink); }
     .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); }
     .years { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; margin-top: 10px; }
+    /* a count right after its year: pushed to the column's edge it sat
+       nearer the next year than its own */
+    .years .n { margin-left: 0; }
     .tagrail { display: flex; flex-wrap: wrap; gap: 4px; }
     .tagrail .n { color: var(--faint); font-variant-numeric: tabular-nums; }
     .moretags { margin-top: 8px; }
