@@ -588,6 +588,9 @@
         const a = document.activeElement;
         refocus = a?.dataset.op ? [a.closest('#rail, #results').id, a.dataset.op, a.dataset.v] : null;
         setOp(b.dataset.op, /^(tag|year)$/.test(b.dataset.op) && b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.v);
+        // on a phone the panel covers the results it just filtered: fold it,
+        // the dot on its button says a filter is on
+        if (phone.matches && b.closest('#rail')) fold(true);
       }
       else if (b.id === 'more') grow = rows().length;
       else if (b.dataset.copy) copy(b.dataset.copy);
