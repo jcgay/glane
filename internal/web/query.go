@@ -50,6 +50,11 @@ func parseQuery(q, source, tag, since, until string) (out query, kept []string) 
 	return out, kept
 }
 
+// Filtered is whether any filter narrows the listing, beyond the words.
+func (q query) Filtered() bool {
+	return q.Source != "" || q.Tag != "" || q.Since != "" || q.Until != ""
+}
+
 // Year is the year browsed, when since: and until: name the same one
 // (since:2024 until:2024, what a year button writes), else "".
 func (q query) Year() string {

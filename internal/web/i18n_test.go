@@ -71,8 +71,8 @@ func TestPagesFollowAcceptLanguage(t *testing.T) {
 		{"de, fr ;q=0.9", "/", fr["tagline"]},           // space before the weight is legal
 		{"fr", "/stats", fr["bySource"]},
 		{"", "/stats", en["bySource"]},
-		{"fr", "/search?q=nope", fr["noResults"]},
-		{"", "/search?q=nope", en["noResults"]},
+		{"fr", "/search?q=nope", fr["noResultsWords"]},
+		{"", "/search?q=nope", en["noResultsWords"]},
 		// dates are labels too: Go's month names are English only
 		{"fr", "/search", old.Format("02/01/2006")},
 		{"", "/search", old.Format("2 Jan 2006")},
