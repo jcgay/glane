@@ -329,7 +329,7 @@
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
       <span class="field">
         <span class="hl" id="hl" aria-hidden="true"></span>
-        <input id="q" type="text" role="searchbox" name="q" value="{{.D.Q}}" autocomplete="off" spellcheck="false" autofocus
+        <input id="q" type="text" role="searchbox" name="q" value="{{.D.Q}}" autocomplete="off" spellcheck="false"
                placeholder="{{.T.searchPlaceholder}}" data-short="{{.T.searchPlaceholderShort}}" aria-label="{{.T.searchAria}}" aria-describedby="syntax"
                hx-get="/search" hx-trigger="input changed delay:300ms" hx-target="#results"
                hx-indicator="#load" hx-include="closest form">
@@ -500,6 +500,9 @@
     // link. The ↗ link and buttons act right away. Selection is read at
     // pointerdown: the tap focuses the title, selecting the row before click.
     const touch = matchMedia('(pointer: coarse)');
+    // the box takes the keys at once, but a touch screen would raise its
+    // keyboard over the results the page opens on
+    if (!touch.matches) q.focus();
     let armed = null;
     results.addEventListener('pointerdown', e => { armed = e.target.closest('.hit[aria-current="true"]'); });
     results.addEventListener('click', e => {
