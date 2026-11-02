@@ -204,7 +204,8 @@ type.
   URL, `Y` a markdown link, `1`–`4` pick a source (`0` all), `[` hide the
   rail, `?` list all of this.
 - **Touch screens**: a tap on a result shows its whole summary; tap its title
-  again to open the link, or tap the `↗` link to go there at once.
+  again to open the link, or tap the `↗` link to go there at once. The help
+  button in the top bar explains this and the filter words.
 - **Index health** in the rail: how much is enriched, summarized and embedded,
   with the command that fills each gap. The status bar shows the item count,
   whether semantic search is on (and its model) and when the last sync ran;
