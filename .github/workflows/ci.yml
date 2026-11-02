@@ -32,3 +32,13 @@ jobs:
         with:
           name: glane-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+  # the app links the Go server in as a library; a simulator build needs no signing
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - run: brew install xcodegen
+      - run: xcodegen && xcodebuild -project Glane.xcodeproj -scheme Glane -destination 'generic/platform=iOS Simulator' build
+        working-directory: ios

@@ -45,6 +45,15 @@ for the feature it names:
 
 Then follow [Android](docs/android.md) to share the database and set the app up.
 
+### On an iPhone
+
+- A Mac with Xcode, to build the app and install it (there is no release
+  download, Apple only installs apps it has signed).
+- [Möbius Sync](https://www.mobiussync.com) or iCloud Drive, to receive
+  `glane.db` from your computer.
+
+Then follow [iPhone](docs/ios.md).
+
 ## Quick start
 
 ```sh
@@ -126,6 +135,11 @@ The rules that keep the file consistent: [docs/sharing.md](docs/sharing.md).
 An Android app searches your index offline, read-only, over the copy of
 `glane.db` that Syncthing keeps on the phone. Setup:
 [docs/android.md](docs/android.md).
+
+## iPhone
+
+The same, on an iPhone you build the app for yourself:
+[docs/ios.md](docs/ios.md).
 
 ## Desktop app
 
