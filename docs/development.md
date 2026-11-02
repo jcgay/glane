@@ -84,6 +84,32 @@ locally, point `GLANE_KEYSTORE` at the file and set the three other
 variables, then run `./gradlew assembleRelease -PglaneVersion=1.4.0` in
 `android/`.
 
+## iPhone app
+
+The app lives in `ios/`. iOS forbids starting a process, so `ios/bridge`
+builds the Go code as a static library (`-buildmode=c-archive`, which
+needs cgo and Xcode's clang) that the Swift app calls for each request of
+its web view. On top of Go it needs a Mac with:
+
+- **Xcode**, from the App Store.
+- **[XcodeGen](https://github.com/yonaskolb/XcodeGen)**
+  (`brew install xcodegen`), which writes `Glane.xcodeproj` from
+  `ios/project.yml`. The project isn't committed.
+
+```sh
+mise run ios          # simulator build, unsigned
+```
+
+To put it on your iPhone, run `xcodegen` in `ios/`, open
+`Glane.xcodeproj`, pick your Apple ID as the team under *Signing &
+Capabilities* (Xcode may ask for a unique bundle identifier), plug the
+phone in and press Run. The phone asks to turn on Developer Mode the first
+time. With a free Apple ID the app stops opening after 7 days and needs
+another Run; a paid developer account makes that a year.
+
+CI builds the app for the simulator on every pull request, to check that
+it compiles; it publishes nothing.
+
 ## How it works
 
 - **Storage** — SQLite with an FTS5 mirror kept in sync by triggers, plus a table

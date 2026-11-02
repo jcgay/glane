@@ -16,11 +16,21 @@ import (
 // its download over it), without a restart. A non-empty token is required
 // as the glane_token cookie on every request.
 func ServeReadOnly(path, addr, token string) error {
-	r := &reloader{path: path}
-	if _, err := r.current(); err != nil {
+	h, err := ReadOnlyHandler(path)
+	if err != nil {
 		return err
 	}
-	return http.ListenAndServe(addr, requireToken(token, r))
+	return http.ListenAndServe(addr, requireToken(token, h))
+}
+
+// ReadOnlyHandler is ServeReadOnly's handler, for a caller that has no use
+// for a port: the iOS app hands it each request in its own process.
+func ReadOnlyHandler(path string) (http.Handler, error) {
+	r := &reloader{path: path}
+	if _, err := r.current(); err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // requireToken turns away requests without the token, when there is one: on

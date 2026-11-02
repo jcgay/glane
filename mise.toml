@@ -26,3 +26,8 @@ run = "test -z \"$(gofmt -l .)\" || { echo 'unformatted files:'; gofmt -l .; exi
 description = "Build the Android app (debug-signed APK, Go server included)"
 dir = "android"
 run = "./gradlew assembleDebug"
+
+[tasks.ios]
+description = "Build the iOS app for the simulator (macOS with Xcode and XcodeGen)"
+dir = "ios"
+run = "xcodegen && xcodebuild -project Glane.xcodeproj -scheme Glane -destination 'generic/platform=iOS Simulator' build"

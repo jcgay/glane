@@ -32,3 +32,6 @@
 /android/app/build/
 /android/local.properties
 /android/app/src/main/jniLibs/
+
+# ios
+/ios/Glane.xcodeproj/

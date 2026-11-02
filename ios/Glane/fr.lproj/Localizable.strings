@@ -1,0 +1,4 @@
+"Choose the glane folder" = "Choisir le dossier de glane";
+"Pick the folder your sync app keeps glane.db in. glane only reads it." = "Choisissez le dossier où votre app de synchronisation garde glane.db. glane ne fait que le lire.";
+"Choose folder" = "Choisir le dossier";
+"The folder is gone. Choose it again." = "Le dossier a disparu. Choisissez-le à nouveau.";
