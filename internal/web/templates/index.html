@@ -241,9 +241,10 @@
       .rail .sincesec { order: -1; flex-basis: 100%; }
       .rail #rail-sources { flex-basis: 100%; }
       .rail .facet { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
-      /* sixteen years two by two would push the sources off the first screen */
-      .rail .years { grid-template-columns: repeat(4, 1fr); column-gap: 16px; }
-      .rail .years .n { display: none; } /* counted on /stats */
+      /* sixteen years in rows would push the sources off the first screen:
+         one row that scrolls sideways, like the tags, newest first */
+      .rail .years { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: max-content; column-gap: 12px; }
+      .rail .years button { margin: 0; gap: 6px; }
       .next { padding-inline: 16px; }
       .rail .tagsec { flex-basis: 100%; }
       .rail .healthsec, .navlinks { display: none; }
@@ -258,8 +259,8 @@
         border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px var(--surface);
       }
       /* every tag would fill the screen: two rows that scroll sideways, edge to edge */
-      .tagrail {
-        display: grid; grid-auto-flow: column; grid-template-rows: auto auto; justify-content: start;
+      .tagrail { display: grid; grid-auto-flow: column; grid-template-rows: auto auto; justify-content: start; }
+      .tagrail, .rail .years {
         overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
         margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px;
         /* fade the right edge so a cut on a tag boundary still reads as "more" */
