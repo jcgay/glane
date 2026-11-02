@@ -199,6 +199,9 @@
       background: var(--surface); border-top: 1px solid var(--border); font: 12px var(--mono); color: var(--faint);
     }
     .status .on { color: var(--ok); }
+    .status a { color: inherit; text-decoration: none; }
+    .status a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+    .status a.stale { color: var(--accent-ink); }
     .status .keys { display: flex; flex-wrap: wrap; gap: 12px; margin-left: auto; }
 
     /* --- keyboard help --- */
@@ -357,7 +360,8 @@
     <span>{{.D.Stats.Total}} {{.T.items}}</span>
     <span>fts5 <span class="on">●</span></span>
     <span>vec {{if .D.Embed}}<span class="on">●</span> {{.D.EmbedModel}}{{else}}○ {{.T.off}}{{end}}</span>
-    {{if .D.Stats.LastSyncBySource}}<span class="sync">sync {{range $i, $s := .D.Stats.LastSyncBySource}}{{if $i}} · {{end}}{{$s.Source}} {{reltime $s.UpdatedAt $.T}}{{end}}</span>{{end}}
+    {{with .D.Sync}}{{if .Latest}}<a class="sync" href="/stats" title="{{$.T.syncTitle}}">sync {{reltime .Latest $.T}}</a>
+    {{range .Stale}}<a class="stale" href="/stats">{{printf $.T.staleSync .Source (reltime .UpdatedAt $.T)}}</a>{{end}}{{end}}{{end}}
     <span class="keys">
       <span><kbd>j</kbd> <kbd>k</kbd> {{.T.keyMove}}</span><span><kbd>o</kbd> {{.T.keyOpen}}</span>
       <span><kbd>y</kbd> {{.T.keyCopy}}</span><span><kbd>[</kbd> {{.T.filters}}</span><span><kbd>?</kbd> {{.T.keyHelp}}</span>

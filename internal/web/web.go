@@ -194,6 +194,41 @@ type home struct {
 	Embed      bool
 	Summary    bool   // a summary endpoint is set, so `glane summarize` would do something
 	Q          string // ?q=, so a search survives a reload and can be shared
+	Sync       syncLine
+}
+
+// staleAfter is how long a source can go without a sync before the status
+// bar points at it.
+const staleAfter = 30 * 24 * time.Hour
+
+// syncLine is the status bar's one line on syncing: when the last one ran,
+// and which sources have fallen behind. /stats lists every cursor.
+type syncLine struct {
+	Latest int64
+	Stale  []store.SourceSync // per source, its freshest cursor
+}
+
+// newSyncLine groups the cursors by source ("mastodon:bookmarks" is
+// mastodon): a cursor only moves when its feed has something new, so a
+// source is behind only when none of its cursors moved lately.
+func newSyncLine(cursors []store.SourceSync, now time.Time) syncLine {
+	var l syncLine
+	fresh := map[string]int64{}
+	var order []string
+	for _, c := range cursors {
+		src, _, _ := strings.Cut(c.Source, ":")
+		if _, ok := fresh[src]; !ok {
+			order = append(order, src)
+		}
+		fresh[src] = max(fresh[src], c.UpdatedAt)
+		l.Latest = max(l.Latest, c.UpdatedAt)
+	}
+	for _, src := range order {
+		if now.Sub(time.Unix(fresh[src], 0)) > staleAfter {
+			l.Stale = append(l.Stale, store.SourceSync{Source: src, UpdatedAt: fresh[src]})
+		}
+	}
+	return l
 }
 
 // Handler serves the whole web UI over s. Serve, ServeReadOnly and
@@ -216,7 +251,7 @@ func Handler(s *store.Store) http.Handler {
 		if err != nil {
 			log.Printf("glane: stats: %v", err)
 		}
-		h := home{Rail: newRail(fc, query{}), Stats: st, Q: r.URL.Query().Get("q")}
+		h := home{Rail: newRail(fc, query{}), Stats: st, Q: r.URL.Query().Get("q"), Sync: newSyncLine(st.LastSyncBySource, time.Now())}
 		if c := gembed.FromEnv(); c != nil {
 			h.Embed, h.EmbedModel = true, c.Model
 		}

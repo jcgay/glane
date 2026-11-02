@@ -207,7 +207,9 @@ type.
   again to open the link, or tap the `↗` link to go there at once.
 - **Index health** in the rail: how much is enriched, summarized and embedded,
   with the command that fills each gap. The status bar shows the item count,
-  whether semantic search is on (and its model), and the last sync per source.
+  whether semantic search is on (and its model) and when the last sync ran;
+  a source with no sync for 30 days is named there. `/stats` lists every
+  sync.
 - **`--read-only`** never writes the database: no schema migration, no
   journal file, and a missing file is an error rather than a new empty
   database. When a sync tool replaces the file, the next request picks up

@@ -501,3 +501,20 @@ func TestRailFoldsTagsAndDemotesBroadOnes(t *testing.T) {
 		t.Fatalf("the browsed tag must lead the result's tags: %s", rec.Body.String())
 	}
 }
+
+// A source is behind only when none of its cursors moved for a month: a
+// quiet feed (mastodon:favourites) next to a busy one is not a stale source.
+func TestSyncLineFlagsOnlyStaleSources(t *testing.T) {
+	now := time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)
+	ago := func(days int) int64 { return now.AddDate(0, 0, -days).Unix() }
+	l := newSyncLine([]store.SourceSync{
+		{Source: "github", UpdatedAt: ago(1)},
+		{Source: "mastodon:favourites", UpdatedAt: ago(100)},
+		{Source: "mastodon:bookmarks", UpdatedAt: ago(12)},
+		{Source: "bluesky:likes", UpdatedAt: ago(40)},
+		{Source: "bluesky:authorfeed", UpdatedAt: ago(45)},
+	}, now)
+	if l.Latest != ago(1) || len(l.Stale) != 1 || l.Stale[0] != (store.SourceSync{Source: "bluesky", UpdatedAt: ago(40)}) {
+		t.Fatalf("got %+v, want latest 1 day ago and only bluesky stale since 40 days", l)
+	}
+}

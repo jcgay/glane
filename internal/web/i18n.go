@@ -87,6 +87,9 @@ var en = catalog{
 	"tagsLabel":        "Tags",
 	"bySource":         "By source",
 	"lastSync":         "Last sync",
+	"syncTitle":        "Last sync of any source; every one is on the stats page",
+	// %s: source, then how long ago it last synced
+	"staleSync": "%s not synced since %s",
 
 	"justNow": "just now",
 	"agoMin":  "%dmin ago",
@@ -172,6 +175,8 @@ var fr = catalog{
 	"tagsLabel":        "Tags",
 	"bySource":         "Par source",
 	"lastSync":         "Dernier sync",
+	"syncTitle":        "Dernière synchro, toutes sources confondues ; le détail est sur la page stats",
+	"staleSync":        "%s pas synchronisé depuis %s",
 
 	"justNow": "à l'instant",
 	"agoMin":  "il y a %dmin",
