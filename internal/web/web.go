@@ -1,10 +1,12 @@
 package web
 
 import (
+	"cmp"
 	"embed"
 	"fmt"
 	"html/template"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -153,12 +155,20 @@ type facet struct {
 	Active bool
 }
 
-// The rail shows topTags tags and folds the rest. A tag on more than
-// broadShare of the listing narrows it too little to lead: it ranks after
-// the distinctive ones.
+// The rail shows topTags tags and folds the rest, leading with the ones that
+// tell this listing apart from the whole index. A tag's lift is how much more
+// often it shows up here than in the index; one at least minLift times as
+// common, on at least minCount items, ranks by its count times the log of
+// that excess. A search for kubernetes leads with containerization and
+// kubernetes, not automation, which every listing has its share of. The
+// other tags follow by count, and since the whole index has no lift to read,
+// that is all its rail has: there a tag on more than broadShare of the items
+// narrows it too little to lead, and ranks after the others.
 const (
 	topTags    = 20
-	broadShare = 0.3
+	broadShare = 0.1
+	minLift    = 2
+	minCount   = 3
 )
 
 // rail is what the source and tag facets render (facets.html).
@@ -172,7 +182,9 @@ type rail struct {
 	OOB      bool // sent along a /search fragment, swapped in by id
 }
 
-func newRail(fc store.Facets, q query) rail {
+// newRail builds the rail of listing fc; corpus is the whole index, which
+// the tags are read against (fc again when the listing is the index).
+func newRail(fc, corpus store.Facets, q query) rail {
 	r := rail{Total: fc.Total, Tags: fc.Tags, Years: fc.Years, Query: q}
 	for i, src := range sources {
 		f := facet{Source: src, Key: i + 1, Active: src == q.Source}
@@ -188,8 +200,24 @@ func newRail(fc store.Facets, q query) rail {
 	if q.Tag != "" && !slices.ContainsFunc(r.Tags, func(t store.TagCount) bool { return t.Tag == q.Tag }) {
 		r.Tags = append(r.Tags, store.TagCount{Tag: q.Tag})
 	}
+	inCorpus := make(map[string]int, len(corpus.Tags))
+	for _, t := range corpus.Tags {
+		inCorpus[t.Tag] = t.Count
+	}
+	score := func(t store.TagCount) float64 {
+		c := inCorpus[t.Tag]
+		if t.Count < minCount || c == 0 || fc.TagBase == 0 || corpus.TagBase == 0 {
+			return 0
+		}
+		lift := float64(t.Count) / float64(fc.TagBase) * float64(corpus.TagBase) / float64(c)
+		return float64(t.Count) * math.Log(lift/minLift)
+	}
 	broad := func(t store.TagCount) bool { return float64(t.Count) > broadShare*float64(fc.TagBase) }
+	// the input comes ordered by count, which stays the tie-break
 	slices.SortStableFunc(r.Tags, func(a, b store.TagCount) int {
+		if sa, sb := max(score(a), 0), max(score(b), 0); sa != sb {
+			return cmp.Compare(sb, sa)
+		}
 		switch {
 		case broad(a) == broad(b):
 			return 0
@@ -287,7 +315,7 @@ func Handler(s *store.Store) http.Handler {
 		if err != nil {
 			log.Printf("glane: stats: %v", err)
 		}
-		h := home{Rail: newRail(fc, query{}), Stats: st, Q: r.URL.Query().Get("q"), Sync: newSyncLine(st.LastSyncBySource, time.Now())}
+		h := home{Rail: newRail(fc, fc, query{}), Stats: st, Q: r.URL.Query().Get("q"), Sync: newSyncLine(st.LastSyncBySource, time.Now())}
 		if c := gembed.FromEnv(); c != nil {
 			h.Embed, h.EmbedModel = true, c.Model
 		}
@@ -308,7 +336,7 @@ func Handler(s *store.Store) http.Handler {
 			log.Printf("glane: facets: %v", err)
 		}
 		// the same telling tags the rail leads with, and every year
-		rl := newRail(fc, query{})
+		rl := newRail(fc, fc, query{})
 		pg := statsPage{Stats: st, Years: rl.Years, Tags: rl.Tags,
 			Embed: gembed.FromEnv() != nil, Summary: summarize.FromEnv() != nil}
 		for _, y := range pg.Years {
@@ -377,7 +405,17 @@ func Handler(s *store.Store) http.Handler {
 		if err != nil {
 			log.Printf("glane: facets: %v", err)
 		}
-		rl := newRail(fc, qr)
+		// the whole index, to read the listing's tags against; without it
+		// the tags just keep their count order
+		corpus := fc
+		if q != "" || qr.Filtered() {
+			if c, err := s.Facets("", store.Filter{}); err == nil {
+				corpus = c
+			} else {
+				log.Printf("glane: facets: %v", err)
+			}
+		}
+		rl := newRail(fc, corpus, qr)
 		rl.OOB = true
 		pg := page{Hits: res, Truncated: len(res) == limit, Query: qr, Rail: rl, Notes: notes}
 		// the rail counts the same listing, but full-text only: exact unless

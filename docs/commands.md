@@ -190,7 +190,8 @@ type.
 - **Filters are words in the query**, the same as the CLI flags:
   `cold start source:twitter tag:aws since:30d`; quote a value with spaces,
   `tag:"software engineering"`. The filter rail (sources,
-  `7d`/`30d`/`1y`, one button per year, tags) only writes those words into
+  `7d`/`30d`/`1y`, one button per year, tags, led by those far more common
+  in the listing than in the whole index) only writes those words into
   the box (a year is `since:2024 until:2024`), and each listing
   shows the matching `glane search …` command, ready to copy. A filter it
   can't apply (`since:abc`, an unknown source, a second `tag:`) is named in

@@ -486,16 +486,24 @@ func TestSearchBrowsesOneYear(t *testing.T) {
 // each result's tags.
 func TestRailFoldsTagsAndDemotesBroadOnes(t *testing.T) {
 	var tags []store.TagCount
-	tags = append(tags, store.TagCount{Tag: "everything", Count: 90})
+	tags = append(tags, store.TagCount{Tag: "everything", Count: 900})
 	for i := range topTags + 5 {
 		tags = append(tags, store.TagCount{Tag: fmt.Sprintf("t%02d", i), Count: 30 - i})
 	}
-	r := newRail(store.Facets{Total: 3, TagBase: 100, Tags: tags}, query{Tag: "t24"})
+	index := store.Facets{Total: 3, TagBase: 1000, Tags: tags}
+	r := newRail(index, index, query{Tag: "t24"})
 	if len(r.Tags) != topTags+1 || r.Tags[0].Tag != "t24" || r.Tags[1].Tag != "t00" {
 		t.Fatalf("top tags = %+v, want the browsed t24, then t00…", r.Tags)
 	}
 	if last := r.MoreTags[len(r.MoreTags)-1]; last.Tag != "everything" {
 		t.Fatalf("a tag on 90%% of items must rank last, got %+v", r.MoreTags)
+	}
+
+	// in a listing, a tag common everywhere yields to one that is common
+	// here only, however many items carry it
+	listing := store.Facets{TagBase: 100, Tags: []store.TagCount{{Tag: "everything", Count: 90}, {Tag: "t20", Count: 10}, {Tag: "t00", Count: 3}}}
+	if r := newRail(listing, index, query{}); r.Tags[0].Tag != "t20" || r.Tags[2].Tag != "everything" {
+		t.Fatalf("listing tags = %+v, want t20 (lift 10) first and everything (lift 1) last", r.Tags)
 	}
 
 	s, _ := store.Open(t.TempDir() + "/t.db")
