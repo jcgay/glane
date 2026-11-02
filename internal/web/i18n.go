@@ -66,6 +66,7 @@ var en = catalog{
 	"copied":                 "copied",
 	"copyFailed":             "copy blocked, here it is:",
 	"countsFTS":              "counts full-text matches only",
+	"countsFTSShort":         "full-text counts",
 
 	"resultsAria": "Results",
 	"ranked":      "ranked by relevance",
@@ -172,6 +173,7 @@ var fr = catalog{
 	"copied":                 "copié",
 	"copyFailed":             "copie bloquée, la voici :",
 	"countsFTS":              "compte les correspondances plein texte",
+	"countsFTSShort":         "comptes plein texte",
 
 	"resultsAria":    "Résultats",
 	"ranked":         "classés par pertinence",

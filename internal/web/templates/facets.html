@@ -6,8 +6,7 @@
      and semantic search may still find items there. */}}
 {{define "rail-sources"}}{{with .D.Rail}}
 <section id="rail-sources"{{if .OOB}} hx-swap-oob="true"{{end}}>
-  <h2>{{$.T.source}}</h2>
-  {{if .Query.Words}}<p class="note">{{$.T.countsFTS}}</p>{{end}}
+  <h2>{{$.T.source}}{{if .Query.Words}} <span class="note" title="{{$.T.countsFTS}}">{{$.T.countsFTSShort}}</span>{{end}}</h2>
   <div class="facet" role="group" aria-label="{{$.T.sourceAria}}">
     <button type="button" data-op="source" data-v="" data-key="0" aria-pressed="{{eq .Query.Source ""}}"><span class="dot"></span>{{$.T.allSources}}<span class="n">{{num .Total $.T}}</span><kbd>0</kbd></button>
     {{range .Sources}}<button type="button" data-op="source" data-v="{{.Source}}" data-key="{{.Key}}" aria-pressed="{{.Active}}"{{if not (or .Count .Active $.D.Rail.Query.Words)}} disabled{{end}}><span class="dot {{.Source}}"></span>{{.Source}}<span class="n">{{num .Count $.T}}</span><kbd>{{.Key}}</kbd></button>

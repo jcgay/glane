@@ -80,7 +80,9 @@
       margin: 0 0 8px; font: 500 11px var(--mono); color: var(--faint);
       text-transform: uppercase; letter-spacing: .08em;
     }
-    .rail .note { margin: -4px 0 8px; font: 11px var(--mono); color: var(--faint); }
+    /* on the heading's line, so typing a word doesn't push the rail down */
+    .rail h2 { display: flex; justify-content: space-between; gap: 8px; }
+    .rail h2 .note { font-weight: 400; text-transform: none; letter-spacing: 0; cursor: help; }
     .facet { display: flex; flex-direction: column; gap: 1px; }
     .facet button {
       display: flex; align-items: center; gap: 8px; margin: 0 -8px; padding: 4px 8px;
