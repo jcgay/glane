@@ -207,6 +207,28 @@ func TestParseSince(t *testing.T) {
 	}
 }
 
+// --until is exclusive and includes the day or year it names, so a year in
+// both bounds is that whole year; a window is the instant it reaches back to.
+func TestParseUntil(t *testing.T) {
+	if ts, err := ParseUntil(""); ts != 0 || err != nil {
+		t.Errorf("ParseUntil(\"\") = (%d, %v), want (0, nil)", ts, err)
+	}
+	now := time.Now()
+	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	for in, want := range map[string]time.Time{
+		"2024":       time.Date(2025, 1, 1, 0, 0, 0, 0, time.Local),
+		"2024-06-30": time.Date(2024, 7, 1, 0, 0, 0, 0, time.Local),
+		"1y":         midnight.AddDate(-1, 0, 0),
+	} {
+		if ts, err := ParseUntil(in); err != nil || ts != want.Unix() {
+			t.Errorf("ParseUntil(%q) = (%v, %v), want %v", in, time.Unix(ts, 0), err, want)
+		}
+	}
+	if _, err := ParseUntil("nope"); err == nil || !strings.Contains(err.Error(), "--until") {
+		t.Errorf("ParseUntil(\"nope\") error = %v, want one naming --until", err)
+	}
+}
+
 func TestRecentNewestFirstAndFilters(t *testing.T) {
 	s, _ := Open(filepath.Join(t.TempDir(), "t.db"))
 	defer s.Close()
@@ -236,6 +258,10 @@ func TestRecentNewestFirstAndFilters(t *testing.T) {
 	res, _ = s.Recent(Filter{Since: since, Source: "github"})
 	if len(res) != 1 || res[0].Source != "github" {
 		t.Fatalf("since + source filter failed: %+v", res)
+	}
+	until, _ := ParseUntil("2023-05-31")
+	if res, _ = s.Recent(Filter{Until: until}); len(res) != 1 || res[0].SourceID != "1" {
+		t.Fatalf("until 2023-05-31: want only the January post, got %+v", res)
 	}
 	if res, _ = s.Recent(Filter{Limit: 1}); len(res) != 1 {
 		t.Fatalf("limit ignored: got %d items", len(res))

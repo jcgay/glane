@@ -11,7 +11,14 @@ package store
 type Facets struct {
 	Total    int // every source, the source filter left out
 	BySource []SourceCount
-	Tags     []TagCount // most frequent first, zero counts left out
+	Tags     []TagCount  // most frequent first, zero counts left out
+	Years    []YearCount // newest first, zero counts left out
+}
+
+// YearCount is how many items date from Year, in the local zone.
+type YearCount struct {
+	Year  string
+	Count int
 }
 
 func (s *Store) Facets(query string, f Filter) (Facets, error) {
@@ -66,6 +73,26 @@ func (s *Store) Facets(query string, f Filter) (Facets, error) {
 			return Facets{}, err
 		}
 		out.Tags = append(out.Tags, tc)
+	}
+	if err := rows.Err(); err != nil {
+		return Facets{}, err
+	}
+
+	// years ignore both date bounds: they are what picking another year gives
+	anyDate := f
+	anyDate.Since, anyDate.Until = 0, 0
+	sql, args = from("items i", anyDate)
+	rows, err = s.db.Query("SELECT strftime('%Y', i.created_at, 'unixepoch', 'localtime') y, COUNT(*)"+sql+" AND i.created_at > 0 GROUP BY y ORDER BY y DESC", args...)
+	if err != nil {
+		return Facets{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var yc YearCount
+		if err := rows.Scan(&yc.Year, &yc.Count); err != nil {
+			return Facets{}, err
+		}
+		out.Years = append(out.Years, yc)
 	}
 	return out, rows.Err()
 }

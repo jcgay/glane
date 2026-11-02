@@ -1,4 +1,4 @@
-{{/* The rail's source and tag facets. index.html renders them in place; every
+{{/* The rail's source, tag and year facets. index.html renders them in place; every
      /search fragment sends them again out-of-band (Rail.OOB), so their counts
      follow the query. Both take the whole view and read .D.Rail. A source is
      disabled at 0 only without words: with them the count is full-text only,
@@ -23,4 +23,13 @@
     {{end}}
   </div>
 </section>
+{{end}}{{end}}
+
+{{/* A year writes since:Y until:Y, so it reads as one filter in the box; the
+     years are counted without either date bound. */}}
+{{define "rail-years"}}{{with .D.Rail}}
+<div class="facet years" id="rail-years" role="group" aria-label="{{$.T.yearsAria}}"{{if .OOB}} hx-swap-oob="true"{{end}}{{if not .Years}} hidden{{end}}>
+  {{range .Years}}<button type="button" data-op="year" data-v="{{.Year}}" aria-pressed="{{eq .Year $.D.Rail.Query.Year}}">{{.Year}}<span class="n">{{.Count}}</span></button>
+  {{end}}
+</div>
 {{end}}{{end}}

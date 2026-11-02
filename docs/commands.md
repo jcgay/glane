@@ -84,16 +84,18 @@ as a prefix (type-ahead): `useTa` finds `useTabs`.
 
 With **no query**, it lists instead of searching: `--tag` browses that tag, and
 no query at all lists your newest items — pair it with `--since` to review
-everything that landed while you were away.
+everything that landed while you were away, or with `--until` to dig into
+what you saved long ago.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `--source` | all | Restrict to one source (`twitter`, `bluesky`, `mastodon`, `github`) |
 | `--tag` | — | Restrict to a tag (see `glane summarize`); with no query, browses that tag |
 | `--since` | — | Only items on/after a date: `YYYY` or `YYYY-MM-DD`, read as your local midnight, or a window back from today: `7d`, `2w`, `3m`, `1y` |
+| `--until` | — | Only items before the end of a date: `YYYY` or `YYYY-MM-DD` count in full (`--since 2024 --until 2024` is all of 2024), a window means older than that: `1y` |
 | `--limit` | 20 | Max results |
 
-`--since` filters on the item's own date, which is when *you* starred it for
+`--since` and `--until` filter on the item's own date, which is when *you* starred it for
 GitHub but when the post was *published* for twitter/mastodon/bluesky — a
 five-year-old article you liked yesterday sorts by its own age, not by yours.
 
@@ -109,6 +111,8 @@ an extra highlighted excerpt so you can see why the result came up.
 ./glane search --since 2026-07-20 --limit 100   # review everything since a date
 ./glane search --since 2026-07-20 --source github --limit 100   # …just the repos
 ./glane search --since 7d          # what landed this past week
+./glane search --since 2019 --until 2019   # everything from 2019
+./glane search --tag rust --until 2y       # rust things you saved over two years ago
 ```
 
 If an embeddings endpoint is configured (see [Semantic search](semantic-search.md)),
@@ -186,14 +190,17 @@ type.
 - **Filters are words in the query**, the same as the CLI flags:
   `cold start source:twitter tag:aws since:30d`; quote a value with spaces,
   `tag:"software engineering"`. The filter rail (sources,
-  `7d`/`30d`/`1y`, tags) only writes those words into the box, and each listing
+  `7d`/`30d`/`1y`, one button per year, tags) only writes those words into
+  the box (a year is `since:2024 until:2024`), and each listing
   shows the matching `glane search …` command, ready to copy. A filter it
   can't apply (`since:abc`, an unknown source, a second `tag:`) is named in
   the status line rather than silently dropped.
+- **50 results at a time**: a full page says there are more, and `n` or the
+  button under the list shows the next 50, up to 1000.
 - **The query is in the URL** (`/?q=…`): reload, bookmark or share a search;
   Back undoes the last filter or Enter.
 - **Keyboard**: `/` search, `esc` leave the box (the query stays), `j`/`k`
-  move through results, `o` open the link, `O` the original post, `y` copy the
+  move through results, `n` show 50 more, `o` open the link, `O` the original post, `y` copy the
   URL, `Y` a markdown link, `1`–`4` pick a source (`0` all), `[` hide the
   rail, `?` list all of this.
 - **Touch screens**: a tap on a result shows its whole summary; tap its title

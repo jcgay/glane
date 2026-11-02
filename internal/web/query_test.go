@@ -8,16 +8,17 @@ func TestParseQuery(t *testing.T) {
 		want                  query
 	}{
 		{"cold start", "", "", "", query{Words: "cold start"}},
-		{"cold source:twitter start tag:aws since:30d", "", "", "", query{"cold start", "twitter", "aws", "30d"}},
+		{"cold source:twitter start tag:aws since:30d", "", "", "", query{"cold start", "twitter", "aws", "30d", ""}},
+		{"source:github since:2024 until:2024", "", "", "", query{Source: "github", Since: "2024", Until: "2024"}},
 		// typed operators win over the URL parameters, an empty one clears
-		{"x source:github since:", "twitter", "go", "2024", query{"x", "github", "go", ""}},
+		{"x source:github since:", "twitter", "go", "2024", query{"x", "github", "go", "", ""}},
 		{"foo:bar", "", "", "", query{Words: "foo:bar"}},
 		{`x tag:"software engineering" y`, "", "", "", query{Words: "x y", Tag: "software engineering"}},
 		// a quote still open reads to the end: the closing one is often not typed yet
 		{`x tag:"web development`, "", "", "", query{Words: "x", Tag: "web development"}},
 		{"source:TWITTER", "", "", "", query{Source: "twitter"}},
 	} {
-		if got, _ := parseQuery(tc.q, tc.source, tc.tag, tc.since); got != tc.want {
+		if got, _ := parseQuery(tc.q, tc.source, tc.tag, tc.since, ""); got != tc.want {
 			t.Errorf("parseQuery(%q) = %+v, want %+v", tc.q, got, tc.want)
 		}
 	}
@@ -26,7 +27,7 @@ func TestParseQuery(t *testing.T) {
 // An operator typed twice keeps the last value, and says so: the box holds
 // one source, one tag and one date.
 func TestParseQueryReportsRepeatedOperators(t *testing.T) {
-	q, kept := parseQuery("tag:go source:github tag:java source:github", "", "", "")
+	q, kept := parseQuery("tag:go source:github tag:java source:github", "", "", "", "")
 	if q.Tag != "java" || len(kept) != 1 || kept[0] != "tag:java" {
 		t.Fatalf("got %+v, kept %q; want tag java, kept [tag:java]", q, kept)
 	}
@@ -38,7 +39,8 @@ func TestQueryCLI(t *testing.T) {
 		{Words: "cold start", Source: "twitter", Since: "30d"}: "glane search cold start --source twitter --since 30d",
 		{Words: `it's "c++"`, Tag: "go"}:                       `glane search 'it'\''s' '"c++"' --tag go`,
 		{Words: "-foo bar", Tag: "software engineering"}:       `glane search --tag 'software engineering' -- -foo bar`,
-		{Words: "=ls"}: `glane search '=ls'`,
+		{Words: "=ls"}:                 `glane search '=ls'`,
+		{Since: "2024", Until: "2024"}: "glane search --since 2024 --until 2024",
 	} {
 		if got := q.CLI(); got != want {
 			t.Errorf("%+v.CLI() = %s, want %s", q, got, want)

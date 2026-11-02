@@ -97,6 +97,7 @@
     .seg button + button { border-left: 1px solid var(--border-strong); }
     .seg button:hover { color: var(--ink); }
     .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); }
+    .years { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; margin-top: 10px; }
     .tagrail { display: flex; flex-wrap: wrap; gap: 4px; }
     .tagrail .n { color: var(--faint); font-variant-numeric: tabular-nums; }
     .health { display: grid; gap: 10px; font: 12px var(--mono); color: var(--muted); }
@@ -179,6 +180,8 @@
     .prov.vec { color: var(--accent-ink); border-color: var(--accent); }
     .tags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
     .tags .plus { font-size: 11px; }
+    .next { padding: 16px 20px 24px; }
+    .next .btn { padding: 4px 12px; font-size: 12px; }
     .empty {
       display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
       padding: 48px 20px; font: 13px var(--mono); color: var(--muted);
@@ -225,6 +228,7 @@
       .rail .sincesec { order: -1; flex-basis: 100%; }
       .rail #rail-sources { flex-basis: 100%; }
       .rail .facet { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
+      .next { padding-inline: 16px; }
       .rail .tagsec { flex-basis: 100%; }
       .rail .healthsec, .navlinks { display: none; }
 
@@ -321,6 +325,7 @@
         <div class="seg" role="group" aria-label="{{.T.sinceAria}}">
           <button type="button" data-op="since" data-v="7d" aria-pressed="false">7d</button><button type="button" data-op="since" data-v="30d" aria-pressed="false">30d</button><button type="button" data-op="since" data-v="1y" aria-pressed="false">1y</button><button type="button" data-op="since" data-v="" aria-pressed="false">{{.T.allTime}}</button>
         </div>
+        {{template "rail-years" .}}
       </section>
       {{template "rail-tags" .}}
       {{with .D.Stats}}{{if .Total}}
@@ -359,6 +364,7 @@
     <dl>
       <dt><kbd>/</kbd></dt><dd>{{.T.helpFocus}}</dd>
       <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>{{.T.helpMove}}</dd>
+      <dt><kbd>n</kbd></dt><dd>{{.T.helpMore}}</dd>
       <dt><kbd>o</kbd> <kbd>O</kbd></dt><dd>{{.T.helpOpen}}</dd>
       <dt><kbd>y</kbd> <kbd>Y</kbd></dt><dd>{{.T.helpCopy}}</dd>
       <dt><kbd>1</kbd>–<kbd>4</kbd> <kbd>0</kbd></dt><dd>{{.T.helpSources}}</dd>
@@ -370,6 +376,7 @@
       <dt><code>source:</code></dt><dd>twitter, bluesky, mastodon, github</dd>
       <dt><code>tag:</code></dt><dd>{{.T.helpTag}}</dd>
       <dt><code>since:</code></dt><dd>7d, 2w, 3m, 1y, 2026, 2026-07-20</dd>
+      <dt><code>until:</code></dt><dd>{{.T.helpUntil}}</dd>
     </dl>
     <form method="dialog"><button class="btn">{{.T.close}} <kbd>esc</kbd></button></form>
   </dialog>
@@ -383,10 +390,15 @@
     const shell = document.getElementById('shell'), help = document.getElementById('help');
     const results = document.getElementById('results');
     // same pattern as ops in query.go: a value with spaces is double-quoted
-    const OPS = /(^|\s)(source|tag|since):("[^"]*"?|\S*)/g;
+    const OPS = /(^|\s)(source|tag|since|until):("[^"]*"?|\S*)/g;
 
     const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-    const ops = () => Object.fromEntries([...q.value.matchAll(OPS)].map(m => [m[2], m[3].replace(/^"+|"+$/g, '')]));
+    // year is not typed: since:2024 until:2024 is what a year button writes
+    const ops = () => {
+      const o = Object.fromEntries([...q.value.matchAll(OPS)].map(m => [m[2], m[3].replace(/^"+|"+$/g, '')]));
+      if (/^\d{4}$/.test(o.since) && o.since === o.until) o.year = o.since;
+      return o;
+    };
 
     // Draw the typed text with the filters coloured, and press the rail
     // buttons that match it.
@@ -397,9 +409,15 @@
       document.querySelectorAll('.rail [data-op], #results [data-op]').forEach(b =>
         b.setAttribute('aria-pressed', (o[b.dataset.op] || '') === b.dataset.v));
     }
-    function setOp(op, v) {
+    function put(op, v) {
       if (/\s/.test(v)) v = `"${v}"`;
       q.value = (q.value.replace(new RegExp('(^|\\s)' + op + ':("[^"]*"?|\\S*)', 'g'), ' ').trim() + (v ? ' ' + op + ':' + v : '')).trim();
+    }
+    // a period replaces the whole date range: a year sets both bounds, the
+    // 7d/30d/1y/all buttons drop until:
+    function setOp(op, v) {
+      if (op === 'year') { put('since', v); put('until', v); }
+      else { put(op, v); if (op === 'since') put('until', ''); }
       paint();
       htmx.trigger(form, 'submit');
     }
@@ -442,7 +460,14 @@
       e.preventDefault();
       h.querySelector('h3 a').focus({ preventScroll: true });
     });
-    document.body.addEventListener('htmx:afterSwap', e => { if (e.target === results) sel = -1; });
+    // "more" keeps your place: the first new row is selected once it lands
+    let grow = 0;
+    document.body.addEventListener('htmx:afterSwap', e => {
+      if (e.target !== results) return;
+      sel = -1;
+      if (grow && rows()[grow]) { sel = grow - 1; move(1); }
+      grow = 0;
+    });
     // the rail comes back out-of-band with every result list
     document.body.addEventListener('htmx:afterSettle', paint);
 
@@ -486,7 +511,8 @@
     document.addEventListener('click', e => {
       const b = e.target.closest('button');
       if (!b) return;
-      if (b.dataset.op) setOp(b.dataset.op, b.dataset.op === 'tag' && b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.v);
+      if (b.dataset.op) setOp(b.dataset.op, /^(tag|year)$/.test(b.dataset.op) && b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.v);
+      else if (b.id === 'more') grow = rows().length;
       else if (b.dataset.copy) copy(b.dataset.copy);
       else if (b.id === 'fold') fold();
       else if (b.id === 'clear') { q.value = ''; paint(); htmx.trigger(form, 'submit'); q.focus(); }
@@ -504,6 +530,7 @@
         '?': () => { opener = document.activeElement; help.showModal(); },
         '[': () => fold(),
         j: () => move(1), k: () => move(-1),
+        n: () => document.getElementById('more')?.click(),
         o: () => d && window.open(d.url, '_blank', 'noreferrer'),
         O: () => d && window.open(d.origUrl || d.url, '_blank', 'noreferrer'),
         y: () => d && copy(d.url),

@@ -69,4 +69,8 @@ func TestFacets(t *testing.T) {
 	if src, _ := count(fc); fc.Total != 3 || src["twitter"] != 2 {
 		t.Fatalf("Facets(\"\", since) = %+v", fc)
 	}
+	// years ignore both date bounds, newest first; 300 and 100 are both 1970
+	if len(fc.Years) != 1 || fc.Years[0].Count != 4 {
+		t.Fatalf("years must ignore since:, got %+v", fc.Years)
+	}
 }

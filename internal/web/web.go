@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -86,15 +87,22 @@ var funcs = template.FuncMap{
 
 var tmpl = template.Must(template.New("").Funcs(funcs).ParseFS(assets, "templates/*.html"))
 
-// pageLimit caps one /search response. There is no pagination, so the fragment
-// says when it hit the cap: a review listing that silently stops reads as
-// "that is everything that piled up", which is a wrong answer, not a short one.
-const pageLimit = 50
+// pageLimit is one page of /search. A listing that hit it says so and offers
+// the next page: one that silently stops reads as "that is everything that
+// piled up", which is a wrong answer, not a short one. "More" asks for the
+// same search with ?n= one page longer, up to maxLimit.
+// ponytail: each "more" re-renders the whole list; switch to an offset and
+// append only if lists past a few hundred rows feel slow.
+const (
+	pageLimit = 50
+	maxLimit  = 1000
+)
 
 // page is what results.html renders.
 type page struct {
 	Hits      []store.Result
 	Truncated bool
+	Next      int // ?n= for the next page; 0 when there is none to offer
 	Query     query
 	Rail      rail
 	Notes     []string // filters typed but not applied, for the status line
@@ -116,12 +124,13 @@ type rail struct {
 	Total   int
 	Sources []facet
 	Tags    []store.TagCount
+	Years   []store.YearCount
 	Query   query
 	OOB     bool // sent along a /search fragment, swapped in by id
 }
 
 func newRail(fc store.Facets, q query) rail {
-	r := rail{Total: fc.Total, Tags: fc.Tags, Query: q}
+	r := rail{Total: fc.Total, Tags: fc.Tags, Years: fc.Years, Query: q}
 	for i, src := range sources {
 		f := facet{Source: src, Key: i + 1, Active: src == q.Source}
 		for _, sc := range fc.BySource {
@@ -135,6 +144,10 @@ func newRail(fc store.Facets, q query) rail {
 	// even when nothing matches it any more
 	if q.Tag != "" && !slices.ContainsFunc(r.Tags, func(t store.TagCount) bool { return t.Tag == q.Tag }) {
 		r.Tags = append(r.Tags, store.TagCount{Tag: q.Tag})
+	}
+	if y := q.Year(); y != "" && !slices.ContainsFunc(r.Years, func(c store.YearCount) bool { return c.Year == y }) {
+		r.Years = append(r.Years, store.YearCount{Year: y})
+		slices.SortFunc(r.Years, func(a, b store.YearCount) int { return strings.Compare(b.Year, a.Year) })
 	}
 	return r
 }
@@ -193,7 +206,7 @@ func Handler(s *store.Store) http.Handler {
 	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
 		t := pick(w, r)
 		p := r.URL.Query()
-		qr, kept := parseQuery(p.Get("q"), p.Get("source"), p.Get("tag"), p.Get("since"))
+		qr, kept := parseQuery(p.Get("q"), p.Get("source"), p.Get("tag"), p.Get("since"), p.Get("until"))
 		q := qr.Words
 		var notes []string
 		for _, k := range kept {
@@ -207,6 +220,13 @@ func Handler(s *store.Store) http.Handler {
 			notes = append(notes, fmt.Sprintf(t["noteSince"], qr.Since))
 			qr.Since = ""
 		}
+		until, err := store.ParseUntil(qr.Until)
+		if err != nil {
+			notes = append(notes, fmt.Sprintf(t["noteUntil"], qr.Until))
+			qr.Until = ""
+		}
+		limit, _ := strconv.Atoi(p.Get("n"))
+		limit = min(max(limit, pageLimit), maxLimit)
 		if qr.Source != "" && !slices.Contains(sources, qr.Source) {
 			notes = append(notes, fmt.Sprintf(t["noteSource"], qr.Source))
 			qr.Source = ""
@@ -215,7 +235,8 @@ func Handler(s *store.Store) http.Handler {
 			Source: qr.Source,
 			Tag:    qr.Tag,
 			Since:  since,
-			Limit:  pageLimit,
+			Until:  until,
+			Limit:  limit,
 		}
 		// No query is the review listing (newest first), not an empty screen —
 		// source, date and tag all narrow it.
@@ -235,13 +256,16 @@ func Handler(s *store.Store) http.Handler {
 		}
 		// counted on the same filters, minus the result limit; a failure only
 		// leaves the rail showing zeros
-		fc, err := s.Facets(q, store.Filter{Source: f.Source, Tag: f.Tag, Since: f.Since})
+		fc, err := s.Facets(q, store.Filter{Source: f.Source, Tag: f.Tag, Since: f.Since, Until: f.Until})
 		if err != nil {
 			log.Printf("glane: facets: %v", err)
 		}
 		rl := newRail(fc, qr)
 		rl.OOB = true
-		pg := page{Hits: res, Truncated: len(res) == pageLimit, Query: qr, Rail: rl, Notes: notes}
+		pg := page{Hits: res, Truncated: len(res) == limit, Query: qr, Rail: rl, Notes: notes}
+		if pg.Truncated && limit < maxLimit {
+			pg.Next = limit + pageLimit
+		}
 		if err := tmpl.ExecuteTemplate(w, "results.html", view{t, pg}); err != nil {
 			log.Printf("glane: render results.html: %v", err)
 		}

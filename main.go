@@ -289,6 +289,7 @@ func cmdSearch(s *store.Store, args []string) {
 	source := fs.String("source", "", "filter by source")
 	limit := fs.Int("limit", 20, "max results")
 	since := fs.String("since", "", "only items on/after this date (YYYY, YYYY-MM-DD, or a window like 7d, 2w, 3m, 1y)")
+	until := fs.String("until", "", "only items before the end of this date (YYYY, YYYY-MM-DD) or older than a window (1y)")
 	tag := fs.String("tag", "", "filter by tag")
 	fs.Parse(flagArgs)
 	if query == "" { // flags first, then the query after "--": glane search --tag go -- -foo
@@ -298,7 +299,11 @@ func cmdSearch(s *store.Store, args []string) {
 	if err != nil {
 		fatal(err)
 	}
-	filter := store.Filter{Source: *source, Limit: *limit, Since: sinceTs, Tag: *tag}
+	untilTs, err := store.ParseUntil(*until)
+	if err != nil {
+		fatal(err)
+	}
+	filter := store.Filter{Source: *source, Limit: *limit, Since: sinceTs, Until: untilTs, Tag: *tag}
 
 	// No query at all is a listing, not an error: Recent lists the newest items
 	// (`--since` = review what landed), narrowed by --tag when there is one.

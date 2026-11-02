@@ -1,7 +1,7 @@
 <div class="head">
   <span role="status">
     {{len .D.Hits}} {{.T.result}}{{if gt (len .D.Hits) 1}}s{{end}} · {{if .D.Query.Words}}{{.T.ranked}}{{else}}{{.T.newest}}{{end}}
-    {{if .D.Truncated}}<span class="more">{{.T.truncated}}</span>{{end}}
+    {{if .D.Next}}<span class="more">{{.T.hasMore}}</span>{{else if .D.Truncated}}<span class="more">{{.T.truncated}}</span>{{end}}
     {{range .D.Notes}}<span class="more">{{.}}</span>{{end}}
   </span>
   <div class="cli"><code>{{.D.Query.CLI}}</code><button type="button" class="btn" data-copy="{{.D.Query.CLI}}">{{.T.copy}}</button></div>
@@ -30,6 +30,10 @@
   </li>
   {{end}}
 </ol>
+{{if .D.Next}}<div class="next">
+  <button type="button" class="btn" id="more" hx-get="/search" hx-include=".search-form" hx-vals='{"n": {{.D.Next}}}'
+          hx-target="#results" hx-indicator="#load">{{.T.more}} <kbd>n</kbd></button>
+</div>{{end}}
 {{else}}
 <div class="empty">
   <p>{{.T.noResults}}</p>
@@ -38,3 +42,4 @@
 {{end}}
 {{template "rail-sources" .}}
 {{template "rail-tags" .}}
+{{template "rail-years" .}}

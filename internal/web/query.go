@@ -8,23 +8,23 @@ import (
 
 // query is one /search request: the words that go to the search engines plus
 // the filters, which the search box spells as source:, tag: and since: so it
-// speaks the same language as `glane search --source --tag --since`.
+// speaks the same language as `glane search --source --tag --since --until`.
 type query struct {
-	Words, Source, Tag, Since string
+	Words, Source, Tag, Since, Until string
 }
 
 // ops matches one filter in the box; a value with spaces is double-quoted
 // (tag:"software engineering"), and a quote left open runs to the end of the
 // box. index.html's OPS is the same pattern.
-var ops = regexp.MustCompile(`(^|\s)(source|tag|since):("[^"]*"?|\S*)`)
+var ops = regexp.MustCompile(`(^|\s)(source|tag|since|until):("[^"]*"?|\S*)`)
 
 // parseQuery reads the filters from the URL parameters first, then lets any
 // operator typed in q override them. An operator with an empty value (since:)
 // clears that filter; an unknown one (foo:bar) is just a word. Sources are
 // stored lowercase. kept lists, as op:value, each operator typed twice with
 // different values: the last one wins, and the page says so.
-func parseQuery(q, source, tag, since string) (out query, kept []string) {
-	out = query{Source: strings.ToLower(source), Tag: tag, Since: since}
+func parseQuery(q, source, tag, since, until string) (out query, kept []string) {
+	out = query{Source: strings.ToLower(source), Tag: tag, Since: since, Until: until}
 	seen := map[string]string{}
 	for _, m := range ops.FindAllStringSubmatch(q, -1) {
 		val := strings.Trim(m[3], `"`)
@@ -42,10 +42,21 @@ func parseQuery(q, source, tag, since string) (out query, kept []string) {
 			out.Tag = val
 		case "since":
 			out.Since = val
+		case "until":
+			out.Until = val
 		}
 	}
 	out.Words = strings.Join(strings.Fields(ops.ReplaceAllString(q, " ")), " ")
 	return out, kept
+}
+
+// Year is the year browsed, when since: and until: name the same one
+// (since:2024 until:2024, what a year button writes), else "".
+func (q query) Year() string {
+	if len(q.Since) == 4 && q.Since == q.Until {
+		return q.Since
+	}
+	return ""
 }
 
 // CLI is the `glane search` invocation that returns the same listing, ready to
@@ -58,7 +69,7 @@ func (q query) CLI() string {
 		words = append(words, shellQuote(w))
 		dash = dash || strings.HasPrefix(w, "-")
 	}
-	for _, f := range [][2]string{{"--source", q.Source}, {"--tag", q.Tag}, {"--since", q.Since}} {
+	for _, f := range [][2]string{{"--source", q.Source}, {"--tag", q.Tag}, {"--since", q.Since}, {"--until", q.Until}} {
 		if f[1] != "" {
 			flags = append(flags, f[0], shellQuote(f[1]))
 		}

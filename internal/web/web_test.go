@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jcgay/glane/internal/store"
 )
@@ -141,14 +142,23 @@ func TestListingAnnouncesTruncation(t *testing.T) {
 	if !strings.Contains(body, fmt.Sprintf("%d results", pageLimit)) {
 		t.Fatalf("listing must show how many it returned: %s", body)
 	}
-	if !strings.Contains(body, en["truncated"]) {
-		t.Fatalf("a capped listing must say it is capped: %s", body)
+	if !strings.Contains(body, en["hasMore"]) || !strings.Contains(body, `hx-vals='{"n": 100}'`) {
+		t.Fatalf("a full page must say there are more and offer the next one: %s", body)
+	}
+
+	// the next page is the same search, one page longer, and the last one
+	// offers nothing more
+	rec = httptest.NewRecorder()
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?n=100", nil))
+	body = rec.Body.String()
+	if !strings.Contains(body, fmt.Sprintf("%d results", pageLimit+1)) || strings.Contains(body, `id="more"`) {
+		t.Fatalf("?n=100 must list all %d items with no more button: %s", pageLimit+1, body)
 	}
 
 	// Under the cap, no warning — otherwise it cries wolf on every search.
 	rec2 := httptest.NewRecorder()
 	Handler(s).ServeHTTP(rec2, httptest.NewRequest("GET", "/search?source=twitter&q=item", nil))
-	if strings.Contains(rec2.Body.String(), en["truncated"]) {
+	if strings.Contains(rec2.Body.String(), en["hasMore"]) {
 		t.Fatalf("empty result set must not claim truncation: %s", rec2.Body.String())
 	}
 }
@@ -435,5 +445,31 @@ func TestAppIconIsEmbeddedPNG(t *testing.T) {
 	icon := AppIcon()
 	if !bytes.HasPrefix(icon, []byte("\x89PNG\r\n\x1a\n")) {
 		t.Fatalf("AppIcon is not a PNG (%d bytes)", len(icon))
+	}
+}
+
+// A year button writes since:Y until:Y: the listing keeps that year only, and
+// the rail marks it pressed while still counting every year.
+func TestSearchBrowsesOneYear(t *testing.T) {
+	s, _ := store.Open(t.TempDir() + "/t.db")
+	defer s.Close()
+	at := func(y int) int64 { return time.Date(y, 6, 1, 12, 0, 0, 0, time.Local).Unix() }
+	if _, err := s.Upsert([]store.Item{
+		{Source: "github", SourceID: "1", Kind: "star", Text: "from twenty-three", URL: "http://x/1", CreatedAt: at(2023)},
+		{Source: "github", SourceID: "2", Kind: "star", Text: "from twenty-four", URL: "http://x/2", CreatedAt: at(2024)},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	Handler(s).ServeHTTP(rec, httptest.NewRequest("GET", "/search?q="+url.QueryEscape("since:2023 until:2023"), nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, "twenty-three") || strings.Contains(body, "twenty-four") {
+		t.Fatalf("since:2023 until:2023 must keep 2023 only: %s", body)
+	}
+	if !strings.Contains(body, `data-v="2023" aria-pressed="true"`) || !strings.Contains(body, `data-v="2024" aria-pressed="false">2024<span class="n">1</span>`) {
+		t.Fatalf("the rail must press 2023 and still count 2024: %s", body)
+	}
+	if !strings.Contains(body, "glane search --since 2023 --until 2023") {
+		t.Fatalf("the CLI echo must carry --until: %s", body)
 	}
 }

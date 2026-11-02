@@ -87,7 +87,7 @@ export GLANE_SUMMARY_URL=http://localhost:11434/v1 GLANE_SUMMARY_MODEL=gemma3
 | `glane sync github\|mastodon\|bluesky` | Sync one live source, incrementally |
 | `glane sync all` | Sync every configured source |
 | `glane update` | `sync all`, then `enrich`, then `summarize`: the command to schedule |
-| `glane search [query] [flags]` | Search, or list with no query (`--source`, `--tag`, `--since`, `--limit`) |
+| `glane search [query] [flags]` | Search, or list with no query (`--source`, `--tag`, `--since`, `--until`, `--limit`) |
 | `glane enrich [--limit N] [--force]` | Fetch each item's link and index the article text |
 | `glane summarize [--limit N]` | Summarize and tag enriched articles with an LLM |
 | `glane tags` | List your tags with counts |

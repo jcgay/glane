@@ -10,7 +10,8 @@ import (
 
 type Filter struct {
 	Source string
-	Since  int64
+	Since  int64 // created_at >= Since, when set
+	Until  int64 // created_at < Until, when set
 	Limit  int
 	Tag    string
 }
@@ -28,6 +29,10 @@ func (f Filter) where() (string, []any) {
 		sql += " AND i.created_at >= ?"
 		args = append(args, f.Since)
 	}
+	if f.Until > 0 {
+		sql += " AND i.created_at < ?"
+		args = append(args, f.Until)
+	}
 	if f.Tag != "" {
 		sql += " AND EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id AND t.tag = ?)"
 		args = append(args, f.Tag)
@@ -41,14 +46,30 @@ func (f Filter) where() (string, []any) {
 // local zone: both the picker and someone typing --since mean their own
 // midnight, and parsing as UTC would silently drop items east of Greenwich.
 func ParseSince(v string) (int64, error) {
+	start, _, err := parseDate(v, "--since")
+	return start, err
+}
+
+// ParseUntil reads the same forms as ParseSince for Filter.Until, which is
+// exclusive: a date or a year includes itself ("2024" ends on 2025-01-01), so
+// --since 2024 --until 2024 is the whole of 2024; a window is the moment it
+// reaches back to, so --until 1y is everything older than a year.
+func ParseUntil(v string) (int64, error) {
+	_, end, err := parseDate(v, "--until")
+	return end, err
+}
+
+// parseDate returns where the period v starts and where it ends (exclusive);
+// a window is an instant, so both are the same. Zero for "".
+func parseDate(v, flag string) (start, end int64, err error) {
 	if v == "" {
-		return 0, nil
+		return 0, 0, nil
 	}
 	if t, err := time.ParseInLocation("2006-01-02", v, time.Local); err == nil {
-		return t.Unix(), nil
+		return t.Unix(), t.AddDate(0, 0, 1).Unix(), nil
 	}
 	if t, err := time.ParseInLocation("2006", v, time.Local); err == nil {
-		return t.Unix(), nil
+		return t.Unix(), t.AddDate(1, 0, 0).Unix(), nil
 	}
 	// A relative window (7d, 2w, 3m, 1y) counts back from today's midnight, so
 	// "7d" means the same thing all day long rather than drifting by the hour.
@@ -57,16 +78,19 @@ func ParseSince(v string) (int64, error) {
 		t := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 		switch strings.ToLower(v[len(v)-1:]) {
 		case "d":
-			return t.AddDate(0, 0, -n).Unix(), nil
+			t = t.AddDate(0, 0, -n)
 		case "w":
-			return t.AddDate(0, 0, -7*n).Unix(), nil
+			t = t.AddDate(0, 0, -7*n)
 		case "m":
-			return t.AddDate(0, -n, 0).Unix(), nil
+			t = t.AddDate(0, -n, 0)
 		case "y":
-			return t.AddDate(-n, 0, 0).Unix(), nil
+			t = t.AddDate(-n, 0, 0)
+		default:
+			return 0, 0, fmt.Errorf("invalid %s %q (want YYYY, YYYY-MM-DD or a window like 7d, 2w, 3m, 1y)", flag, v)
 		}
+		return t.Unix(), t.Unix(), nil
 	}
-	return 0, fmt.Errorf("invalid --since %q (want YYYY, YYYY-MM-DD or a window like 7d, 2w, 3m, 1y)", v)
+	return 0, 0, fmt.Errorf("invalid %s %q (want YYYY, YYYY-MM-DD or a window like 7d, 2w, 3m, 1y)", flag, v)
 }
 
 type Result struct {
