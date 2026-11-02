@@ -519,8 +519,10 @@
     results.addEventListener('pointerdown', e => { armed = e.target.closest('.hit[aria-current="true"]'); });
     results.addEventListener('click', e => {
       const h = e.target.closest('.hit');
-      if (!touch.matches || !e.detail || !h || h === armed || e.target.closest('button, .m a')) return;
-      e.preventDefault();
+      // a drag that selected text is a copy, not a pick
+      if (!h || e.target.closest('button, .m a') || !getSelection().isCollapsed) return;
+      // a mouse on the title leaves at once; a finger needs the row selected first
+      if (e.target.closest('a')) { if (!touch.matches || !e.detail || h === armed) return; e.preventDefault(); }
       h.querySelector('h3 a').focus({ preventScroll: true });
     });
     // "more" keeps your place: the first new row is selected once it lands
