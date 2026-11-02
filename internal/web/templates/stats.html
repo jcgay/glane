@@ -49,6 +49,9 @@
     .src { display: inline-flex; align-items: center; gap: .45rem; }
     table a { color: inherit; text-decoration: none; }
     table a:hover, table a:focus-visible { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
+    /* the command that fills the gap: one click selects it for a paste */
+    .fix { display: block; margin-top: .6rem; font: 11px var(--mono); color: var(--faint); user-select: all; }
+    .fix::before { content: "$ "; }
     .hint { margin: -.4rem 0 .9rem; font: 12px var(--mono); color: var(--faint); }
     td .meter { margin: 0 1rem; }
     td .meter > span { background: var(--muted); opacity: .45; }
@@ -68,11 +71,14 @@
       <section class="cards">
         <div class="card total"><div class="n">{{num .D.Total .T}}</div><div class="label">{{.T.total}}</div></div>
         <div class="card"><div class="n">{{num .D.Enriched .T}}</div><div class="label">{{.T.enriched}}</div>
-          <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Enriched .D.Total}}%"></span></div></div>
+          <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Enriched .D.Total}}%"></span></div>
+          {{if lt .D.Enriched .D.Total}}<code class="fix">glane enrich</code>{{end}}</div>
         <div class="card"><div class="n">{{num .D.Summarized .T}}</div><div class="label">{{.T.summarized}}</div>
-          <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Summarized .D.Total}}%"></span></div></div>
+          <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Summarized .D.Total}}%"></span></div>
+          {{if and .D.Summary (lt .D.Summarized .D.Total)}}<code class="fix">glane summarize</code>{{end}}</div>
         <div class="card"><div class="n">{{num .D.Embedded .T}}</div><div class="label">{{.T.embeddings}}</div>
-          <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Embedded .D.Total}}%"></span></div></div>
+          <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Embedded .D.Total}}%"></span></div>
+          {{if and .D.Embed (lt .D.Embedded .D.Total)}}<code class="fix">glane enrich</code>{{end}}</div>
         <div class="card"><div class="n">{{num .D.DistinctTags .T}}</div><div class="label">{{.T.tagsLabel}}</div></div>
       </section>
 

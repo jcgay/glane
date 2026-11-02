@@ -217,6 +217,8 @@ type statsPage struct {
 	Years   []store.YearCount
 	YearMax int // the busiest year: years are drawn against it, to show their shape
 	Tags    []store.TagCount
+	Embed   bool // an embedding endpoint is set: `glane enrich` would fill embeddings
+	Summary bool // a summary endpoint is set: `glane summarize` would do something
 }
 
 // home is what index.html renders: the filter rail, the index health and the
@@ -307,7 +309,8 @@ func Handler(s *store.Store) http.Handler {
 		}
 		// the same telling tags the rail leads with, and every year
 		rl := newRail(fc, query{})
-		pg := statsPage{Stats: st, Years: rl.Years, Tags: rl.Tags}
+		pg := statsPage{Stats: st, Years: rl.Years, Tags: rl.Tags,
+			Embed: gembed.FromEnv() != nil, Summary: summarize.FromEnv() != nil}
 		for _, y := range pg.Years {
 			pg.YearMax = max(pg.YearMax, y.Count)
 		}
