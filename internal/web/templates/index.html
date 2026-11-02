@@ -517,10 +517,17 @@
     // and so do the folded tags: keep them open across searches if they were
     let moreTags = false;
     document.addEventListener('toggle', e => { if (e.target.id === 'moretags') moreTags = e.target.open; }, true);
+    // a pressed source, tag or year comes back as a new button, so the focus
+    // it held would drop to <body>: hand it to the new one
+    let refocus = null;
     document.body.addEventListener('htmx:afterSettle', () => {
       const d = document.getElementById('moretags');
       if (d) d.open = moreTags;
       paint();
+      if (!refocus || document.activeElement !== document.body) return;
+      const [root, op, v] = refocus;
+      const b = document.querySelector(`#${root} [data-op="${op}"][data-v="${CSS.escape(v)}"]`);
+      if (b) { b.focus(); refocus = null; }
     });
 
     // The query lives in ?q= so a search survives a reload and can be shared.
@@ -571,7 +578,12 @@
     document.addEventListener('click', e => {
       const b = e.target.closest('button');
       if (!b) return;
-      if (b.dataset.op) setOp(b.dataset.op, /^(tag|year)$/.test(b.dataset.op) && b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.v);
+      if (b.dataset.op) {
+        // the focused facet, which may not be b: 1–4 click a source from anywhere
+        const a = document.activeElement;
+        refocus = a?.dataset.op ? [a.closest('#rail, #results').id, a.dataset.op, a.dataset.v] : null;
+        setOp(b.dataset.op, /^(tag|year)$/.test(b.dataset.op) && b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.v);
+      }
       else if (b.id === 'more') grow = rows().length;
       else if (b.dataset.copy) copy(b.dataset.copy);
       else if (b.id === 'fold') fold();
