@@ -182,9 +182,9 @@ components:
 
 ## Overview
 
-**Creative North Star: "The Console Beside the Terminal"**
+**Creative North Star: "The Gleaner's Ledger"**
 
-The North Star and descriptive names below were inferred from the shipped code and its comments, not confirmed with the user.
+glane comes from *glaner*, to glean: the UI is the working ledger of what you picked up along the way, kept open beside the terminal. A ledger is dense, ruled and plain; every line is an entry you can find again, and nothing on the page is there for show.
 
 glane's web UI is a dense, dark-first search console meant to sit next to a terminal and an editor. It is graphite with a faint amber bias, and amber is the only accent. One screen holds a top bar with the command line, a filter rail, a scrolling result list and a status bar; only the list and the rail scroll. Everything is reachable from the keyboard, and the interface keeps saying how to drive it: keycaps next to the controls, a `$ glane …` echo of the current query, a help dialog on `?`.
 
@@ -286,6 +286,8 @@ Flat. Depth comes from tonal layering (Graphite page, Raised Graphite bars and c
 Small, tight radii that grow with the size of the element: 2px for dots, meters and marks, 3px for provenance badges, 4px for keycaps, tags, buttons and the focus ring, 5px for rail rows and icon buttons, 6px for the segmented control, CLI echo and toast, 8px for the command bar (and touch icon buttons), 10px for the dialog, .8rem for stat cards. Borders are always 1px, except the keycap, whose 2px bottom edge makes it look like a physical key. The brand mark and the source markers are rounded squares, not circles.
 
 ## Components
+
+Precise and quiet. Controls are drawn with hairlines and stay unfilled until pressed; the keycap next to a control is the only ornament. A new component earns its place by doing one job the keyboard can reach.
 
 ### Command Bar
 The core of the console. It has a Graphite inset background, a 1px Faint Dust outline and an 8px radius, with an amber chevron icon on the left and a `/` keycap on the right. The typed text is drawn by an overlay underneath a transparent input: filter operators (`source:`, `tag:`, `since:`, `until:`) are Amber Ink with a faint colon, and a value the server will ignore gets an amber wavy underline. With `forced-colors` the overlay is dropped and the input text shows. On focus the outline turns amber and gets the 3px Amber Wash halo. A 2px amber loading bar slides along the bottom edge of the top bar while a request runs, and the stale results drop to 55% opacity.
