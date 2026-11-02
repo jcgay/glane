@@ -115,6 +115,8 @@
     .health .bar span { display: block; height: 100%; width: var(--w); background: var(--accent); }
     .health .run { grid-column: 1 / -1; justify-self: start; font: 11px var(--mono); color: var(--faint); }
     .health .run:hover { color: var(--accent-ink); }
+    /* the top bar's page links don't fit a phone: the panel carries /stats */
+    .railstats { display: none; }
 
     /* a tag pill, in the rail and on every result */
     .tag {
@@ -248,6 +250,10 @@
       .next { padding-inline: 16px; }
       .rail .tagsec { flex-basis: 100%; }
       .rail .healthsec, .navlinks { display: none; }
+      .railstats {
+        display: flex; flex-basis: 100%; align-items: center; gap: 4px; min-height: 44px; margin-top: -8px;
+        font: 13px var(--mono); text-transform: lowercase; color: var(--muted); text-decoration: none;
+      }
 
       .fold { position: relative; order: 1; }
       .helpbtn { order: 2; }
@@ -369,6 +375,7 @@
         </div>
       </section>
       {{end}}{{end}}
+      <a class="railstats" href="/stats">{{.T.stats}}<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
     </aside>
 
     <main class="list">
