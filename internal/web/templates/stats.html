@@ -65,14 +65,14 @@
   <div class="wrap">
     <main>
       <section class="cards">
-        <div class="card total"><div class="n">{{.D.Total}}</div><div class="label">{{.T.total}}</div></div>
-        <div class="card"><div class="n">{{.D.Enriched}}</div><div class="label">{{.T.enriched}}</div>
+        <div class="card total"><div class="n">{{num .D.Total .T}}</div><div class="label">{{.T.total}}</div></div>
+        <div class="card"><div class="n">{{num .D.Enriched .T}}</div><div class="label">{{.T.enriched}}</div>
           <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Enriched .D.Total}}%"></span></div></div>
-        <div class="card"><div class="n">{{.D.Summarized}}</div><div class="label">{{.T.summarized}}</div>
+        <div class="card"><div class="n">{{num .D.Summarized .T}}</div><div class="label">{{.T.summarized}}</div>
           <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Summarized .D.Total}}%"></span></div></div>
-        <div class="card"><div class="n">{{.D.Embedded}}</div><div class="label">{{.T.embeddings}}</div>
+        <div class="card"><div class="n">{{num .D.Embedded .T}}</div><div class="label">{{.T.embeddings}}</div>
           <div class="meter" aria-hidden="true"><span style="--w: {{pct .D.Embedded .D.Total}}%"></span></div></div>
-        <div class="card"><div class="n">{{.D.DistinctTags}}</div><div class="label">{{.T.tagsLabel}}</div></div>
+        <div class="card"><div class="n">{{num .D.DistinctTags .T}}</div><div class="label">{{.T.tagsLabel}}</div></div>
       </section>
 
       <h2>{{.T.bySource}}</h2>
@@ -80,7 +80,7 @@
         {{range .D.BySource}}<tr>
           <td><a class="src" href="/?q={{op "source" .Source}}"><span class="dot {{.Source}}"></span>{{.Source}}</a></td>
           <td><div class="meter" aria-hidden="true"><span style="--w: {{pct .Count $.D.Total}}%"></span></div></td>
-          <td>{{.Count}}</td>
+          <td>{{num .Count $.T}}</td>
         </tr>{{end}}
       </table>
 
@@ -90,7 +90,7 @@
         {{range .D.Years}}<tr>
           <td><a href="/?q={{printf "%s %s" (op "since" .Year) (op "until" .Year)}}">{{.Year}}</a></td>
           <td><div class="meter" aria-hidden="true"><span style="--w: {{pct .Count $.D.YearMax}}%"></span></div></td>
-          <td>{{.Count}}</td>
+          <td>{{num .Count $.T}}</td>
         </tr>{{end}}
       </table>
       {{end}}
@@ -102,7 +102,7 @@
         {{range .D.Tags}}<tr>
           <td><a href="/?q={{op "tag" .Tag}}">{{.Tag}}</a></td>
           <td><div class="meter" aria-hidden="true"><span style="--w: {{pct .Count $.D.Total}}%"></span></div></td>
-          <td>{{.Count}}</td>
+          <td>{{num .Count $.T}}</td>
         </tr>{{end}}
       </table>
       {{end}}

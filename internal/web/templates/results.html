@@ -1,8 +1,8 @@
 <div class="head">
   <span role="status">
-    {{len .D.Hits}} {{.T.result}}{{if gt (len .D.Hits) 1}}s{{end}} · {{if .D.Query.Words}}{{.T.ranked}}{{else}}{{.T.newest}}{{end}}
+    {{num (len .D.Hits) .T}} {{results (len .D.Hits) .T}} · {{if .D.Query.Words}}{{.T.ranked}}{{else}}{{.T.newest}}{{end}}
     {{if .D.Next}}<span class="more">{{.T.hasMore}}</span>{{else if .D.Truncated}}<span class="more">{{.T.truncated}}</span>{{end}}
-    {{range .D.Notes}}<span class="more">{{.}}</span>{{end}}
+    {{range .D.Notes}} <span class="more">{{.}}</span>{{end}}
   </span>
   <div class="cli"><code>{{.D.Query.CLI}}</code><button type="button" class="btn" data-copy="{{.D.Query.CLI}}">{{.T.copy}}</button></div>
 </div>

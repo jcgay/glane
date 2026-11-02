@@ -41,6 +41,8 @@
     .field .hl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--ink); }
     .hl .op { color: var(--accent-ink); }
     .hl .op b { color: var(--faint); font-weight: 400; }
+    /* a value the server will ignore: it says why in the status line */
+    .hl .op.bad { color: var(--ink); text-decoration: underline wavy var(--accent); text-underline-offset: 4px; }
     @media (forced-colors: active) { .field input { color: CanvasText; } .field .hl { display: none; } }
 
     .fold, .helpbtn {
@@ -366,7 +368,7 @@
   </div>
 
   <footer class="status">
-    <span>{{.D.Stats.Total}} {{.T.items}}</span>
+    <span>{{num .D.Stats.Total .T}} {{.T.items}}</span>
     <span>fts5 <span class="on">●</span></span>
     <span>vec {{if .D.Embed}}<span class="on">●</span> {{.D.EmbedModel}}{{else}}○ {{.T.off}}{{end}}</span>
     {{with .D.Sync}}{{if .Latest}}<a class="sync" href="/stats" title="{{$.T.syncTitle}}">sync {{reltime .Latest $.T}}</a>
@@ -387,7 +389,7 @@
       <dt><kbd>o</kbd> <kbd>O</kbd></dt><dd>{{.T.helpOpen}}</dd>
       <dt><kbd>y</kbd> <kbd>Y</kbd></dt><dd>{{.T.helpCopy}}</dd>
       <dt><kbd>1</kbd>–<kbd>4</kbd> <kbd>0</kbd></dt><dd>{{.T.helpSources}}</dd>
-      <dt><kbd>[</kbd></dt><dd>{{.T.toggleFilters}}</dd>
+      <dt><kbd>[</kbd></dt><dd>{{.T.helpFilters}}</dd>
     </dl>
     <h2>{{.T.helpQuery}}</h2>
     <dl id="syntax">
@@ -419,10 +421,21 @@
       return o;
     };
 
+    // what the server accepts (store.ParseSince, the source rail); anything
+    // else is still sent, ignored there and named in the status line
+    const DATE = /^(\d{4}(-\d{2}-\d{2})?|\d+[dwmy])$/i;
+    function valid(op, v) {
+      v = v.replace(/^"+|"+$/g, '');
+      if (!v || op === 'tag') return true;
+      if (op === 'source') return [...document.querySelectorAll('#rail-sources [data-v]')].some(b => b.dataset.v === v.toLowerCase());
+      return DATE.test(v);
+    }
+
     // Draw the typed text with the filters coloured, and press the rail
     // buttons that match it.
     function paint() {
-      hl.innerHTML = esc(q.value).replace(OPS, '$1<span class="op">$2<b>:</b>$3</span>');
+      hl.innerHTML = esc(q.value).replace(OPS, (m, pre, op, v) =>
+        `${pre}<span class="op${valid(op, v) ? '' : ' bad'}">${op}<b>:</b>${v}</span>`);
       const o = ops();
       document.getElementById('fold').classList.toggle('on', Object.values(o).some(Boolean));
       document.querySelectorAll('.rail [data-op], #results [data-op]').forEach(b =>

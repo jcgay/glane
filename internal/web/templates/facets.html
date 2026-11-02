@@ -9,8 +9,8 @@
   <h2>source</h2>
   {{if .Query.Words}}<p class="note">{{$.T.countsFTS}}</p>{{end}}
   <div class="facet" role="group" aria-label="{{$.T.sourceAria}}">
-    <button type="button" data-op="source" data-v="" data-key="0" aria-pressed="{{eq .Query.Source ""}}"><span class="dot"></span>{{$.T.allSources}}<span class="n">{{.Total}}</span><kbd>0</kbd></button>
-    {{range .Sources}}<button type="button" data-op="source" data-v="{{.Source}}" data-key="{{.Key}}" aria-pressed="{{.Active}}"{{if not (or .Count .Active $.D.Rail.Query.Words)}} disabled{{end}}><span class="dot {{.Source}}"></span>{{.Source}}<span class="n">{{.Count}}</span><kbd>{{.Key}}</kbd></button>
+    <button type="button" data-op="source" data-v="" data-key="0" aria-pressed="{{eq .Query.Source ""}}"><span class="dot"></span>{{$.T.allSources}}<span class="n">{{num .Total $.T}}</span><kbd>0</kbd></button>
+    {{range .Sources}}<button type="button" data-op="source" data-v="{{.Source}}" data-key="{{.Key}}" aria-pressed="{{.Active}}"{{if not (or .Count .Active $.D.Rail.Query.Words)}} disabled{{end}}><span class="dot {{.Source}}"></span>{{.Source}}<span class="n">{{num .Count $.T}}</span><kbd>{{.Key}}</kbd></button>
     {{end}}
   </div>
 </section>
@@ -20,13 +20,13 @@
 <section class="tagsec" id="rail-tags"{{if .OOB}} hx-swap-oob="true"{{end}}{{if not .Tags}} hidden{{end}}>
   <h2>{{$.T.tags}}</h2>
   <div class="tagrail" role="group" aria-label="{{$.T.tagsAria}}">
-    {{range .Tags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="{{eq .Tag $.D.Rail.Query.Tag}}"><span class="t">{{.Tag}}</span><span class="n">{{.Count}}</span></button>
+    {{range .Tags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="{{eq .Tag $.D.Rail.Query.Tag}}"><span class="t">{{.Tag}}</span><span class="n">{{num .Count $.T}}</span></button>
     {{end}}
   </div>
   {{if .MoreTags}}<details class="moretags" id="moretags">
-    <summary>{{$.T.allTags}} <span class="n">+{{len .MoreTags}}</span></summary>
+    <summary>{{$.T.allTags}} <span class="n">+{{num (len .MoreTags) $.T}}</span></summary>
     <div class="tagrail">
-      {{range .MoreTags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="false"><span class="t">{{.Tag}}</span><span class="n">{{.Count}}</span></button>
+      {{range .MoreTags}}<button type="button" class="tag" data-op="tag" data-v="{{.Tag}}" aria-pressed="false"><span class="t">{{.Tag}}</span><span class="n">{{num .Count $.T}}</span></button>
       {{end}}
     </div>
   </details>{{end}}
@@ -37,7 +37,7 @@
      years are counted without either date bound. */}}
 {{define "rail-years"}}{{with .D.Rail}}
 <div class="facet years" id="rail-years" role="group" aria-label="{{$.T.yearsAria}}"{{if .OOB}} hx-swap-oob="true"{{end}}{{if not .Years}} hidden{{end}}>
-  {{range .Years}}<button type="button" data-op="year" data-v="{{.Year}}" aria-pressed="{{eq .Year $.D.Rail.Query.Year}}">{{.Year}}<span class="n">{{.Count}}</span></button>
+  {{range .Years}}<button type="button" data-op="year" data-v="{{.Year}}" aria-pressed="{{eq .Year $.D.Rail.Query.Year}}">{{.Year}}<span class="n">{{num .Count $.T}}</span></button>
   {{end}}
 </div>
 {{end}}{{end}}

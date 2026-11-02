@@ -63,6 +63,22 @@ var funcs = template.FuncMap{
 		return slices.Concat([]string{x}, xs[:i], xs[i+1:])
 	},
 	"inc": func(i int) int { return i + 1 },
+	// num groups thousands the way the page's language writes them: 8,306
+	// in English, 8 306 (narrow no-break space) in French.
+	"num": func(n int, t catalog) string {
+		s := strconv.Itoa(n)
+		for i := len(s) - 3; i > 0 && n > 0; i -= 3 {
+			s = s[:i] + t["thousands"] + s[i:]
+		}
+		return s
+	},
+	// results is "result" or "results" for n: French keeps 0 singular
+	"results": func(n int, t catalog) string {
+		if n == 1 || n == 0 && t["lang"] == "fr" {
+			return t["result"]
+		}
+		return t["results"]
+	},
 	// op spells a filter the way the search box reads it, for a link to /?q=
 	"op": func(name, v string) string {
 		if strings.ContainsAny(v, " \t") {

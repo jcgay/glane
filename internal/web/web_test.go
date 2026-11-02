@@ -524,3 +524,18 @@ func TestSyncLineFlagsOnlyStaleSources(t *testing.T) {
 		t.Fatalf("got %+v, want latest 1 day ago and only bluesky stale since 40 days", l)
 	}
 }
+
+// Counts read the way each language writes them: English pluralises zero,
+// French keeps it singular and groups thousands with a narrow space.
+func TestCountsFollowTheLanguage(t *testing.T) {
+	f := funcs["num"].(func(int, catalog) string)
+	r := funcs["results"].(func(int, catalog) string)
+	for _, tc := range []struct{ got, want string }{
+		{f(8306, en), "8,306"}, {f(8306, fr), "8 306"}, {f(1234567, en), "1,234,567"}, {f(42, fr), "42"}, {f(0, en), "0"},
+		{r(0, en), "results"}, {r(1, en), "result"}, {r(0, fr), "résultat"}, {r(2, fr), "résultats"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("got %q, want %q", tc.got, tc.want)
+		}
+	}
+}
