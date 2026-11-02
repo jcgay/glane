@@ -39,8 +39,17 @@
         "files": [
           "internal/web/templates/index.html"
         ],
-        "createdAt": "2026-10-06T17:30:49.998Z",
-        "reason": "assistant triage: flags .seg, a segmented control whose buttons fill their cells with centred text by design; predates this session and desktop is pixel-identical"
+        "createdAt": "2026-11-02T05:46:45.684Z",
+        "reason": "only .seg fires: a segmented control whose buttons fill their cells by design; .tag got real padding in Nov 2026, so recheck the URL scan when touching pills"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "internal/web/templates/stats.html"
+        ],
+        "createdAt": "2026-11-02T05:46:45.776Z",
+        "reason": "false positive on .card.total, which has border:0 and no background; the static scan merges it with .card's border"
       }
     ]
   }

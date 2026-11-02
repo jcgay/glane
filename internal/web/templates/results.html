@@ -1,5 +1,5 @@
 <div class="head">
-  <span role="status">
+  <span class="count">
     {{num (len .D.Hits) .T}} {{results (len .D.Hits) .T}} · {{if .D.Query.Words}}{{.T.ranked}}{{else}}{{.T.newest}}{{end}}
     {{if .D.Next}}<span class="more">{{.T.hasMore}}</span>{{else if .D.Truncated}}<span class="more">{{.T.truncated}}</span>{{end}}
     {{range .D.Notes}} <span class="more">{{.}}</span>{{end}}
