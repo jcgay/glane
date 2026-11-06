@@ -3,7 +3,7 @@ module github.com/jcgay/glane
 go 1.27.1
 
 require (
-	github.com/crgimenes/glaze v0.0.81
+	github.com/crgimenes/glaze v0.0.83
 	github.com/go-shiori/go-readability v0.0.0-20251205110129-5db1dc9836f0
 	modernc.org/sqlite v1.61.1
 )
@@ -12,7 +12,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
-	github.com/ebitengine/purego v0.11.1 // indirect
+	github.com/ebitengine/purego v0.11.3 // indirect
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/google/uuid v1.6.0 // indirect

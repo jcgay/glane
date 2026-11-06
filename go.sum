@@ -4,6 +4,8 @@ github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de h1:FxWPpzIjnTlhP
 github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de/go.mod h1:DCaWoUhZrYW9p1lxo/cm8EmUOOzAPSEZNGF2DK1dJgw=
 github.com/crgimenes/glaze v0.0.81 h1:zvFxrQRar5p7Fv7E1LWfEMInLzxgEonST7ppuNVWlko=
 github.com/crgimenes/glaze v0.0.81/go.mod h1:6entg9bLZvTDjEuVBX/tO2c4I1HlMPuerkpnVwIVFZo=
+github.com/crgimenes/glaze v0.0.83 h1:zX1XlyEEce6DQ8vJc8jABcAUamOOhPYVeY7/XTQtC18=
+github.com/crgimenes/glaze v0.0.83/go.mod h1:41rd4sKUekbjd2w9vUSKO4JBf0WKdR1wd+gud5S/agk=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -11,6 +13,8 @@ github.com/dustin/go-humanize v1.1.0 h1:dbKTrvD0klcbBV/h4AWJdMuZogJACoMlvWIWZ5b2
 github.com/dustin/go-humanize v1.1.0/go.mod h1:hc1CvRkJMsgxqjmjMQF3QNRAZBwY8AXBAzKYoSX9sFI=
 github.com/ebitengine/purego v0.11.1 h1:2zpWRSQNVKN4eKsKO9eM1ILDgWfYMY9GwqRmK6XeQ/0=
 github.com/ebitengine/purego v0.11.1/go.mod h1:DCHPP08djqhNSoTfImcnHYQRZmd0qhakvrozqaEYhGQ=
+github.com/ebitengine/purego v0.11.3 h1:OB+JLpdm7ioymhyA+6s5kbb/uOuYycAgL8NNTFc5MLg=
+github.com/ebitengine/purego v0.11.3/go.mod h1:DCHPP08djqhNSoTfImcnHYQRZmd0qhakvrozqaEYhGQ=
 github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c h1:wpkoddUomPfHiOziHZixGO5ZBS73cKqVzZipfrLmO1w=
 github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c/go.mod h1:oVDCh3qjJMLVUSILBRwrm+Bc6RNXGZYtoh9xdvf1ffM=
 github.com/go-shiori/go-readability v0.0.0-20251205110129-5db1dc9836f0 h1:A3B75Yp163FAIf9nLlFMl4pwIj+T3uKxfI7mbvvY2Ls=
